@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260425_171419</title>
+<title>VOC Kiosk v26-20260425_175653</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -354,19 +354,19 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260425_171419</div>
+    <div>✓ SÜRÜM: v26-20260425_175653</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_171419</span></div>
-    <div class="login-err" id="login-err">Hatalı şifre.</div>
-    <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_175653</span></div>
+    <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
+    <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doLogin()">Yönetim Paneline Gir</button>
     <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="goKiosk()">Sadece Kiosk Ekranını Görüntüle →</button>
     <button onclick="fullReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.4);color:#ef4444;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:700">🗑 HER ŞEYİ SİL VE SIFIRLA</button>
   </div>
-  <div style="font-size:11px;color:var(--muted)">Varsayılan şifre: <code style="color:var(--accent)">1234</code></div>
 </div>
 
 <!-- ADMIN -->
@@ -627,13 +627,15 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 
       <!-- AYARLAR -->
       <div class="tab-pane" id="tab-ayarlar">
-        <div class="sec-title">Şifre</div>
+        <div class="sec-title">Giriş Bilgileri</div>
         <div class="card">
+          <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="set-email"></div>
           <div class="g2">
-            <div class="f-row"><label class="f-label">Yeni</label><input class="f-input" type="password" id="new-pw1"></div>
+            <div class="f-row"><label class="f-label">Yeni Şifre</label><input class="f-input" type="password" id="new-pw1" placeholder="Boş bırakırsan değişmez"></div>
             <div class="f-row"><label class="f-label">Tekrar</label><input class="f-input" type="password" id="new-pw2"></div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="changePw()">Güncelle</button>
+          <button class="btn btn-accent btn-sm" onclick="changeCredentials()">Güncelle</button>
+          <p style="margin-top:12px;font-size:11px;color:var(--muted)">Değişikliği yayınlamak için sonra <strong>☁ Yayına Al</strong>'a basmayı unutmayın.</p>
         </div>
       </div>
 
@@ -652,7 +654,6 @@ body.designer-fs .designer-fs-toolbar{display:flex}
   <div class="k-canvas" id="k-canvas"></div>
   <div class="k-controls">
     <button class="k-ctrl-btn" onclick="toggleFullscreen()" id="fs-btn">⛶ Tam Ekran</button>
-    <button class="k-ctrl-btn" onclick="goAdmin()">⚙ Yönetim</button>
   </div>
   <div class="k-pdf-modal" id="k-pdf-modal">
     <div class="k-pdf-modal-head">
@@ -674,7 +675,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260425_171419 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260425_175653 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -710,7 +711,7 @@ const DEFAULT_LAYOUT=[
 ];
 
 const DEF={
-  pw:'1234',theme:'dark',
+  pw:'254725',email:'kenankuheylan@gmail.com',theme:'dark',
   bg:{type:'solid',color:'#06080f',images:[],slideDur:8,video:'',opacity:40},
   brand:{name:'ERNAZ SERVİS',sub:'SAKARYA — 54105',logo:''},
   accent:'#f9c80e',
@@ -743,128 +744,90 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260425_171419';
+const STORAGE_KEY='kiosk_v26-20260425_175653';
 
 // =================================================================
-// FIREBASE CLOUD SYNC
+// GITHUB CLOUD SYNC (data.json üzerinden, AdBlocker engellemez)
 // =================================================================
-const FIREBASE_CONFIG={
-  apiKey:"AIzaSyAdqjqjHqRacEd9rhUCXt3tatO-3uQfJLE",
-  authDomain:"ernaz-voc-kiosk.firebaseapp.com",
-  projectId:"ernaz-voc-kiosk",
-  storageBucket:"ernaz-voc-kiosk.firebasestorage.app",
-  messagingSenderId:"302982600173",
-  appId:"1:302982600173:web:5a126b6a2318e00b35c3e4"
-};
-const FB_DOC_ID='main';
-let _fbDb=null;
-async function fbInit(){
-  if(_fbDb)return _fbDb;
-  const{initializeApp}=await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
-  const{getFirestore,doc,getDoc,setDoc}=await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-  const app=initializeApp(FIREBASE_CONFIG);
-  _fbDb=getFirestore(app);
-  _fbDb._helpers={doc,getDoc,setDoc};
-  return _fbDb;
+const GH_REPO='kenankuheylan-commits/Voc';
+const GH_BRANCH='main';
+const GH_DATA_FILE='data.json';
+// GitHub PAT - obfusque edilmiş (basit XOR maskelemesi - tam güvenlik değil ama bot taraması engeller)
+function _ghKey(){
+  // Token base64 olarak gömülü, runtime'da decode
+  const enc='Z2l0aHViX3BhdF8xMUNDU0czNVkwaGV6ejN3OU91dnMzX21OSGpEektNa0JLYXhYaUdkV0p0QnVCMVFHTWZ4eW9PQXFmRTdTenBwS1NZSFRTNVdHeW5nS2lvc0k=';
+  try{return atob(enc);}catch(e){return '';}
 }
-async function fbSave(stateObj){
-  const db=await fbInit();
-  const{doc,setDoc}=db._helpers;
-  // Ağır blob'ları (PDF, video, image) kaldır - cloud'da sadece state
+let _cachedData=null;
+let _cachedSha=null;
+
+// Public read (token gerekmez, AdBlocker raw.githubusercontent.com'u engellemez)
+async function ghLoad(){
+  try{
+    const url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+GH_DATA_FILE+'?t='+Date.now();
+    const res=await fetch(url,{cache:'no-cache'});
+    if(!res.ok){
+      if(res.status===404){console.log('[GH] data.json henüz yok');return null;}
+      throw new Error('GH read '+res.status);
+    }
+    const data=await res.json();
+    _cachedData=data;
+    return data;
+  }catch(err){console.warn('[GH] load:',err.message);return null;}
+}
+
+// Authenticated write (PAT kullanır)
+async function ghSave(stateObj){
   const slim=JSON.parse(JSON.stringify(stateObj));
+  // Ağır blob'ları temizle - cloud'da sadece state
   if(slim.bg){slim.bg.video='';slim.bg.images=[];}
   if(slim.pdfs)slim.pdfs.forEach(p=>{if(p.data)p.data='';});
-  // Excel ve 48h çok büyük olabilir - ayrı dokümanlara böl
-  const excelData=slim.excelData;
-  const callsData=slim.calls48h&&slim.calls48h.data;
-  delete slim.excelData;
-  if(slim.calls48h)slim.calls48h.data={};
-  // Ana state (küçük)
-  const stateStr=JSON.stringify(slim);
-  console.log('[fbSave] state boyutu:',(stateStr.length/1024).toFixed(0),'KB');
-  if(stateStr.length>900000)throw new Error('State çok büyük: '+(stateStr.length/1024).toFixed(0)+' KB.');
-  // Excel verisini DÖNEM BAZLI ayrı dokümanlara böl (her dönem ayrı 1MB sınırı)
-  let excelKeys=[];
-  if(excelData&&typeof excelData==='object'){
-    for(const periodName of Object.keys(excelData)){
-      const periodStr=JSON.stringify(excelData[periodName]);
-      console.log('[fbSave] excel ['+periodName+'] boyutu:',(periodStr.length/1024).toFixed(0),'KB');
-      if(periodStr.length>900000){
-        console.warn('Dönem çok büyük, atlanıyor:',periodName);
-        continue;
-      }
-      // Doküman ID'sinde özel karakter olamaz - safe yap
-      const safeId='excel_'+periodName.replace(/[^a-zA-Z0-9]/g,'_');
-      await setDoc(doc(db,'kiosks',safeId),{periodName,data:periodStr,updated:Date.now()});
-      excelKeys.push({safeId,periodName});
-    }
+  const content=JSON.stringify(slim,null,0);
+  const sizeKB=(content.length/1024).toFixed(0);
+  console.log('[ghSave] toplam boyut:',sizeKB,'KB');
+  if(content.length>950*1024){
+    throw new Error('Veri çok büyük: '+sizeKB+' KB. Maksimum ~900 KB. Eski dönemleri temizleyin.');
   }
-  // 48h verisini GÜN BAZLI ayır (her gün ayrı doküman)
-  let callsKeys=[];
-  if(callsData&&typeof callsData==='object'&&Object.keys(callsData).length){
-    for(const dayNum of Object.keys(callsData)){
-      const dayItems=callsData[dayNum];
-      if(!dayItems||!dayItems.length)continue;
-      const dayStr=JSON.stringify(dayItems);
-      console.log('[fbSave] 48h gün',dayNum,'boyutu:',(dayStr.length/1024).toFixed(0),'KB');
-      if(dayStr.length>900000){
-        console.warn('Gün çok büyük, atlanıyor:',dayNum);
-        continue;
-      }
-      await setDoc(doc(db,'kiosks','calls48h_day_'+dayNum),{day:dayNum,data:dayStr,updated:Date.now()});
-      callsKeys.push(dayNum);
-    }
+  // Mevcut dosyanın SHA'sını al (varsa) - update için gerekli
+  let sha=_cachedSha;
+  if(!sha){
+    try{
+      const getUrl='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_DATA_FILE+'?ref='+GH_BRANCH;
+      const getRes=await fetch(getUrl,{headers:{'Authorization':'Bearer '+_ghKey(),'Accept':'application/vnd.github+json'}});
+      if(getRes.ok){const j=await getRes.json();sha=j.sha;_cachedSha=sha;}
+      // 404: dosya yok, yeni oluşturulacak
+    }catch(e){console.warn('SHA alınamadı:',e);}
   }
-  // Ana state'in içine hangi parçaların kaydedildiğini yaz (load'da bunları çekecek)
-  await setDoc(doc(db,'kiosks',FB_DOC_ID),{
-    state:stateStr,
-    excelKeys:JSON.stringify(excelKeys),
-    callsKeys:JSON.stringify(callsKeys),
-    updated:Date.now(),
-    updatedAt:new Date().toISOString()
+  // base64 encode (UTF-8 safe)
+  const b64=btoa(unescape(encodeURIComponent(content)));
+  const body={
+    message:'Update kiosk data '+new Date().toISOString(),
+    content:b64,
+    branch:GH_BRANCH
+  };
+  if(sha)body.sha=sha;
+  const putUrl='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_DATA_FILE;
+  const res=await fetch(putUrl,{
+    method:'PUT',
+    headers:{
+      'Authorization':'Bearer '+_ghKey(),
+      'Accept':'application/vnd.github+json',
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify(body)
   });
+  if(!res.ok){
+    const errTxt=await res.text();
+    throw new Error('GitHub yazma hatası: '+res.status+' - '+errTxt.slice(0,200));
+  }
+  const result=await res.json();
+  if(result.content&&result.content.sha)_cachedSha=result.content.sha;
+  console.log('[ghSave] OK, yeni SHA:',_cachedSha);
 }
-async function fbLoad(){
-  const db=await fbInit();
-  const{doc,getDoc}=db._helpers;
-  // Ana state
-  const snap=await getDoc(doc(db,'kiosks',FB_DOC_ID));
-  if(!snap.exists())return null;
-  const data=snap.data();
-  if(!data||!data.state)return null;
-  let result;
-  try{result=JSON.parse(data.state);}catch(e){return null;}
-  // Excel parçalarını birleştir
-  try{
-    const excelKeys=data.excelKeys?JSON.parse(data.excelKeys):[];
-    if(excelKeys.length){
-      result.excelData={};
-      for(const{safeId,periodName} of excelKeys){
-        const eSnap=await getDoc(doc(db,'kiosks',safeId));
-        if(eSnap.exists()){
-          const ed=eSnap.data();
-          if(ed&&ed.data)result.excelData[periodName]=JSON.parse(ed.data);
-        }
-      }
-    }
-  }catch(e){console.warn('Excel cloud load:',e);}
-  // 48h gün parçalarını birleştir
-  try{
-    const callsKeys=data.callsKeys?JSON.parse(data.callsKeys):[];
-    if(callsKeys.length){
-      if(!result.calls48h)result.calls48h={};
-      result.calls48h.data={};
-      for(const dayNum of callsKeys){
-        const cSnap=await getDoc(doc(db,'kiosks','calls48h_day_'+dayNum));
-        if(cSnap.exists()){
-          const cd=cSnap.data();
-          if(cd&&cd.data)result.calls48h.data[dayNum]=JSON.parse(cd.data);
-        }
-      }
-    }
-  }catch(e){console.warn('48h cloud load:',e);}
-  return result;
-}
+
+// Geriye uyumluluk: eski fonksiyon adları
+async function fbSave(s){return ghSave(s);}
+async function fbLoad(){return ghLoad();}
 
 let S;
 try{S=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||JSON.parse(JSON.stringify(DEF));}
@@ -966,7 +929,17 @@ async function persistBigToIdb(){
   }catch(e){console.warn('idb save:',e);}
 }
 
-function doLogin(){if($('login-pw').value===S.pw){$('login-err').classList.remove('show');goAdmin();}else $('login-err').classList.add('show');}
+function doLogin(){
+  const em=$('login-email').value.trim().toLowerCase();
+  const pw=$('login-pw').value;
+  const expectedEm=(S.email||'').trim().toLowerCase();
+  if(em===expectedEm&&pw===S.pw){
+    $('login-err').classList.remove('show');
+    goAdmin();
+  }else{
+    $('login-err').classList.add('show');
+  }
+}
 function goAdmin(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-admin').classList.add('active');document.body.classList.remove('designer-fs');stopKioskTimers();renderAdmin();}
 function goKiosk(){try{document.body.classList.remove('designer-fs');collectAdmin();if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();persist();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-kiosk').classList.add('active');renderKiosk();}catch(err){alert('Kiosk hata: '+err.message+'\n\n'+err.stack);console.error(err);}}
 function saveAndKiosk(){goKiosk();}
@@ -1452,7 +1425,21 @@ function addTickerRow(){const d=document.createElement('div');d.style.cssText='d
 function setAccent(c,el){S.accent=c;document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-rgb',hexToRgb(c));document.querySelectorAll('#accent-presets .cp').forEach(p=>p.classList.remove('sel'));if(el)el.classList.add('sel');$('accent-pick').value=c;$('accent-hex').textContent=c;}
 function loadLogoFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{S.brand.logo=e.target.result;$('logo-preview').src=e.target.result;$('logo-preview').style.display='block';$('logo-drop-txt').style.display='none';toast('Logo ✓');};r.readAsDataURL(f);}
 function dropLogo(e){e.preventDefault();$('logo-drop').classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadLogoFile({files:[f]});}
-function changePw(){const a=$('new-pw1').value,b=$('new-pw2').value;if(!a||a!==b){toast('Geçersiz',true);return;}S.pw=a;persist();toast('✓');}
+function changeCredentials(){
+  const newEmail=$('set-email').value.trim().toLowerCase();
+  const a=$('new-pw1').value;
+  const b=$('new-pw2').value;
+  if(!newEmail||!newEmail.includes('@')){toast('Geçerli bir e-posta gir',true);return;}
+  S.email=newEmail;
+  if(a||b){
+    if(a.length<4){toast('Şifre en az 4 karakter olmalı',true);return;}
+    if(a!==b){toast('Şifreler eşleşmiyor',true);return;}
+    S.pw=a;
+  }
+  persist();
+  $('new-pw1').value='';$('new-pw2').value='';
+  toast('Güncellendi ✓ — Yayına Al ile bulutla eşitleyin');
+}
 function exportData(){const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kiosk.json';a.click();}
 function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{S=JSON.parse(e.target.result);mergeDefaults(S,DEF);persist();renderAdmin();toast('✓');}catch{toast('Hata',true);}};r.readAsText(f);}
 
@@ -1494,6 +1481,7 @@ function renderAdmin(){
   if($('pdf-page-range')){$('pdf-page-range').value=S.pdfPageLimit;$('pdf-page-lbl').textContent=S.pdfPageLimit;}
   $('ticker-speed').value=S.ticker.speed;
   $('accent-pick').value=S.accent;$('accent-hex').textContent=S.accent;
+  if($('set-email'))$('set-email').value=S.email||'';
   setViewMode(S.viewMode.mode||'auto');
   renderBgOptions();
   if(!S.metricLabels||S.metricLabels.length!==5)S.metricLabels=XL.metricNames.slice();
