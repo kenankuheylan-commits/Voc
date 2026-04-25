@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOC Kiosk v26-20260425_162526</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --accent:#f9c80e;--accent-rgb:249,200,14;
+  --kiosk-bg:#06080f;--kiosk-bg-rgb:6,8,15;
+  --bg:#0a0e1a;--bg2:#12182a;--bg3:#1a2138;
+  --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.18);
+  --text:rgba(255,255,255,0.96);--muted:rgba(255,255,255,0.5);
+  --card:rgba(255,255,255,0.04);
+}
+[data-theme="light"]{--bg:#f8fafc;--bg2:#fff;--bg3:#f1f5f9;--border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.16);--text:#0f172a;--muted:#64748b;--card:#fff}
+[data-theme="light"] #s-kiosk{--text:#0f172a;--muted:#475569;--card:rgba(255,255,255,0.85);--border:rgba(15,23,42,0.12);--border-strong:rgba(15,23,42,0.28)}
+html,body{height:100%}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;letter-spacing:-0.01em}
+.screen{display:none;width:100vw;height:100vh}
+.screen.active{display:flex}
+
+/* ======== LOGIN ======== */
+#s-login{align-items:center;justify-content:center;flex-direction:column;gap:20px;background:radial-gradient(ellipse at 50% 40%,rgba(var(--accent-rgb),0.08),var(--bg) 70%)}
+.login-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:40px;width:380px}
+.login-logo{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:800;color:var(--accent);margin-bottom:6px}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.login-err{display:none;background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.3);color:#ff5252;padding:10px;border-radius:10px;margin-bottom:14px;font-size:13px}
+.login-err.show{display:block}
+.f-label{font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:8px}
+.f-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:14px;padding:12px 14px;outline:none;transition:.2s}
+.f-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.1)}
+.btn{padding:11px 20px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid;transition:all .2s;font-family:inherit}
+.btn-accent{background:var(--accent);color:#000;border-color:var(--accent)}
+[data-theme="light"] .btn-accent{color:#fff}
+.btn-accent:hover{transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text);border-color:var(--border-strong)}
+.btn-ghost:hover{background:var(--card)}
+.btn-red{background:transparent;color:#ff5252;border-color:rgba(255,82,82,0.3)}
+.btn-red:hover{background:rgba(255,82,82,0.1)}
+.btn-sm{padding:8px 14px;font-size:12px}
+.btn-xs{padding:4px 10px;font-size:11px;border-radius:6px}
+select.f-input option{background:var(--bg2);color:var(--text)}
+
+/* ======== ADMIN ======== */
+#s-admin{flex-direction:row;overflow:hidden;background:var(--bg)}
+.adm-nav{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.adm-nav-logo{padding:20px 22px;border-bottom:1px solid var(--border)}
+.adm-nav-logo span{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:800;color:var(--accent)}
+.adm-nav-items{flex:1;padding:8px 0;overflow-y:auto}
+.adm-nav-item{display:flex;align-items:center;gap:10px;padding:11px 22px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:.15s;position:relative}
+.adm-nav-item:hover{color:var(--text);background:var(--card)}
+.adm-nav-item.active{color:var(--accent);background:rgba(var(--accent-rgb),0.08)}
+.adm-nav-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+.adm-nav-icon{font-size:15px;width:18px;text-align:center}
+.adm-nav-bottom{padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.adm-main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.adm-topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:10}
+.adm-page-title{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700}
+.adm-content{padding:24px 28px;flex:1;max-width:100%}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.sec-title{font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.sec-gap{margin-top:28px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.f-row{margin-bottom:14px}
+.f-hint{font-size:11px;color:var(--muted);margin-top:6px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:48px;height:36px;padding:2px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:transparent}
+.tog{position:relative;width:44px;height:24px;background:var(--bg3);border-radius:12px;cursor:pointer;transition:.3s;border:1px solid var(--border);flex-shrink:0}
+.tog.on{background:var(--accent);border-color:var(--accent)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text);transition:.3s}
+.tog.on::after{left:22px;background:#fff}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-label{font-size:14px;font-weight:500}
+.set-sub{font-size:12px;color:var(--muted);margin-top:3px}
+
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10px;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--bg3);font-weight:600}
+.tbl td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td .f-input{padding:6px 10px;font-size:13px}
+.tbl td input[type=number]{width:60px}
+
+.excel-big-drop{border:3px dashed var(--accent);border-radius:14px;padding:36px 22px;text-align:center;cursor:pointer;background:rgba(var(--accent-rgb),0.05);margin-bottom:12px;transition:.25s}
+.excel-big-drop:hover,.excel-big-drop.drag{background:rgba(var(--accent-rgb),0.12)}
+.excel-big-drop-icon{font-size:42px;margin-bottom:10px}
+.excel-big-drop-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.excel-big-drop-sub{font-size:13px}
+.excel-big-drop-hint{font-size:11px;color:var(--muted);margin-top:12px}
+.excel-status{padding:12px 16px;border-radius:10px;background:rgba(78,205,196,0.1);border:1px solid rgba(78,205,196,0.3);color:#4ecdc4;font-size:13px;margin-bottom:12px;display:none;line-height:1.6}
+.excel-status.show{display:block}
+.excel-status.err{background:rgba(255,82,82,0.1);border-color:rgba(255,82,82,0.3);color:#ff5252}
+
+.file-drop{border:2px dashed var(--border-strong);border-radius:8px;padding:12px;text-align:center;cursor:pointer;font-size:12px;color:var(--muted);margin-top:8px;background:var(--bg2);transition:.2s}
+.file-drop:hover,.file-drop.drag{border-color:var(--accent);color:var(--accent)}
+
+.vmb{padding:10px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text);transition:.2s;font-family:inherit}
+.vmb:hover{border-color:var(--border-strong)}
+.vmb.active{background:var(--accent);color:#000;border-color:var(--accent)}
+[data-theme="light"] .vmb.active{color:#fff}
+.view-mode-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);background:#1e5f3a;border:1px solid rgba(78,205,196,.5);color:#6ef0d4;padding:11px 22px;border-radius:10px;font-size:13px;z-index:99999;transition:.3s;pointer-events:none;font-weight:500}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{background:#5f1e1e;border-color:rgba(255,82,82,.5);color:#ff8080}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
+
+.pdf-row{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.pdf-row-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pdf-num{min-width:26px;height:26px;border-radius:6px;background:rgba(var(--accent-rgb),0.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent)}
+.pdf-drop-zone{border:2px dashed var(--border-strong);border-radius:8px;padding:12px;text-align:center;cursor:pointer;font-size:12px;color:var(--muted);background:var(--bg2);transition:.2s}
+.pdf-drop-zone:hover,.pdf-drop-zone.drag{border-color:var(--accent);color:var(--accent)}
+.pdf-drop-zone.has-file{border-color:#4ecdc4;color:#4ecdc4}
+
+.color-presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.cp{width:30px;height:30px;border-radius:7px;cursor:pointer;border:2px solid transparent;transition:.2s}
+.cp:hover{transform:scale(1.08)}
+.cp.sel{border-color:var(--text);transform:scale(1.1)}
+
+.av-wrap{width:38px;height:38px;border-radius:50%;border:2px dashed var(--border-strong);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;background:var(--bg3)}
+.av-wrap img{width:100%;height:100%;object-fit:cover}
+
+/* ============ DESIGNER / CANVAS ============ */
+.designer-wrap{display:grid;grid-template-columns:170px 1fr 200px;gap:8px;height:calc(100vh - 24px);min-height:400px}
+@media (max-width:1400px){.designer-wrap{grid-template-columns:150px 1fr 180px;gap:6px}}
+@media (max-width:1200px){.designer-wrap{grid-template-columns:140px 1fr 170px;gap:4px}}
+body.designer-fs .adm-content{padding:4px!important}
+body.designer-fs .presets-bar{margin:0 0 4px 0;padding:0}
+body.designer-fs .designer-canvas-wrap{padding:4px}
+body.designer-fs .designer-sidebar,body.designer-fs .designer-props{padding:8px}
+body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
+.designer-sidebar{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;overflow-y:auto}
+.designer-sidebar h3{font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-weight:700}
+.widget-palette{display:flex;flex-direction:column;gap:6px}
+.widget-btn{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 9px;cursor:grab;display:flex;align-items:center;gap:8px;font-size:11px;transition:.15s;user-select:none}
+.widget-btn:hover{border-color:var(--accent);background:rgba(var(--accent-rgb),0.05);transform:translateY(-1px)}
+.widget-btn:active{cursor:grabbing}
+.widget-btn-ico{width:24px;height:24px;border-radius:5px;background:rgba(var(--accent-rgb),0.15);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.widget-btn-name{font-weight:500}
+.widget-btn-desc{font-size:10px;color:var(--muted);margin-top:2px}
+
+.designer-canvas-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px;display:flex;flex-direction:column;overflow:hidden}
+.canvas-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.canvas-toolbar-info{flex:1;font-size:12px;color:var(--muted)}
+.designer-canvas-scaler{flex:1;display:flex;align-items:flex-start;justify-content:flex-start;overflow:hidden;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.02) 0,rgba(255,255,255,0.02) 10px,transparent 10px,transparent 20px);border:1px solid var(--border);border-radius:6px;min-height:400px;padding:4px;position:relative}
+.designer-canvas{position:relative;background:var(--kiosk-bg,#06080f);border-radius:6px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.4);cursor:default}
+.designer-canvas-grid{position:absolute;inset:0;pointer-events:none;opacity:.15;z-index:1}
+.designer-canvas-grid-cell{position:absolute;border:1px dashed rgba(255,255,255,0.3)}
+
+.canvas-widget{position:absolute;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.15);border-radius:8px;overflow:hidden;transition:box-shadow .15s;backdrop-filter:blur(8px);z-index:10;display:flex;flex-direction:column;min-width:40px;min-height:30px}
+.canvas-widget.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(var(--accent-rgb),.35),0 6px 20px rgba(var(--accent-rgb),.25);z-index:100}
+.canvas-widget .cw-move{position:absolute;top:0;left:0;right:0;height:100%;cursor:move;z-index:1;display:none}
+.canvas-widget.designer-mode .cw-move{display:block}
+.canvas-widget-content{position:absolute;inset:0;z-index:2;pointer-events:none}
+.canvas-widget.selected .canvas-widget-content{pointer-events:auto}
+.canvas-widget .resize-handle{position:absolute;width:10px;height:10px;background:var(--accent);border:2px solid #000;border-radius:50%;z-index:5;display:none}
+.canvas-widget.selected .resize-handle{display:block}
+.canvas-widget .rh-se{right:-5px;bottom:-5px;cursor:se-resize}
+.canvas-widget .rh-ne{right:-5px;top:-5px;cursor:ne-resize}
+.canvas-widget .rh-sw{left:-5px;bottom:-5px;cursor:sw-resize}
+.canvas-widget .rh-nw{left:-5px;top:-5px;cursor:nw-resize}
+.canvas-widget .cw-del{position:absolute;top:4px;right:4px;background:rgba(239,68,68,0.9);color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:12px;z-index:6;display:none;font-weight:700}
+.canvas-widget.selected .cw-del{display:block}
+
+.designer-props{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px;overflow-y:auto}
+.designer-props h3{font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;font-weight:700}
+.prop-row{margin-bottom:12px}
+.prop-row label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.prop-row input,.prop-row select{width:100%;padding:7px 10px;font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit}
+.prop-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.prop-empty{color:var(--muted);font-size:12px;text-align:center;padding:20px 0;font-style:italic}
+.presets-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.preset-chip{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text)}
+.preset-chip:hover{border-color:var(--accent)}
+.preset-chip.active{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* ============ KIOSK SCREEN ============ */
+#s-kiosk{flex-direction:column;background:var(--kiosk-bg);position:relative;overflow:hidden}
+.k-bg-layer{position:absolute;inset:0;z-index:0;overflow:hidden}
+.k-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:var(--bg-opacity,0.35)}
+.k-bg-gradient{position:absolute;inset:0}
+.k-bg-slideshow{position:absolute;inset:0}
+.k-bg-slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 2s ease-in-out}
+.k-bg-slide.on{opacity:var(--bg-opacity,0.4)}
+.k-bg-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(var(--kiosk-bg-rgb),0.55) 0%,rgba(var(--kiosk-bg-rgb),0.85) 100%);pointer-events:none}
+.k-canvas{position:absolute;inset:0;z-index:1}
+
+.k-widget{position:absolute;overflow:hidden;display:flex;flex-direction:column}
+
+/* Widget iç stilleri */
+.w-voc{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;text-align:center;gap:4px}
+.w-voc-lbl{font-size:clamp(10px,1.2cqw,14px);letter-spacing:.12em;color:var(--muted);text-transform:uppercase;font-weight:700}
+.w-voc-val{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,7cqw,80px);font-weight:800;color:var(--accent);line-height:1;letter-spacing:-0.02em;text-shadow:0 2px 10px rgba(var(--accent-rgb),.25)}
+.w-voc-sub{font-size:clamp(9px,1cqw,12px);color:var(--muted);margin-top:4px}
+
+.w-logo{display:flex;align-items:center;padding:12px;gap:12px;height:100%}
+.w-logo-box{width:clamp(44px,8cqw,80px);height:clamp(44px,8cqw,80px);border-radius:10px;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.w-logo-box.has-image{background:transparent!important}
+.w-logo-box:not(.has-image){background:linear-gradient(135deg,var(--accent),#ff6b35);box-shadow:0 6px 20px rgba(var(--accent-rgb),0.3)}
+.w-logo-box:not(.has-image) span{font-family:'Space Grotesk',sans-serif;font-size:clamp(20px,3.5cqw,36px);font-weight:800;color:#000}
+.w-logo-box img{width:100%;height:100%;object-fit:contain}
+.w-logo-text{flex:1;min-width:0}
+.w-logo-name{font-family:'Space Grotesk',sans-serif;font-size:clamp(16px,2.4cqw,32px);font-weight:800;color:var(--text);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-logo-sub{font-size:clamp(10px,1.1cqw,14px);color:var(--muted);margin-top:3px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-logo-badge{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:3px 10px;background:rgba(var(--accent-rgb),0.12);border:1px solid rgba(var(--accent-rgb),0.3);color:var(--accent);border-radius:999px;font-size:clamp(9px,1cqw,12px);font-weight:600;width:fit-content;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-logo-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+.w-clock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;text-align:center;gap:2px}
+.w-clock-date{font-size:clamp(10px,1.2cqw,15px);color:var(--muted);font-weight:500}
+.w-clock-time{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,5cqw,56px);font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+
+.w-rings{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:8px;height:100%}
+.w-ring-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;overflow:hidden;min-width:0}
+.w-ring-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ring-color)}
+.w-ring-svg{width:100%;max-width:130px;aspect-ratio:1/1;min-width:0}
+.w-ring-lbl{font-size:clamp(8px,.9cqw,11px);color:var(--text);text-align:center;line-height:1.1;font-weight:500;word-break:break-word}
+
+.w-dan{display:flex;flex-direction:column;height:100%;padding:8px;gap:6px}
+.w-dan-title{font-size:clamp(9px,1cqw,12px);letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700;flex-shrink:0}
+.w-dan-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;overflow-y:auto;flex:1;min-height:0;padding-right:4px;align-content:start}
+.w-dan-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+.w-dan-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;border:2px solid var(--dan-color);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;overflow:hidden;background:var(--bg3);color:var(--dan-color)}
+.w-dan-av img{width:100%;height:100%;object-fit:cover}
+.w-dan-info{flex:1;min-width:0}
+.w-dan-name{font-size:clamp(10px,1.1cqw,14px);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-dan-score{font-size:clamp(9px,.9cqw,12px);color:var(--muted);margin-top:2px}
+.w-dan-score strong{color:var(--dan-color);font-weight:700}
+.w-dan-bar-bg{height:3px;background:var(--bg3);border-radius:2px;margin-top:4px;overflow:hidden}
+.w-dan-bar{height:100%;border-radius:2px;background:var(--dan-color);transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+
+.w-stats{padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.w-stats-title{font-size:clamp(9px,1cqw,12px);letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700;flex-shrink:0}
+.w-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-height:0}
+.w-stat{background:var(--bg3);border-radius:8px;padding:8px;border:1px solid var(--border);display:flex;flex-direction:column;justify-content:center}
+.w-stat-val{font-family:'Space Grotesk',sans-serif;font-size:clamp(16px,2.4cqw,32px);font-weight:800;color:var(--accent);line-height:1}
+.w-stat-lbl{font-size:clamp(8px,.8cqw,11px);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:4px;font-weight:600}
+
+.w-trend{padding:10px;display:flex;flex-direction:column;gap:6px;height:100%;overflow:hidden}
+.w-trend-title{font-size:clamp(9px,1cqw,12px);letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700;flex-shrink:0}
+.w-trend-chart{flex:1;display:flex;align-items:flex-end;gap:4px;min-height:0}
+.w-trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;justify-content:flex-end;min-width:0}
+.w-trend-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:height 1s}
+.w-trend-lbl{font-size:clamp(8px,.8cqw,11px);color:var(--muted);font-weight:600}
+
+.w-pdf{display:flex;flex-direction:column;height:100%;background:var(--card);border-radius:6px;overflow:hidden;cursor:pointer}
+.w-pdf-head{padding:6px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg2)}
+.w-pdf-title{font-size:clamp(9px,1cqw,12px);font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-pdf-badge{font-size:9px;color:var(--accent);padding:2px 6px;background:rgba(var(--accent-rgb),.15);border-radius:4px;font-weight:700;letter-spacing:.3px;flex-shrink:0}
+.w-pdf-content{flex:1;overflow:hidden;position:relative}
+.w-pdf-inner{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:5px;padding:5px}
+.w-pdf-page{width:100%;border-radius:4px;background:#fff;display:block;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+@keyframes pdfScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--pdf-end,-50%))}}
+
+.w-48h{display:flex;flex-direction:column;padding:10px;height:100%;overflow:hidden}
+.w-48h-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-shrink:0}
+.w-48h-ico{width:24px;height:24px;border-radius:5px;background:rgba(var(--accent-rgb),.15);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--accent);flex-shrink:0}
+.w-48h-title{font-size:clamp(9px,1cqw,12px);font-weight:700;letter-spacing:.05em;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-48h-date{font-size:clamp(8px,.85cqw,11px);color:var(--muted)}
+.w-48h-track{flex:1;overflow:hidden;position:relative;min-height:0}
+.w-48h-inner{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:5px}
+.w-48h-card{background:linear-gradient(90deg,var(--mood-bg,rgba(255,255,255,0.04)) 0%,var(--card) 60%);border:1px solid var(--border);border-left:4px solid var(--mood-color,var(--accent));border-radius:6px;padding:7px 10px;display:flex;flex-direction:column;gap:3px;flex-shrink:0;box-shadow:0 0 0 1px var(--mood-color,transparent),0 2px 8px rgba(0,0,0,0.15);position:relative;overflow:hidden}
+.w-48h-card::before{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--mood-color,var(--accent));box-shadow:0 0 8px var(--mood-color,var(--accent))}
+.w-48h-card-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.w-48h-who{font-size:clamp(9px,.95cqw,11px);font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-48h-mood{font-size:9px;font-weight:800;padding:2px 8px;border-radius:999px;color:#000;letter-spacing:.5px;flex-shrink:0;text-shadow:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.w-48h-txt{font-size:clamp(9px,.95cqw,11px);line-height:1.3;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.w-48h-meta{font-size:8px;color:var(--muted);opacity:.75}
+@keyframes calls48hScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--calls-end,-50%))}}
+
+.w-egitim{padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.w-egitim-title{font-size:clamp(9px,1cqw,12px);letter-spacing:.05em;color:var(--accent);font-weight:700;flex-shrink:0}
+.w-egitim-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;min-height:0}
+.w-egitim-row{display:flex;align-items:center;gap:8px;padding:4px 6px;background:var(--bg3);border-radius:6px}
+.w-egitim-ico{width:20px;height:20px;border-radius:4px;background:rgba(var(--accent-rgb),.15);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--accent);flex-shrink:0}
+.w-egitim-lbl{flex:1;font-size:clamp(9px,1cqw,12px);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-egitim-val{font-size:clamp(9px,1cqw,12px);font-weight:700;color:var(--accent)}
+
+/* Kiosk fullscreen PDF modal */
+.k-pdf-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1000;display:none;flex-direction:column;padding:40px;backdrop-filter:blur(10px)}
+.k-pdf-modal.open{display:flex}
+.k-pdf-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0}
+.k-pdf-modal-title{color:#fff;font-size:18px;font-weight:600}
+.k-pdf-modal-close{background:rgba(255,255,255,0.1);color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer}
+.k-pdf-modal-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);padding:20px;border-radius:12px}
+.k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
+
+.k-controls{position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:999}
+.k-ctrl-btn{background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:7px 12px;border-radius:7px;cursor:pointer;font-family:inherit;opacity:0.35;transition:.2s}
+.k-ctrl-btn:hover{color:var(--text);opacity:1}
+
+/* Container queries */
+.canvas-widget, .k-widget{container-type:inline-size}
+/* TICKER WIDGET */
+.w-ticker{display:flex;align-items:center;gap:14px;padding:0 14px;height:100%;background:inherit}
+.w-ticker-badge{background:var(--accent);color:#000;font-size:clamp(10px,0.95cqw,13px);font-weight:800;letter-spacing:0.1em;padding:5px 13px;border-radius:7px;text-transform:uppercase;display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap}
+[data-theme="light"] .w-ticker-badge{color:#fff}
+.w-ticker-dot{width:7px;height:7px;border-radius:50%;background:#ff3b3b;animation:tickerPulse 1.4s ease-in-out infinite}
+@keyframes tickerPulse{0%,100%{opacity:1}50%{opacity:.4}}
+.w-ticker-track{flex:1;overflow:hidden;display:flex;align-items:center;min-width:0}
+.w-ticker-inner{display:flex;white-space:nowrap;animation:tickerScroll 30s linear infinite;will-change:transform}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* DESIGNER FULLSCREEN MODE */
+body.designer-fs #s-admin .adm-nav{display:none}
+body.designer-fs #s-admin .adm-topbar{display:none}
+body.designer-fs #s-admin .adm-content{padding:0;max-width:100%}
+body.designer-fs #s-admin .adm-main{overflow:hidden}
+body.designer-fs .tab-pane:not(#tab-designer){display:none!important}
+body.designer-fs #tab-designer{display:block!important}
+
+/* Fullscreen'de wrap block, paneller overlay */
+body.designer-fs .designer-wrap{display:block;height:100vh;min-height:0;position:relative;padding:0;gap:0}
+body.designer-fs .designer-canvas-wrap{position:absolute;inset:0;padding:0;border-radius:0;border:none;background:transparent;z-index:1}
+body.designer-fs .designer-canvas-scaler{padding:0;border-radius:0;border:none;background:var(--bg)}
+body.designer-fs .canvas-toolbar{position:absolute;top:8px;left:8px;z-index:30;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:5px 8px;margin:0;box-shadow:0 4px 14px rgba(0,0,0,0.3)}
+body.designer-fs .canvas-toolbar-info{display:none}
+body.designer-fs .presets-bar{display:none}
+
+/* Sol widget kütüphanesi - sol kenarda overlay */
+body.designer-fs .designer-sidebar{position:absolute;top:56px;left:8px;width:180px;max-height:calc(100vh - 72px);z-index:20;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);background:var(--bg2);border:1px solid var(--border);padding:10px;transition:transform .25s}
+body.designer-fs.hide-left .designer-sidebar{transform:translateX(-110%)}
+
+/* Sağ özellikler paneli - sağ kenarda overlay */
+body.designer-fs .designer-props{position:absolute;top:56px;right:8px;width:220px;max-height:calc(100vh - 72px);z-index:20;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);background:var(--bg2);border:1px solid var(--border);padding:10px;transition:transform .25s}
+body.designer-fs.hide-right .designer-props{transform:translateX(110%)}
+
+/* Toggle butonları */
+.designer-fs-toolbar{display:none;position:fixed;top:8px;right:8px;z-index:100;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px;box-shadow:0 8px 30px rgba(0,0,0,0.4)}
+body.designer-fs .designer-fs-toolbar{display:flex}
+.designer-fs-toolbar .btn{padding:7px 14px;font-size:12px}
+/* 48h mood icon */
+.w-48h-mood-icon{font-size:clamp(12px,1.3cqw,18px);font-weight:900;flex-shrink:0;line-height:1}
+.w-48h-card[data-mood="kirmizi"]{border-left-width:5px;animation:moodPulseRed 2.5s ease-in-out infinite;background:linear-gradient(90deg,rgba(239,68,68,0.18) 0%,var(--card) 70%)}
+.w-48h-card[data-mood="yesil"]{background:linear-gradient(90deg,rgba(34,197,94,0.13) 0%,var(--card) 70%)}
+.w-48h-card[data-mood="turuncu"]{background:linear-gradient(90deg,rgba(245,158,11,0.15) 0%,var(--card) 70%)}
+@keyframes moodPulseRed{0%,100%{box-shadow:0 0 0 1px #ef4444,0 2px 8px rgba(0,0,0,0.15)}50%{box-shadow:0 0 0 2px #ef4444,0 4px 16px rgba(239,68,68,0.3)}}
+
+</style>
+</head>
+<body>
+<!-- LOGIN -->
+<div id="s-login" class="screen active">
+  <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
+    <div>✓ SÜRÜM: v26-20260425_162526</div>
+    <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
+  </div>
+  <div class="login-card" style="margin-top:50px">
+    <div class="login-logo">⬢ VOC Premium</div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_162526</span></div>
+    <div class="login-err" id="login-err">Hatalı şifre.</div>
+    <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doLogin()">Yönetim Paneline Gir</button>
+    <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="goKiosk()">Sadece Kiosk Ekranını Görüntüle →</button>
+    <button onclick="fullReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.4);color:#ef4444;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:700">🗑 HER ŞEYİ SİL VE SIFIRLA</button>
+  </div>
+  <div style="font-size:11px;color:var(--muted)">Varsayılan şifre: <code style="color:var(--accent)">1234</code></div>
+</div>
+
+<!-- ADMIN -->
+<div id="s-admin" class="screen">
+  <div class="adm-nav">
+    <div class="adm-nav-logo"><span>⬢ VOC Premium</span></div>
+    <div class="adm-nav-items">
+      <div class="adm-nav-item active" onclick="goTab('excel',this)"><span class="adm-nav-icon">📥</span>Excel</div>
+      <div class="adm-nav-item" onclick="goTab('designer',this)"><span class="adm-nav-icon">🎨</span>Tasarım</div>
+      <div class="adm-nav-item" onclick="goTab('goster',this)"><span class="adm-nav-icon">👁</span>Gösterim</div>
+      <div class="adm-nav-item" onclick="goTab('arkaplan',this)"><span class="adm-nav-icon">🎬</span>Arka Plan</div>
+      <div class="adm-nav-item" onclick="goTab('danismanlar',this)"><span class="adm-nav-icon">👤</span>Danışmanlar</div>
+      <div class="adm-nav-item" onclick="goTab('pdfler',this)"><span class="adm-nav-icon">📄</span>PDF</div>
+      <div class="adm-nav-item" onclick="goTab('calls48h',this)"><span class="adm-nav-icon">📞</span>48 Saat</div>
+      <div class="adm-nav-item" onclick="goTab('egitim',this)"><span class="adm-nav-icon">🎓</span>Eğitim</div>
+      <div class="adm-nav-item" onclick="goTab('metrikler',this)"><span class="adm-nav-icon">📊</span>Metrikler</div>
+      <div class="adm-nav-item" onclick="goTab('gorunum',this)"><span class="adm-nav-icon">🎨</span>Görünüm</div>
+      <div class="adm-nav-item" onclick="goTab('ticker',this)"><span class="adm-nav-icon">📢</span>Ticker</div>
+      <div class="adm-nav-item" onclick="goTab('ayarlar',this)"><span class="adm-nav-icon">⚙️</span>Ayarlar</div>
+    </div>
+    <div class="adm-nav-bottom">
+      <button class="btn btn-sm" onclick="publishToCloud()" id="publish-btn" style="background:linear-gradient(135deg,#22c55e,#4ecdc4);color:#000;font-weight:700;border:none">☁ Yayına Al</button>
+      <button class="btn btn-accent btn-sm" onclick="saveAndKiosk()">▶ Önizle</button>
+      <button class="btn btn-ghost btn-sm" onclick="saveAll()">💾 Yerel Kaydet</button>
+    </div>
+  </div>
+  <div class="adm-main">
+    <div class="adm-topbar">
+      <div class="adm-page-title" id="adm-page-title">Excel</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" id="theme-btn">☀️ Açık</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportData()">📤 Yedek</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('imp-file').click()">📥 Yükle</button>
+        <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importData(this)">
+      </div>
+    </div>
+    <div class="adm-content">
+
+      <!-- EXCEL -->
+      <div class="tab-pane active" id="tab-excel">
+        <div class="sec-title">VOC Excel Dosyası</div>
+        <div class="excel-big-drop" id="excel-drop" onclick="document.getElementById('excel-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleExcelDrop(event)">
+          <div class="excel-big-drop-icon">📊</div>
+          <div class="excel-big-drop-title">Excel'i Sürükle Bırak</div>
+          <div class="excel-big-drop-sub">veya tıklayarak seç — .xlsx / .xls</div>
+          <div class="excel-big-drop-hint">Tüm dönemler ve aylar otomatik yüklenir. Danışman konumları dinamik bulunur.</div>
+        </div>
+        <input type="file" id="excel-file" accept=".xlsx,.xls" style="display:none" onchange="handleExcelSelect(this)">
+        <div class="excel-status" id="excel-status"></div>
+        <div class="card">
+          <button class="btn btn-accent" id="parse-excel-btn" onclick="parseExcelFile()" disabled>Tüm Dönemleri İşle</button>
+          <p style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.6">Dosya işlendikten sonra <strong style="color:var(--accent)">Tasarım</strong> sekmesinden widget'ları ekle ve yerleştir.</p>
+        </div>
+      </div>
+
+      <!-- DESIGNER -->
+      <div class="tab-pane" id="tab-designer">
+        <div class="presets-bar" id="presets-bar"></div>
+        <div class="designer-wrap">
+          <div class="designer-sidebar">
+            <h3>Widget Ekle</h3>
+            <div class="widget-palette" id="widget-palette"></div>
+            <h3 style="margin-top:18px">Boş Şablonlar</h3>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="loadTemplate('default')">📋 Varsayılan</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadTemplate('pdf-focus')">📄 PDF Odaklı</button>
+              <button class="btn btn-ghost btn-sm" onclick="loadTemplate('minimal')">✨ Minimal</button>
+              <button class="btn btn-red btn-sm" onclick="clearCanvas()">🗑 Tümünü Sil</button>
+            </div>
+          </div>
+          <div class="designer-canvas-wrap">
+            <div class="canvas-toolbar">
+              <button class="btn btn-ghost btn-sm" onclick="toggleGrid()">⊞ Izgara</button>
+              <div class="canvas-toolbar-info">Sürükle: taşı · Köşe: boyutlandır · Delete: sil</div>
+            </div>
+            <div class="designer-canvas-scaler" id="canvas-scaler">
+              <div class="designer-canvas" id="designer-canvas"></div>
+            </div>
+          </div>
+          <div class="designer-props" id="designer-props">
+            <h3>Özellikler</h3>
+            <div class="prop-empty">Düzenlemek için bir widget seçin</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GÖSTERIM -->
+      <div class="tab-pane" id="tab-goster">
+        <div class="sec-title">Veri Dönemi</div>
+        <div class="card">
+          <div class="view-mode-buttons">
+            <button class="vmb active" id="vm-auto" onclick="setViewMode('auto')">🔄 Otomatik</button>
+            <button class="vmb" id="vm-period" onclick="setViewMode('period')">📅 Dönem Özeti</button>
+            <button class="vmb" id="vm-month" onclick="setViewMode('month')">📆 Belirli Ay</button>
+          </div>
+          <div id="view-mode-period-options" style="display:none"><label class="f-label">Dönem</label><select class="f-input" id="view-period-select"></select></div>
+          <div id="view-mode-month-options" style="display:none"><div class="g2"><div class="f-row"><label class="f-label">Dönem</label><select class="f-input" id="view-period-select-2"></select></div><div class="f-row"><label class="f-label">Ay</label><select class="f-input" id="view-month-select"></select></div></div></div>
+          <div style="margin-top:14px;padding:14px;background:var(--bg3);border-radius:10px;font-size:13px">
+            <strong style="color:var(--accent)" id="info-showing">—</strong>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px" id="info-today">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARKA PLAN -->
+      <div class="tab-pane" id="tab-arkaplan">
+        <div class="sec-title">Arka Plan Tipi</div>
+        <div class="card">
+          <div class="view-mode-buttons">
+            <button class="vmb active" id="bg-solid" onclick="setBgType('solid')">🎨 Renk</button>
+            <button class="vmb" id="bg-image" onclick="setBgType('image')">🖼️ Resim</button>
+            <button class="vmb" id="bg-video" onclick="setBgType('video')">🎬 Video</button>
+          </div>
+          <div id="bg-solid-opts">
+            <div class="color-presets" id="kiosk-bg-presets">
+              <div class="cp sel" style="background:#06080f" onclick="setKioskBg('#06080f',this)"></div>
+              <div class="cp" style="background:#000" onclick="setKioskBg('#000',this)"></div>
+              <div class="cp" style="background:#0a0e1a" onclick="setKioskBg('#0a0e1a',this)"></div>
+              <div class="cp" style="background:#0c1a0c" onclick="setKioskBg('#0c1a0c',this)"></div>
+              <div class="cp" style="background:#1a0c14" onclick="setKioskBg('#1a0c14',this)"></div>
+              <div class="cp" style="background:#1a1a2e" onclick="setKioskBg('#1a1a2e',this)"></div>
+              <div class="cp" style="background:#fff;border:1px solid #ccc" onclick="setKioskBg('#ffffff',this)"></div>
+              <div class="cp" style="background:#f5f7fa;border:1px solid #ccc" onclick="setKioskBg('#f5f7fa',this)"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="color" id="kiosk-bg-pick" onchange="setKioskBg(this.value,null)"><span style="font-size:12px;color:var(--accent);font-weight:700" id="kiosk-bg-hex">#06080f</span></div>
+          </div>
+          <div id="bg-image-opts" style="display:none">
+            <div id="bg-image-list"></div>
+            <div class="file-drop" onclick="document.getElementById('bg-image-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropBgImage(event)">🖼️ Resim Sürükle / Tıkla</div>
+            <input type="file" id="bg-image-file" accept="image/*" multiple style="display:none" onchange="loadBgImages(this)">
+            <div class="f-row" style="margin-top:14px"><label class="f-label">Slayt süresi: <span id="bg-slide-dur-lbl" style="color:var(--accent);font-weight:700">8</span>s</label><input type="range" min="3" max="30" value="8" id="bg-slide-dur-range" oninput="document.getElementById('bg-slide-dur-lbl').textContent=this.value"></div>
+          </div>
+          <div id="bg-video-opts" style="display:none">
+            <div id="bg-video-status" style="display:none"></div>
+            <div class="file-drop" onclick="document.getElementById('bg-video-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropBgVideo(event)">🎬 Video Sürükle / Tıkla</div>
+            <input type="file" id="bg-video-file" accept="video/*" style="display:none" onchange="loadBgVideo(this)">
+            <button class="btn btn-red btn-sm" style="margin-top:10px" onclick="clearBgVideo()">Kaldır</button>
+          </div>
+          <div class="f-row" style="margin-top:18px"><label class="f-label">Opaklık: <span id="bg-opacity-lbl" style="color:var(--accent);font-weight:700">40</span>%</label><input type="range" min="5" max="100" value="40" id="bg-opacity-range" oninput="document.getElementById('bg-opacity-lbl').textContent=this.value"></div>
+        </div>
+      </div>
+
+      <!-- DANIŞMANLAR -->
+      <div class="tab-pane" id="tab-danismanlar">
+        <div class="sec-title">Danışmanlar</div>
+        <div class="card" style="overflow-x:auto;padding:0">
+          <table class="tbl">
+            <thead><tr><th>Foto</th><th>Ad</th><th>VOC</th><th>Genel</th><th>Deney</th><th>Değer</th><th>Kalite</th><th>Para</th><th>Anket</th><th>Renk</th><th></th></tr></thead>
+            <tbody id="dan-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PDF -->
+      <div class="tab-pane" id="tab-pdfler">
+        <div class="sec-title">PDF Dosyaları</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">PDF'leri yükle, PDF widget'ında dikey kayan şekilde görünürler.</p>
+        <div id="pdf-list"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addPdf()">+ PDF Ekle</button>
+        <div class="card" style="margin-top:14px">
+          <label class="f-label">Kaydırma hızı: <span id="pdf-scroll-lbl" style="color:var(--accent);font-weight:700">25</span>s</label>
+          <input type="range" min="10" max="90" value="25" id="pdf-scroll-range" oninput="document.getElementById('pdf-scroll-lbl').textContent=this.value">
+        </div>
+        <div class="card">
+          <label class="f-label">PDF başına sayfa: <span id="pdf-page-lbl" style="color:var(--accent);font-weight:700">3</span></label>
+          <input type="range" min="1" max="10" value="3" id="pdf-page-range" oninput="document.getElementById('pdf-page-lbl').textContent=this.value">
+        </div>
+      </div>
+
+      <!-- 48 SAAT -->
+      <div class="tab-pane" id="tab-calls48h">
+        <div class="sec-title">48 Saat Aramaları Excel</div>
+        <div class="excel-big-drop" id="call48h-drop" onclick="document.getElementById('call48h-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleCall48hDrop(event)">
+          <div class="excel-big-drop-icon">📞</div>
+          <div class="excel-big-drop-title">48 Saat Excel'i Sürükle</div>
+          <div class="excel-big-drop-sub">Sayfa adları gün numarası olmalı (1, 2, 3...)</div>
+          <div class="excel-big-drop-hint">Kırmızı hücre=olumsuz, yeşil=olumlu, turuncu=uyarı</div>
+        </div>
+        <input type="file" id="call48h-file" accept=".xlsx,.xls" style="display:none" onchange="handleCall48hSelect(this)">
+        <div class="excel-status" id="call48h-status"></div>
+        <div class="card">
+          <div class="g3">
+            <div class="f-row"><label class="f-label">Ay</label><select class="f-input" id="call48h-month"><option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option><option value="4">Nisan</option><option value="5">Mayıs</option><option value="6">Haziran</option><option value="7">Temmuz</option><option value="8">Ağustos</option><option value="9">Eylül</option><option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option></select></div>
+            <div class="f-row"><label class="f-label">Yıl</label><input class="f-input" type="number" id="call48h-year" min="2024" max="2030" value="2026"></div>
+            <div class="f-row"><label class="f-label">Mod</label><select class="f-input" id="call48h-mode"><option value="auto">Otomatik</option><option value="day">Belirli gün</option><option value="manual">Manuel</option></select></div>
+          </div>
+          <div id="call48h-day-wrap" style="display:none"><label class="f-label">Gün</label><div id="call48h-day-tabs" style="display:flex;flex-wrap:wrap;gap:4px"></div></div>
+          <div class="f-row" style="margin-top:14px"><label class="f-label">Kayma hızı: <span id="calls-speed-lbl" style="color:var(--accent);font-weight:700">35</span>s</label><input type="range" min="10" max="120" value="35" id="calls-speed-range" oninput="document.getElementById('calls-speed-lbl').textContent=this.value"></div>
+        </div>
+        <div class="sec-title sec-gap">Kayıtlar</div>
+        <div class="card" style="padding:0;overflow-x:auto" id="call48h-table-wrap">
+          <div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Henüz Excel yüklenmedi</div>
+        </div>
+      </div>
+
+      <!-- EĞİTİM -->
+      <div class="tab-pane" id="tab-egitim">
+        <div class="sec-title">Eğitim Paneli</div>
+        <div class="card">
+          <div class="f-row"><label class="f-label">Panel Başlığı</label><input class="f-input" type="text" id="egitim-title" value="🎓 Eğitim"></div>
+          <div id="egitim-items"></div>
+          <button class="btn btn-ghost btn-sm" onclick="addEgitimRow()" style="margin-top:10px">+ Satır Ekle</button>
+        </div>
+      </div>
+
+      <!-- METRIKLER -->
+      <div class="tab-pane" id="tab-metrikler">
+        <div class="sec-title">Metrik İsimleri</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Excel'den gelen metrik adlarını burada ezebilirsin.</p>
+        <div class="card"><div id="metric-labels-list"></div><button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="resetMetricLabels()">↺ Varsayılana Dön</button></div>
+      </div>
+
+      <!-- GÖRÜNÜM -->
+      <div class="tab-pane" id="tab-gorunum">
+        <div class="sec-title">Logo & Marka</div>
+        <div class="card">
+          <div class="g2">
+            <div>
+              <label class="f-label">Logo</label>
+              <div class="file-drop" id="logo-drop" onclick="document.getElementById('logo-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropLogo(event)">
+                <span id="logo-drop-txt">Tıkla / sürükle</span>
+                <img id="logo-preview" style="display:none;max-height:60px;max-width:180px;margin:auto">
+              </div>
+              <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="loadLogoFile(this)">
+            </div>
+            <div>
+              <div class="f-row"><label class="f-label">Bayi Adı</label><input class="f-input" type="text" id="brand-name"></div>
+              <div class="f-row"><label class="f-label">Alt Başlık</label><input class="f-input" type="text" id="brand-sub"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sec-title sec-gap">Vurgu Rengi</div>
+        <div class="card">
+          <div class="color-presets" id="accent-presets">
+            <div class="cp sel" style="background:#f9c80e" onclick="setAccent('#f9c80e',this)"></div>
+            <div class="cp" style="background:#4ecdc4" onclick="setAccent('#4ecdc4',this)"></div>
+            <div class="cp" style="background:#0066cc" onclick="setAccent('#0066cc',this)"></div>
+            <div class="cp" style="background:#ff6b35" onclick="setAccent('#ff6b35',this)"></div>
+            <div class="cp" style="background:#a78bfa" onclick="setAccent('#a78bfa',this)"></div>
+            <div class="cp" style="background:#22c55e" onclick="setAccent('#22c55e',this)"></div>
+            <div class="cp" style="background:#ef4444" onclick="setAccent('#ef4444',this)"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:12px"><input type="color" id="accent-pick" onchange="setAccent(this.value,null)"><span style="font-size:12px;color:var(--accent);font-weight:700" id="accent-hex">#f9c80e</span></div>
+        </div>
+        <div class="sec-title sec-gap">Tema</div>
+        <div class="card">
+          <div class="set-row"><div class="set-label">Tema</div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="setTheme('dark')">🌙 Koyu</button><button class="btn btn-ghost btn-sm" onclick="setTheme('light')">☀️ Açık</button></div></div>
+        </div>
+      </div>
+
+      <!-- TICKER -->
+      <div class="tab-pane" id="tab-ticker">
+        <div class="sec-title">Kayan Yazı</div>
+        <div class="card"><div id="ticker-list"></div><button class="btn btn-ghost btn-sm" onclick="addTickerRow()" style="margin-top:10px">+ Satır</button></div>
+        <div class="sec-title sec-gap">Hız</div>
+        <div class="card"><input type="range" min="5" max="55" value="25" id="ticker-speed"></div>
+      </div>
+
+      <!-- AYARLAR -->
+      <div class="tab-pane" id="tab-ayarlar">
+        <div class="sec-title">Şifre</div>
+        <div class="card">
+          <div class="g2">
+            <div class="f-row"><label class="f-label">Yeni</label><input class="f-input" type="password" id="new-pw1"></div>
+            <div class="f-row"><label class="f-label">Tekrar</label><input class="f-input" type="password" id="new-pw2"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="changePw()">Güncelle</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- KIOSK -->
+<div id="s-kiosk" class="screen">
+  <div class="k-bg-layer">
+    <div class="k-bg-gradient" id="k-bg-gradient"></div>
+    <video class="k-bg-video" id="k-bg-video" autoplay loop muted playsinline style="display:none"></video>
+    <div class="k-bg-slideshow" id="k-bg-slideshow" style="display:none"></div>
+    <div class="k-bg-overlay"></div>
+  </div>
+  <div class="k-canvas" id="k-canvas"></div>
+  <div class="k-controls">
+    <button class="k-ctrl-btn" onclick="toggleFullscreen()" id="fs-btn">⛶ Tam Ekran</button>
+    <button class="k-ctrl-btn" onclick="goAdmin()">⚙ Yönetim</button>
+  </div>
+  <div class="k-pdf-modal" id="k-pdf-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title" id="k-pdf-modal-title">PDF</div>
+      <button class="k-pdf-modal-close" onclick="closePdfModal()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" id="k-pdf-modal-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+console.log('%c VOC KIOSK v26-20260425_162526 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// =================================================================
+// EXCEL PARSING CONFIG & STATE
+// =================================================================
+const XL={metricRows:[3,4,5,6,7],metricCol:15,metricNames:['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'],totalAnketCell:[9,15],geriDonusCell:[10,15],vocScoreCell:[11,3],danNameRow:12,danMetricRows:[14,15,16,17,18],danAnketRow:14,monthKWNorm:['OCAK','SUBAT','MART','NISAN','MAYIS','HAZIRAN','TEMMUZ','AGUSTOS','EYLUL','EKIM','KASIM','ARALIK']};
+
+// Widget katalog: her widget tipi ne render eder?
+const WIDGETS={
+  voc:{name:'VOC Skoru',icon:'💯',w:2,h:2,props:['bg','border','opacity','fontScale']},
+  rings:{name:'5 Halka Metrik',icon:'🎯',w:6,h:3,props:['bg','border','opacity']},
+  danismanlar:{name:'Danışmanlar',icon:'👥',w:5,h:4,props:['bg','border','opacity','minCard']},
+  calls48h:{name:'48 Saat Aramaları',icon:'📞',w:3,h:4,props:['bg','border','opacity','speed']},
+  pdf:{name:'PDF Tape',icon:'📄',w:2,h:6,props:['bg','border','opacity','speed']},
+  stats:{name:'Özet İstatistik',icon:'📊',w:2,h:2,props:['bg','border','opacity']},
+  trend:{name:'Aylık Trend',icon:'📈',w:3,h:2,props:['bg','border','opacity']},
+  egitim:{name:'Eğitim Paneli',icon:'🎓',w:2,h:3,props:['bg','border','opacity']},
+  clock:{name:'Saat & Tarih',icon:'🕐',w:2,h:1,props:['bg','border','opacity','fontScale']},
+  logo:{name:'Logo & Bayi Adı',icon:'🏢',w:3,h:1,props:['bg','border','opacity']},
+  ticker:{name:'Kayan Yazı (Ticker)',icon:'📢',w:8,h:1,props:['bg','border','opacity','speed']},
+};
+
+// Default layout - varsayılan widget yerleşimi (8x6 grid)
+const DEFAULT_LAYOUT=[
+  {id:'logo1',type:'logo',x:0,y:0,w:3,h:1,bg:'transparent',border:0,opacity:100},
+  {id:'voc1',type:'voc',x:6,y:0,w:2,h:2,bg:'#ffffff06',border:1,opacity:100,fontScale:1},
+  {id:'clock1',type:'clock',x:3,y:0,w:3,h:1,bg:'transparent',border:0,opacity:100,fontScale:1},
+  {id:'rings1',type:'rings',x:0,y:1,w:6,h:2,bg:'transparent',border:0,opacity:100},
+  {id:'dan1',type:'danismanlar',x:0,y:3,w:5,h:3,bg:'transparent',border:0,opacity:100,minCard:180},
+  {id:'stats1',type:'stats',x:6,y:2,w:2,h:2,bg:'#ffffff06',border:1,opacity:100},
+  {id:'trend1',type:'trend',x:5,y:4,w:3,h:1,bg:'#ffffff06',border:1,opacity:100},
+  {id:'ticker1',type:'ticker',x:0,y:5,w:8,h:1,bg:'rgba(0,0,0,0.4)',border:0,opacity:100,speed:30},
+];
+
+const DEF={
+  pw:'1234',theme:'dark',
+  bg:{type:'solid',color:'#06080f',images:[],slideDur:8,video:'',opacity:40},
+  brand:{name:'ERNAZ SERVİS',sub:'SAKARYA — 54105',logo:''},
+  accent:'#f9c80e',
+  metricLabels:['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'],
+  voc:{score:93.6,tr:83,target1:87,target2:80},
+  anket:{toplam:63,ay:63,geri:0},
+  metrics:[
+    {name:'Genel Memnuniyet',value:95,color:'#f9c80e'},
+    {name:'Deneyimi Kolaylaştırdı',value:95,color:'#4ecdc4'},
+    {name:'Müşteri Değeri',value:95,color:'#45b7d1'},
+    {name:'İş Kalitesi',value:89,color:'#ff6b35'},
+    {name:'Paranın Karşılığı',value:86,color:'#a78bfa'},
+  ],
+  danismanlar:[
+    {name:'İLKER AKGÜL',voc:97,scores:[100,100,89,100,89],anket:9,color:'#4ecdc4',photo:''},
+    {name:'DOĞANAY ERDOĞAN',voc:93,scores:[86,100,100,100,71],anket:7,color:'#45b7d1',photo:''},
+    {name:'CENGİZ ASLAN',voc:87,scores:[92,92,85,77,69],anket:13,color:'#22c55e',photo:''},
+    {name:'SERHAT TUNCA',voc:100,scores:[100,100,100,100,100],anket:11,color:'#f9c80e',photo:''},
+    {name:'BARIŞ IŞIKCI',voc:100,scores:[100,100,100,100,100],anket:0,color:'#ff6b35',photo:''},
+  ],
+  pdfs:[],
+  pdfScrollDur:25,pdfPageLimit:3,
+  calls48h:{data:{},selectedDay:'auto',selectedMonth:4,selectedYear:2026,manualMode:false,scrollSpeed:35},
+  egitim:{title:'🎓 Eğitim',items:[]},
+  ticker:{items:['VOC %93.6','Toplam 63 Anket'],speed:25},
+  trend:[{label:'OCA',value:0,cur:false},{label:'ŞUB',value:89},{label:'MAR',value:86},{label:'NİS',value:94,cur:true}],
+  excelData:null,
+  viewMode:{mode:'auto',period:'',month:''},
+  currentShowing:'—',
+  canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
+};
+
+const STORAGE_KEY='kiosk_v26-20260425_162526';
+
+// =================================================================
+// FIREBASE CLOUD SYNC
+// =================================================================
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAdqjqjHqRacEd9rhUCXt3tatO-3uQfJLE",
+  authDomain:"ernaz-voc-kiosk.firebaseapp.com",
+  projectId:"ernaz-voc-kiosk",
+  storageBucket:"ernaz-voc-kiosk.firebasestorage.app",
+  messagingSenderId:"302982600173",
+  appId:"1:302982600173:web:5a126b6a2318e00b35c3e4"
+};
+const FB_DOC_ID='main';
+let _fbDb=null;
+async function fbInit(){
+  if(_fbDb)return _fbDb;
+  const{initializeApp}=await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js');
+  const{getFirestore,doc,getDoc,setDoc}=await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+  const app=initializeApp(FIREBASE_CONFIG);
+  _fbDb=getFirestore(app);
+  _fbDb._helpers={doc,getDoc,setDoc};
+  return _fbDb;
+}
+async function fbSave(stateObj){
+  const db=await fbInit();
+  const{doc,setDoc}=db._helpers;
+  // Ağır blob'ları (PDF, video, image) kaldır - cloud'da sadece state
+  const slim=JSON.parse(JSON.stringify(stateObj));
+  if(slim.bg){slim.bg.video='';slim.bg.images=[];}
+  if(slim.pdfs)slim.pdfs.forEach(p=>{if(p.data)p.data='';});
+  // Excel ve 48h çok büyük olabilir - ayrı dokümanlara böl
+  const excelData=slim.excelData;
+  const callsData=slim.calls48h&&slim.calls48h.data;
+  delete slim.excelData;
+  if(slim.calls48h)slim.calls48h.data={};
+  // Ana state (küçük)
+  const stateStr=JSON.stringify(slim);
+  console.log('[fbSave] state boyutu:',(stateStr.length/1024).toFixed(0),'KB');
+  if(stateStr.length>900000)throw new Error('State çok büyük: '+(stateStr.length/1024).toFixed(0)+' KB.');
+  // Excel verisini DÖNEM BAZLI ayrı dokümanlara böl (her dönem ayrı 1MB sınırı)
+  let excelKeys=[];
+  if(excelData&&typeof excelData==='object'){
+    for(const periodName of Object.keys(excelData)){
+      const periodStr=JSON.stringify(excelData[periodName]);
+      console.log('[fbSave] excel ['+periodName+'] boyutu:',(periodStr.length/1024).toFixed(0),'KB');
+      if(periodStr.length>900000){
+        console.warn('Dönem çok büyük, atlanıyor:',periodName);
+        continue;
+      }
+      // Doküman ID'sinde özel karakter olamaz - safe yap
+      const safeId='excel_'+periodName.replace(/[^a-zA-Z0-9]/g,'_');
+      await setDoc(doc(db,'kiosks',safeId),{periodName,data:periodStr,updated:Date.now()});
+      excelKeys.push({safeId,periodName});
+    }
+  }
+  // 48h verisini GÜN BAZLI ayır (her gün ayrı doküman)
+  let callsKeys=[];
+  if(callsData&&typeof callsData==='object'&&Object.keys(callsData).length){
+    for(const dayNum of Object.keys(callsData)){
+      const dayItems=callsData[dayNum];
+      if(!dayItems||!dayItems.length)continue;
+      const dayStr=JSON.stringify(dayItems);
+      console.log('[fbSave] 48h gün',dayNum,'boyutu:',(dayStr.length/1024).toFixed(0),'KB');
+      if(dayStr.length>900000){
+        console.warn('Gün çok büyük, atlanıyor:',dayNum);
+        continue;
+      }
+      await setDoc(doc(db,'kiosks','calls48h_day_'+dayNum),{day:dayNum,data:dayStr,updated:Date.now()});
+      callsKeys.push(dayNum);
+    }
+  }
+  // Ana state'in içine hangi parçaların kaydedildiğini yaz (load'da bunları çekecek)
+  await setDoc(doc(db,'kiosks',FB_DOC_ID),{
+    state:stateStr,
+    excelKeys:JSON.stringify(excelKeys),
+    callsKeys:JSON.stringify(callsKeys),
+    updated:Date.now(),
+    updatedAt:new Date().toISOString()
+  });
+}
+async function fbLoad(){
+  const db=await fbInit();
+  const{doc,getDoc}=db._helpers;
+  // Ana state
+  const snap=await getDoc(doc(db,'kiosks',FB_DOC_ID));
+  if(!snap.exists())return null;
+  const data=snap.data();
+  if(!data||!data.state)return null;
+  let result;
+  try{result=JSON.parse(data.state);}catch(e){return null;}
+  // Excel parçalarını birleştir
+  try{
+    const excelKeys=data.excelKeys?JSON.parse(data.excelKeys):[];
+    if(excelKeys.length){
+      result.excelData={};
+      for(const{safeId,periodName} of excelKeys){
+        const eSnap=await getDoc(doc(db,'kiosks',safeId));
+        if(eSnap.exists()){
+          const ed=eSnap.data();
+          if(ed&&ed.data)result.excelData[periodName]=JSON.parse(ed.data);
+        }
+      }
+    }
+  }catch(e){console.warn('Excel cloud load:',e);}
+  // 48h gün parçalarını birleştir
+  try{
+    const callsKeys=data.callsKeys?JSON.parse(data.callsKeys):[];
+    if(callsKeys.length){
+      if(!result.calls48h)result.calls48h={};
+      result.calls48h.data={};
+      for(const dayNum of callsKeys){
+        const cSnap=await getDoc(doc(db,'kiosks','calls48h_day_'+dayNum));
+        if(cSnap.exists()){
+          const cd=cSnap.data();
+          if(cd&&cd.data)result.calls48h.data[dayNum]=JSON.parse(cd.data);
+        }
+      }
+    }
+  }catch(e){console.warn('48h cloud load:',e);}
+  return result;
+}
+
+let S;
+try{S=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||JSON.parse(JSON.stringify(DEF));}
+catch(err){localStorage.removeItem(STORAGE_KEY);S=JSON.parse(JSON.stringify(DEF));}
+// DEF merge için recursive
+function mergeDefaults(s,d){for(const k in d){if(s[k]===undefined||s[k]===null)s[k]=d[k];else if(typeof d[k]==='object'&&!Array.isArray(d[k])&&typeof s[k]==='object')mergeDefaults(s[k],d[k]);}}
+mergeDefaults(S,DEF);
+if(!S.canvas||!S.canvas.layout||!Array.isArray(S.canvas.layout))S.canvas={layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6};
+
+let _bigData={bgVideo:'',bgImages:[],pdfData:{}};
+let _excelWorkbook=null;
+let _clockTimer=null;
+let _slideshowTimer=null;
+let _slideIdx=0;
+
+// =================================================================
+// IndexedDB
+// =================================================================
+const IDB_NAME='kiosk_files',IDB_STORE='blobs';
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open(IDB_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore(IDB_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbSet(k,v){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+async function idbGet(k){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readonly');const r=tx.objectStore(IDB_STORE).get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbDel(k){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readwrite');tx.objectStore(IDB_STORE).delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+async function idbKeys(){const db=await idbOpen();return new Promise((res,rej)=>{const tx=db.transaction(IDB_STORE,'readonly');const r=tx.objectStore(IDB_STORE).getAllKeys();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function restoreBigFromIdb(){
+  try{
+    const v=await idbGet('bg_video');if(v&&S.bg){S.bg.video=v;_bigData.bgVideo=v;}
+    if(S.bg&&S.bg.images){
+      for(let i=0;i<S.bg.images.length;i++){
+        if(S.bg.images[i]==='__IDB__'||!S.bg.images[i]){
+          const img=await idbGet('bg_image_'+i);
+          if(img)S.bg.images[i]=img;
+        }
+      }
+      S.bg.images=S.bg.images.filter(x=>x&&x!=='__IDB__');
+    }
+    if(S.pdfs){for(let i=0;i<S.pdfs.length;i++){const p=await idbGet('pdf_'+i);if(p){S.pdfs[i].data=p;_bigData.pdfData[i]=p;}}}
+    // Excel verisi
+    if(S.excelData==='__IDB__'||!S.excelData){
+      const ed=await idbGet('excel_data');
+      if(ed){try{S.excelData=JSON.parse(ed);}catch(e){S.excelData=null;}}
+      else S.excelData=null;
+    }
+    // 48h verisi
+    if(S.calls48h&&(S.calls48h.data==='__IDB__'||!S.calls48h.data||typeof S.calls48h.data==='string')){
+      const cd=await idbGet('calls48h_data');
+      if(cd){try{S.calls48h.data=JSON.parse(cd);}catch(e){S.calls48h.data={};}}
+      else S.calls48h.data={};
+    }
+    // Restore sonrası viewMode'u uygula - çünkü sayfa yenilendi
+    if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();
+    // Admin açıksa UI'ı yenile
+    if(document.getElementById('s-admin')&&document.getElementById('s-admin').classList.contains('active')){
+      if(typeof renderAdmin==='function')renderAdmin();
+    }
+  }catch(e){console.warn('idb load:',e);}
+}
+
+// =================================================================
+// UTILITIES
+// =================================================================
+const $=id=>document.getElementById(id);
+function inits(n){return(n||'').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';}
+function toast(msg,err=false){const el=$('toast');el.textContent=msg;el.className='toast'+(err?' err':'');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
+function hexToRgb(hex){const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return m?`${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`:'6,8,15';}
+function pctRound(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);if(isNaN(n))return 0;if(n>1.5)return Math.round(n);return Math.round(n*100);}
+function pct(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);if(isNaN(n))return 0;return Math.round(n*10)/10;}
+function safeNum(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);return isNaN(n)?0:n;}
+function normTR(s){return String(s||'').toUpperCase().replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ş/g,'S').replace(/İ/g,'I').replace(/Ö/g,'O').replace(/Ç/g,'C').trim();}
+function smartTrim(txt,max){if(!txt)return '';const t=String(txt).trim();if(t.length<=max)return t;const slice=t.substring(0,max);const lastPunc=Math.max(slice.lastIndexOf('.'),slice.lastIndexOf('!'),slice.lastIndexOf('?'),slice.lastIndexOf(','));if(lastPunc>max*0.6)return slice.substring(0,lastPunc+1).trim()+' ...';const lastSpace=slice.lastIndexOf(' ');return (lastSpace>0?slice.substring(0,lastSpace):slice).trim()+' ...';}
+
+function persist(){
+  try{
+    persistBigToIdb();
+    const slim=JSON.parse(JSON.stringify(S));
+    if(slim.bg){
+      slim.bg.video=slim.bg.video?'__IDB__':'';
+      slim.bg.images=(slim.bg.images||[]).map(v=>v?'__IDB__':'');
+    }
+    if(slim.pdfs){slim.pdfs.forEach(p=>{if(p.data)p.data='__IDB__';});}
+    // Excel data ve 48h data büyük olabilir - IDB'ye git, localStorage'da sadece marker
+    if(slim.excelData)slim.excelData='__IDB__';
+    if(slim.calls48h&&slim.calls48h.data)slim.calls48h.data='__IDB__';
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(slim));
+  }catch(err){console.warn('quota:',err.message);toast('Veri çok büyük',true);}
+}
+async function persistBigToIdb(){
+  try{
+    if(S.bg&&S.bg.video&&S.bg.video!=='__IDB__')await idbSet('bg_video',S.bg.video);
+    if(S.bg&&S.bg.images){
+      for(let i=0;i<S.bg.images.length;i++){
+        if(S.bg.images[i]&&S.bg.images[i]!=='__IDB__')await idbSet('bg_image_'+i,S.bg.images[i]);
+      }
+    }
+    if(S.pdfs){for(let i=0;i<S.pdfs.length;i++){if(S.pdfs[i].data&&S.pdfs[i].data!=='__IDB__')await idbSet('pdf_'+i,S.pdfs[i].data);}}
+    // Excel ve 48h verisini JSON olarak IDB'ye yaz
+    if(S.excelData&&typeof S.excelData==='object')await idbSet('excel_data',JSON.stringify(S.excelData));
+    if(S.calls48h&&S.calls48h.data&&typeof S.calls48h.data==='object')await idbSet('calls48h_data',JSON.stringify(S.calls48h.data));
+  }catch(e){console.warn('idb save:',e);}
+}
+
+function doLogin(){if($('login-pw').value===S.pw){$('login-err').classList.remove('show');goAdmin();}else $('login-err').classList.add('show');}
+function goAdmin(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-admin').classList.add('active');document.body.classList.remove('designer-fs');stopKioskTimers();renderAdmin();}
+function goKiosk(){try{document.body.classList.remove('designer-fs');collectAdmin();if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();persist();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-kiosk').classList.add('active');renderKiosk();}catch(err){alert('Kiosk hata: '+err.message+'\n\n'+err.stack);console.error(err);}}
+function saveAndKiosk(){goKiosk();}
+function saveAll(){collectAdmin();if(S.excelData)applyViewMode();persist();renderAdmin();toast('Yerel kaydedildi ✓');}
+async function publishToCloud(){
+  collectAdmin();
+  if(S.excelData)applyViewMode();
+  persist();
+  const btn=document.getElementById('publish-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='⏳ Yayınlanıyor...';}
+  try{
+    await fbSave(S);
+    toast('☁ Yayında! Görüntüleyiciler F5 yapınca yeni veriyi görür.');
+    if(btn){btn.innerHTML='✓ Yayında';setTimeout(()=>{btn.disabled=false;btn.innerHTML='☁ Yayına Al';},2500);}
+  }catch(err){
+    console.error('Yayın hatası:',err);
+    let msg=err.message||'Bilinmeyen hata';
+    if(msg.includes('permission')||msg.includes('PERMISSION'))msg='Firebase güvenlik kuralları izin vermiyor. Console\'da Firestore Rules\'u "test mode" yapın.';
+    else if(msg.includes('1048576')||msg.includes('exceeds')||msg.includes('byte'))msg='Veri 1MB limitini aşıyor. Eski dönemleri silin.';
+    alert('YAYINLAMA HATASI:\n\n'+msg+'\n\nKonsolu (F12) açıp tam hatayı görebilirsiniz.');
+    if(btn){btn.disabled=false;btn.innerHTML='☁ Yayına Al';}
+  }
+}
+async function loadFromCloud(){
+  try{
+    const cloudState=await fbLoad();
+    if(!cloudState)return false;
+    // Yerel ağır verileri koru, gerisini cloud'dan al
+    const localBg=S.bg?{video:S.bg.video,images:S.bg.images}:null;
+    const localPdfs=S.pdfs?S.pdfs.map(p=>p.data):[];
+    Object.keys(cloudState).forEach(k=>{S[k]=cloudState[k];});
+    if(localBg&&S.bg){if(localBg.video)S.bg.video=localBg.video;if(localBg.images&&localBg.images.length)S.bg.images=localBg.images;}
+    if(S.pdfs&&localPdfs.length)S.pdfs.forEach((p,i)=>{if(localPdfs[i])p.data=localPdfs[i];});
+    return true;
+  }catch(err){console.warn('Cloud load:',err);return false;}
+}
+async function fullReset(){if(!confirm('TÜM VERİLER SİLİNECEK!'))return;for(let i=localStorage.length-1;i>=0;i--){const k=localStorage.key(i);if(k&&k.startsWith('kiosk_'))localStorage.removeItem(k);}try{const keys=await idbKeys();for(const k of keys)await idbDel(k);}catch(e){}_bigData={bgVideo:'',bgImages:[],pdfData:{}};alert('Temizlendi!');location.reload(true);}
+
+function goTab(id,el){
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.adm-nav-item').forEach(i=>i.classList.remove('active'));
+  $('tab-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  // Designer dışı sekmeye geçilince fullscreen'ten çık
+  if(id!=='designer')document.body.classList.remove('designer-fs');
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar'};
+  $('adm-page-title').textContent=titles[id]||id;
+  if(id==='designer')renderDesigner();
+  if(id==='goster')refreshViewModeUI();
+  if(id==='arkaplan')renderBgOptions();
+  if(id==='pdfler')renderPdfs();
+  if(id==='danismanlar')renderDan();
+  if(id==='ticker')renderTicker();
+  if(id==='calls48h')render48hAdmin();
+  if(id==='egitim')renderEgitimAdmin();
+  if(id==='metrikler')renderMetricLabels();
+}
+function setTheme(t){S.theme=t;document.documentElement.setAttribute('data-theme',t);const b=$('theme-btn');if(b)b.textContent=t==='dark'?'☀️ Açık':'🌙 Koyu';}
+function toggleTheme(){setTheme(S.theme==='dark'?'light':'dark');persist();}
+function toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen();}
+document.addEventListener('fullscreenchange',()=>{const b=$('fs-btn');if(b)b.textContent=document.fullscreenElement?'⛶ Çıkış':'⛶ Tam Ekran';});
+
+// =================================================================
+// EXCEL PARSING - Dinamik danışman keşfi
+// =================================================================
+function isLikelyDanName(v){if(!v||typeof v!=='string')return false;const n=normTR(v);if(n.length<5||n.length>40)return false;if(/\d/.test(n))return false;const bad=['VOC','GENEL','MEMNUNIYET','DENEYIM','MUSTERI','DEGER','KALITE','PARA','ANKET','DONEM','OCAK','SUBAT','MART','NISAN','MAYIS','HAZIRAN','TEMMUZ','AGUSTOS','EYLUL','EKIM','KASIM','ARALIK','ANONIM','PUAN','ENDEKS','TOPLAM','ORAN'];if(bad.some(x=>n.includes(x)))return false;return n.split(/\s+/).filter(Boolean).length>=2;}
+
+function findNameRow(data){
+  for(let r=9;r<18;r++){
+    if(!data[r])continue;
+    let count=0;
+    for(let c=8;c<60;c++){
+      const v=data[r][c];
+      if(v&&typeof v==='string'){
+        const t=v.trim();
+        const u=t.toUpperCase();
+        if(t.length>=3&&/\s/.test(t)&&!u.includes('PUAN')&&!u.includes('DÖNEM')&&!u.includes('ENDEKS')&&!u.includes('TOPLAM')&&!u.includes('ORAN'))count++;
+      }
+    }
+    if(count>=2)return r;
+  }
+  return 12;
+}
+function findNameCols(data,nameRow){const cols=[];if(!data[nameRow])return cols;for(let c=0;c<data[nameRow].length;c++){const v=data[nameRow][c];if(!v||typeof v!=='string')continue;const t=v.trim();const u=t.toUpperCase();if(t.length<3||!/\s/.test(t))continue;if(u.includes('PUAN')||u.includes('DÖNEM')||u.includes('ENDEKS')||u.includes('TOPLAM')||u.includes('ORAN'))continue;cols.push(c);}return cols;}
+
+function handleExcelSelect(inp){const f=inp.files[0];if(f)readExcelFile(f);}
+function handleExcelDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')))readExcelFile(f);}
+function readExcelFile(file){const reader=new FileReader();reader.onload=e=>{try{const data=new Uint8Array(e.target.result);_excelWorkbook=XLSX.read(data,{type:'array'});showExcelStatus(`✓ <strong>${file.name}</strong> — ${_excelWorkbook.SheetNames.length} sayfa`,false);$('parse-excel-btn').disabled=false;toast('Excel yüklendi');}catch(err){showExcelStatus('Hata: '+err.message,true);}};reader.readAsArrayBuffer(file);}
+function parseExcelFile(){if(!_excelWorkbook){toast('Excel yükle',true);return;}const periods={};_excelWorkbook.SheetNames.forEach(sn=>{if(!sn.toUpperCase().includes('DÖNEM'))return;const sheet=_excelWorkbook.Sheets[sn];const data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:true,raw:true});const pd=parseSinglePeriod(data,sn);if(pd)periods[sn]=pd;});if(!Object.keys(periods).length){showExcelStatus('Dönem bulunamadı',true);return;}S.excelData=periods;S.viewMode.period='';S.viewMode.month='';applyViewMode();persist();renderAdmin();const c=Object.keys(periods).length;showExcelStatus(`✓ ${c} dönem yüklendi`,false);toast(`${c} dönem ✓`);}
+function showExcelStatus(html,isErr){const el=$('excel-status');el.innerHTML=html;el.className='excel-status show'+(isErr?' err':'');}
+
+function parseSinglePeriod(data,sheetName){
+  try{
+    const colors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa'];
+    const nameRow=findNameRow(data);
+    const nameCols=findNameCols(data,nameRow);
+    const metricStartRow=nameRow+2;
+    const danMetricRows=[metricStartRow,metricStartRow+1,metricStartRow+2,metricStartRow+3,metricStartRow+4];
+    let vocScoreCellR=11;
+    for(let r=8;r<16;r++){if(data[r]&&data[r][0]&&String(data[r][0]).toLowerCase().includes('endeks'))vocScoreCellR=r;}
+    const metricsBase=XL.metricRows.map((r,i)=>{const v=data[r]&&data[r][XL.metricCol]!=null?data[r][XL.metricCol]:null;return{name:(S.metricLabels&&S.metricLabels[i])||XL.metricNames[i],value:v!==null?pctRound(v):0,color:colors[i]};});
+    const vocScore=pct(data[vocScoreCellR]&&data[vocScoreCellR][3]);
+    const totalAnket=Math.round(safeNum(data[XL.totalAnketCell[0]]&&data[XL.totalAnketCell[0]][XL.totalAnketCell[1]]));
+    const geriDonus=pctRound(data[XL.geriDonusCell[0]]&&data[XL.geriDonusCell[0]][XL.geriDonusCell[1]]||0);
+    const defC=['#4ecdc4','#45b7d1','#22c55e','#f9c80e','#ff6b35','#a78bfa'];
+    const danismanlar=[];
+    nameCols.forEach((nc,i)=>{
+      const nameCell=data[nameRow]&&data[nameRow][nc];
+      if(!nameCell)return;
+      const name=String(nameCell).trim();
+      if(name.toUpperCase().includes('ANONİM')||name.toUpperCase().includes('ANONIM'))return;
+      const vc=nc+6;
+      const vocVal=data[nameRow]&&data[nameRow][vc];
+      const vocSc=vocVal!=null?pctRound(vocVal):0;
+      const scores=danMetricRows.map(r=>{const v=data[r]&&data[r][nc];return v!=null?pctRound(v):0;});
+      const anket=Math.round(safeNum(data[danMetricRows[0]]&&data[danMetricRows[0]][vc]));
+      const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+      danismanlar.push({name,voc:vocSc,scores,anket,color:ex?.color||defC[i%6],photo:ex?.photo||''});
+    });
+    const months={};
+    const monthStartScan=metricStartRow+5;
+    for(let r=monthStartScan;r<data.length;r++){
+      const cell=data[r]&&data[r][0];if(!cell)continue;
+      const n=normTR(cell);const idx=XL.monthKWNorm.indexOf(n);if(idx<0)continue;
+      const bayiVoc=pctRound(data[r]&&data[r][9]||0);
+      const mm=[];
+      for(let mi=0;mi<5;mi++){const v=data[r+1+mi]&&data[r+1+mi][15];mm.push({name:(S.metricLabels&&S.metricLabels[mi])||XL.metricNames[mi],value:v!=null?pctRound(v):0,color:colors[mi]});}
+      const mAnket=Math.round(safeNum(data[r+1]&&data[r+1][9]));
+      const mDan=[];
+      nameCols.forEach((nc,i)=>{
+        const nameC=data[nameRow]&&data[nameRow][nc];
+        if(!nameC)return;
+        const name=String(nameC).trim();
+        if(name.toUpperCase().includes('ANONİM')||name.toUpperCase().includes('ANONIM'))return;
+        const vc=nc+6;
+        const dV=pctRound(data[r]&&data[r][vc]||0);
+        const dS=[];
+        for(let mi=0;mi<5;mi++){const v=data[r+1+mi]&&data[r+1+mi][nc];dS.push(v!=null?pctRound(v):0);}
+        const dA=Math.round(safeNum(data[r+1]&&data[r+1][vc]));
+        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        mDan.push({name,voc:dV,scores:dS,anket:dA,color:ex?.color||defC[i%6],photo:ex?.photo||''});
+      });
+      months[n]={label:String(cell).trim(),voc:bayiVoc,metrics:mm,anket:mAnket,danismanlar:mDan};
+    }
+    return{sheetName,vocScore,totalAnket,geriDonus,metrics:metricsBase,danismanlar,months};
+  }catch(err){console.error('parse err:',err);return null;}
+}
+
+// =================================================================
+// VIEW MODE
+// =================================================================
+function setViewMode(m){S.viewMode.mode=m;['vm-auto','vm-period','vm-month'].forEach(id=>$(id)?.classList.remove('active'));$('vm-'+m)?.classList.add('active');$('view-mode-period-options').style.display=m==='period'?'block':'none';$('view-mode-month-options').style.display=m==='month'?'block':'none';applyViewMode();refreshViewModeUI();}
+function refreshViewModeUI(){populatePeriodSelects();$('info-today').textContent=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});$('info-showing').textContent='Gösterilen: '+(S.currentShowing||'—');}
+function populatePeriodSelects(){['view-period-select','view-period-select-2'].forEach(id=>{const sel=$(id);if(!sel)return;sel.innerHTML='';if(!S.excelData){sel.innerHTML='<option>Önce Excel</option>';return;}Object.keys(S.excelData).forEach(pn=>{const o=document.createElement('option');o.value=pn;o.textContent=pn;sel.appendChild(o);});if(S.viewMode.period)sel.value=S.viewMode.period;sel.onchange=()=>{S.viewMode.period=sel.value;if(id==='view-period-select-2'){S.viewMode.month='';updateMonthOptions();}applyViewMode();renderAdmin();refreshViewModeUI();};});updateMonthOptions();const msel=$('view-month-select');if(msel)msel.onchange=()=>{S.viewMode.month=msel.value;applyViewMode();renderAdmin();refreshViewModeUI();};}
+function updateMonthOptions(){const sel=$('view-month-select');if(!sel)return;sel.innerHTML='';const pname=$('view-period-select-2')?.value;if(!S.excelData||!S.excelData[pname]){sel.innerHTML='<option>—</option>';return;}const mk=Object.keys(S.excelData[pname].months);mk.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=S.excelData[pname].months[k].label;sel.appendChild(o);});if(S.viewMode.month&&mk.includes(S.viewMode.month))sel.value=S.viewMode.month;else if(mk.length){sel.value=mk[0];S.viewMode.month=mk[0];}}
+function extractDonemNo(sn){const m=/(\d+)\.\s*DÖNEM/i.exec(sn);return m?parseInt(m[1]):0;}
+function applyViewMode(){
+  if(!S.excelData)return;
+  let cp=null,cm=null;
+  const mode=S.viewMode.mode||'auto';
+  if(mode==='auto'){
+    const now=new Date();const mi=now.getMonth();const wantDno=Math.floor(mi/3)+1;
+    const periods=Object.keys(S.excelData).map(k=>({name:k,no:extractDonemNo(k)}));
+    const match=periods.find(p=>p.no===wantDno);
+    if(match){cp=match.name;const mn=XL.monthKWNorm[mi];if(S.excelData[cp].months&&S.excelData[cp].months[mn])cm=mn;}
+    if(!cp){periods.sort((a,b)=>b.no-a.no);cp=periods[0]?.name||Object.keys(S.excelData)[0];}
+  }else if(mode==='period'){cp=S.viewMode.period||Object.keys(S.excelData)[0];}
+  else{cp=S.viewMode.period||Object.keys(S.excelData)[0];cm=S.viewMode.month||null;}
+  S.viewMode.period=cp;S.viewMode.month=cm;
+  const pd=S.excelData[cp];if(!pd)return;
+  const periodDan=(pd.danismanlar&&pd.danismanlar.length)?pd.danismanlar:S.danismanlar;
+  if(cm&&pd.months&&pd.months[cm]){
+    const m=pd.months[cm];
+    S.metrics=(m.metrics&&m.metrics.some(x=>x.value))?m.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name})):pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
+    S.voc.score=m.voc||pd.vocScore;
+    S.anket.toplam=m.anket||pd.totalAnket;S.anket.ay=m.anket||pd.totalAnket;S.anket.geri=pd.geriDonus;
+    S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
+    S.currentShowing=`${cp} — ${m.label}`;
+  }else{
+    S.metrics=pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
+    S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonus;
+    S.danismanlar=periodDan;
+    S.currentShowing=`${cp} (Özet)`;
+  }
+  S.trend=[];
+  Object.keys(S.excelData).forEach(pn=>{const pdd=S.excelData[pn];if(pdd.months)Object.keys(pdd.months).forEach(mk=>{S.trend.push({label:pdd.months[mk].label.slice(0,3).toUpperCase(),value:pdd.months[mk].voc||0,cur:cm&&mk===cm});});});
+  const topD=[...(S.danismanlar||[])].sort((a,b)=>b.voc-a.voc)[0];
+  S.ticker.items=[`VOC %${Math.round(S.voc.score)}`,`Toplam ${S.anket.toplam} Anket`,topD?`En Yüksek: ${topD.name} %${topD.voc}`:'',`Gösterilen: ${S.currentShowing}`].filter(Boolean);
+}
+
+// =================================================================
+// 48 SAAT ARAMA (Excel)
+// =================================================================
+const MOOD_MAP={'FFFF0000':{key:'kirmizi',label:'OLUMSUZ',color:'#ef4444'},'FF00B050':{key:'yesil',label:'OLUMLU',color:'#22c55e'},'FFFFC000':{key:'turuncu',label:'UYARI',color:'#f59e0b'}};
+function detectMood(rgb){if(!rgb||rgb==='00000000')return null;const up=String(rgb).toUpperCase();if(MOOD_MAP[up])return MOOD_MAP[up];return null;}
+function handleCall48hSelect(inp){const f=inp.files[0];if(f)readCall48hFile(f);}
+function handleCall48hDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')))readCall48hFile(f);}
+// XLSX bir ZIP arşivi - SheetJS Community fill renkleri okumuyor, kendimiz XML parse edeceğiz
+async function parseXlsxColors(arrayBuffer){
+  // JSZip ile XLSX açıp styles.xml + sheet XML'lerini oku
+  const zip=await JSZip.loadAsync(arrayBuffer);
+  const files={};
+  const names=Object.keys(zip.files);
+  for(const n of names){
+    if(n.endsWith('.xml')||n.endsWith('.rels'))files[n]=await zip.files[n].async('string');
+  }
+  // styles.xml - namespace'siz regex-temelli parse (daha güvenilir)
+  const stylesXml=files['xl/styles.xml']||'';
+  const fillColors=[];
+  const cellXfs=[];
+  // <fill> elemanlarını sırayla bul
+  const fillMatches=stylesXml.match(/<fill>[\s\S]*?<\/fill>/g)||[];
+  for(const fill of fillMatches){
+    const fgMatch=fill.match(/<fgColor\s+[^>]*rgb="([^"]+)"/);
+    fillColors.push(fgMatch?fgMatch[1]:null);
+  }
+  // <cellXfs> içindeki her <xf>'in fillId'sini al
+  const cellXfsBlock=stylesXml.match(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/);
+  if(cellXfsBlock){
+    const xfs=cellXfsBlock[1].match(/<xf\s+[^>]*?\/?>/g)||[];
+    for(const xf of xfs){
+      const m=xf.match(/fillId="(\d+)"/);
+      cellXfs.push(m?parseInt(m[1]):0);
+    }
+  }
+  // Workbook + rels regex ile - sheet adı -> dosya yolu
+  const workbookXml=files['xl/workbook.xml']||'';
+  const relsXml=files['xl/_rels/workbook.xml.rels']||'';
+  const sheetMap={};
+  const rels={};
+  const relMatches=relsXml.match(/<Relationship\s+[^>]*?\/?>/g)||[];
+  for(const r of relMatches){
+    const id=r.match(/Id="([^"]+)"/);
+    const target=r.match(/Target="([^"]+)"/);
+    if(id&&target)rels[id[1]]=target[1];
+  }
+  const sheetMatches=workbookXml.match(/<sheet\s+[^>]*?\/?>/g)||[];
+  for(const s of sheetMatches){
+    const name=s.match(/name="([^"]+)"/);
+    const rid=s.match(/r:id="([^"]+)"/);
+    if(name&&rid){
+      let target=rels[rid[1]]||'';
+      if(target&&!target.startsWith('xl/'))target='xl/'+target;
+      sheetMap[name[1]]=target;
+    }
+  }
+  // Her sayfanın XML'inden A kolonu hücrelerinin style index'ini oku
+  const sheetColors={};
+  for(const sn in sheetMap){
+    const path=sheetMap[sn];
+    const xml=files[path]||'';
+    if(!xml)continue;
+    sheetColors[sn]={};
+    // Her <row r="N"> bloğunu yakala
+    const rowRegex=/<row\s+([^>]*)>([\s\S]*?)<\/row>/g;
+    let rowMatch;
+    while((rowMatch=rowRegex.exec(xml))!==null){
+      const rAttr=rowMatch[1].match(/r="(\d+)"/);
+      if(!rAttr)continue;
+      const rNum=parseInt(rAttr[1])-1;
+      const rowContent=rowMatch[2];
+      // A kolonu hücresi: r="A<num>"
+      const cellMatch=rowContent.match(/<c\s+r="A\d+"[^>]*s="(\d+)"/);
+      if(cellMatch){
+        const styleIdx=parseInt(cellMatch[1]);
+        if(styleIdx>=0&&cellXfs[styleIdx]!==undefined){
+          const fillIdx=cellXfs[styleIdx];
+          const rgb=fillColors[fillIdx];
+          if(rgb)sheetColors[sn][rNum]=rgb;
+        }
+      }
+    }
+  }
+  return sheetColors;
+}
+
+async function readCall48hFile(file){
+  showCall48hStatus('Renkler okunuyor...',false);
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      // 1. SheetJS ile verileri oku
+      const wb=XLSX.read(data,{type:'array'});
+      // 2. ZIP açıp renk bilgilerini al
+      let sheetColors={};
+      try{sheetColors=await parseXlsxColors(e.target.result);}catch(err){console.warn('Renk okuma hatası:',err);}
+      const parsed={};
+      wb.SheetNames.forEach(sn=>{
+        const dayNum=parseInt(sn);
+        if(isNaN(dayNum)||dayNum<1||dayNum>31)return;
+        const sheet=wb.Sheets[sn];
+        const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',blankrows:false,raw:true});
+        if(rows.length<2)return;
+        const colorsForSheet=sheetColors[sn]||{};
+        const items=[];
+        for(let r=1;r<rows.length;r++){
+          const row=rows[r];
+          if(!row||!row.some(x=>x&&String(x).trim()))continue;
+          const danisman=String(row[4]||'').trim();
+          const aciklama=String(row[8]||'').trim();
+          if(!danisman&&!aciklama)continue;
+          const rgb=colorsForSheet[r];
+          const mood=rgb?detectMood(rgb):null;
+          // Dolgusuz olanları ATLA - kullanıcının isteği
+          if(!mood)continue;
+          items.push({skfNo:String(row[0]||'').trim(),is:String(row[1]||'').trim(),plaka:String(row[2]||'').trim(),musteri:String(row[3]||'').trim(),danisman,operator:[row[5],row[6],row[7]].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(', '),aciklama,mood:mood.key,moodLabel:mood.label,moodColor:mood.color,show:false});
+        }
+        if(items.length)parsed[dayNum]=items;
+      });
+      if(!Object.keys(parsed).length){showCall48hStatus('Gün bulunamadı',true);return;}
+      S.calls48h.data=parsed;
+      const total=Object.values(parsed).reduce((a,b)=>a+b.length,0);
+      const kirmizi=Object.values(parsed).flat().filter(x=>x.mood==='kirmizi').length;
+      const yesil=Object.values(parsed).flat().filter(x=>x.mood==='yesil').length;
+      showCall48hStatus(`✓ <strong>${file.name}</strong> - ${Object.keys(parsed).length} gün, ${total} kayıt (${kirmizi} kırmızı, ${yesil} yeşil)`,false);
+      persist();render48hAdmin();toast('48 Saat ✓');
+    }catch(err){showCall48hStatus('Hata: '+err.message,true);console.error(err);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function showCall48hStatus(html,err){const el=$('call48h-status');if(el){el.innerHTML=html;el.className='excel-status show'+(err?' err':'');}}
+
+function render48hAdmin(){
+  const monSel=$('call48h-month'),yrSel=$('call48h-year'),modeSel=$('call48h-mode'),spdR=$('calls-speed-range'),spdL=$('calls-speed-lbl');
+  if(monSel){monSel.value=S.calls48h.selectedMonth;monSel.onchange=()=>{S.calls48h.selectedMonth=+monSel.value;};}
+  if(yrSel){yrSel.value=S.calls48h.selectedYear;yrSel.onchange=()=>{S.calls48h.selectedYear=+yrSel.value;};}
+  if(modeSel){
+    modeSel.value=S.calls48h.selectedDay==='auto'?'auto':(S.calls48h.manualMode?'manual':'day');
+    modeSel.onchange=()=>{const m=modeSel.value;$('call48h-day-wrap').style.display=(m==='day'||m==='manual')?'block':'none';S.calls48h.manualMode=(m==='manual');if(m==='auto')S.calls48h.selectedDay='auto';render48hTable();};
+  }
+  if(spdR){spdR.value=S.calls48h.scrollSpeed||35;spdL.textContent=spdR.value;spdR.oninput=()=>{S.calls48h.scrollSpeed=+spdR.value;spdL.textContent=spdR.value;};}
+  const tabsEl=$('call48h-day-tabs');
+  if(tabsEl){
+    tabsEl.innerHTML='';
+    const days=Object.keys(S.calls48h.data||{}).map(x=>+x).sort((a,b)=>a-b);
+    if(days.length===0)tabsEl.innerHTML='<div style="color:var(--muted);font-size:11px">Henüz veri yok</div>';
+    else days.forEach(d=>{const b=document.createElement('button');b.className='vmb'+(+S.calls48h.selectedDay===d?' active':'');b.style.padding='5px 11px';b.style.fontSize='11px';b.textContent=d;b.onclick=()=>{S.calls48h.selectedDay=d;render48hAdmin();};tabsEl.appendChild(b);});
+  }
+  const mode=modeSel?modeSel.value:'auto';
+  $('call48h-day-wrap').style.display=(mode==='day'||mode==='manual')?'block':'none';
+  render48hTable();
+}
+function render48hTable(){
+  const wrap=$('call48h-table-wrap');if(!wrap)return;
+  const day=S.calls48h.selectedDay==='auto'?null:+S.calls48h.selectedDay;
+  if(!S.calls48h.data||!Object.keys(S.calls48h.data).length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Henüz Excel yüklenmedi</div>';return;}
+  let items=[];
+  let activeDay=day;
+  if(day&&S.calls48h.data[day])items=S.calls48h.data[day];
+  else if(Object.keys(S.calls48h.data).length){activeDay=+Object.keys(S.calls48h.data)[0];items=S.calls48h.data[activeDay];}
+  if(!items.length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Seçili günde kayıt yok</div>';return;}
+  // Toplu seçim butonları + bilgi satırı
+  const checkedCount=items.filter(x=>x.show).length;
+  let html='<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px">';
+  html+=`<strong style="color:var(--accent)">Manuel Seçim:</strong> ${checkedCount}/${items.length} işaretli`;
+  html+='<button class="btn btn-ghost btn-xs" onclick="bulk48h(true)">Tümünü Seç</button>';
+  html+='<button class="btn btn-ghost btn-xs" onclick="bulk48h(false)">Tümünü Bırak</button>';
+  html+='<button class="btn btn-ghost btn-xs" onclick="bulk48hMood(\'kirmizi\')">Kırmızıları Seç</button>';
+  html+='<button class="btn btn-ghost btn-xs" onclick="bulk48hMood(\'yesil\')">Yeşilleri Seç</button>';
+  html+='<span style="margin-left:auto;color:var(--muted);font-size:11px">"Göster" işaretli olanlar kioskta görünür. Mod=Manuel ise sadece bunlar; Otomatik/Belirli gün modunda işaretler ek filtre olarak çalışır.</span>';
+  html+='</div>';
+  html+='<table class="tbl"><thead><tr><th style="width:50px">Göster</th><th style="width:90px">Renk</th><th>Danışman</th><th>Müşteri</th><th>Plaka</th><th>Açıklama</th></tr></thead><tbody>';
+  items.forEach((it,i)=>{
+    const chk=`<td style="text-align:center"><input type="checkbox" class="call48h-show" data-idx="${i}" data-day="${activeDay}" ${it.show?'checked':''} style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)"></td>`;
+    const dot=it.mood!=='notr'?`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${it.moodColor};margin-right:6px;vertical-align:middle;box-shadow:0 0 6px ${it.moodColor}"></span>`:'';
+    const lblColor=it.mood!=='notr'?`color:${it.moodColor};font-weight:700`:'color:var(--muted)';
+    const txt=(it.aciklama||'').substring(0,120)+((it.aciklama||'').length>120?'...':'');
+    const rowBg=it.mood==='kirmizi'?'background:rgba(239,68,68,0.05)':(it.mood==='yesil'?'background:rgba(34,197,94,0.04)':'');
+    html+=`<tr style="${rowBg}">${chk}<td><span style="${lblColor};font-size:11px">${dot}${it.moodLabel||'NÖTR'}</span></td><td><strong>${it.danisman||'—'}</strong></td><td>${it.musteri||'—'}</td><td style="font-family:monospace;font-size:11px">${it.plaka||'—'}</td><td style="max-width:350px;font-size:12px;line-height:1.4">${txt}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+  wrap.querySelectorAll('.call48h-show').forEach(cb=>{cb.onchange=()=>{const idx=+cb.dataset.idx;const d=+cb.dataset.day;if(S.calls48h.data[d]&&S.calls48h.data[d][idx]){S.calls48h.data[d][idx].show=cb.checked;render48hTable();}};});
+}
+function bulk48h(val){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>it.show=val);render48hTable();toast(val?'Tümü seçildi':'Tümü bırakıldı');}
+function bulk48hMood(moodKey){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>{if(it.mood===moodKey)it.show=true;});render48hTable();toast('İşaretlendi');}
+function pick48hForDisplay(){
+  if(!S.calls48h||!S.calls48h.data)return{items:[],dateStr:''};
+  const data=S.calls48h.data;
+  const month=S.calls48h.selectedMonth||new Date().getMonth()+1;
+  const year=S.calls48h.selectedYear||new Date().getFullYear();
+  let day=null;
+  // Hangi gün gösterilecek?
+  if(S.calls48h.selectedDay==='auto'){const today=new Date().getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
+  else day=+S.calls48h.selectedDay;
+  if(!day||!data[day])return{items:[],dateStr:''};
+  const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+  const allItems=data[day];
+  // Manuel seçim varsa SADECE işaretli olanlar gösterilir
+  const manualPicks=allItems.filter(x=>x.show);
+  if(manualPicks.length){return{items:manualPicks,dateStr:dateStr+' — Manuel'};}
+  // İşaretli yoksa OTOMATIK seçim: her danışman için 1 kırmızı + 1 yeşil
+  const byDan={};
+  allItems.forEach(it=>{const d=it.danisman||'?';if(!byDan[d])byDan[d]={kirmizi:null,yesil:null,turuncu:null};if(it.mood==='kirmizi'&&!byDan[d].kirmizi)byDan[d].kirmizi=it;if(it.mood==='yesil'&&!byDan[d].yesil)byDan[d].yesil=it;if(it.mood==='turuncu'&&!byDan[d].turuncu)byDan[d].turuncu=it;});
+  const picks=[];
+  Object.keys(byDan).forEach(d=>{if(byDan[d].kirmizi)picks.push(byDan[d].kirmizi);if(byDan[d].yesil)picks.push(byDan[d].yesil);if(!byDan[d].kirmizi&&!byDan[d].yesil&&byDan[d].turuncu)picks.push(byDan[d].turuncu);});
+  return{items:picks,dateStr:dateStr};
+}
+
+// =================================================================
+// EĞİTİM
+// =================================================================
+function renderEgitimAdmin(){
+  const titleEl=$('egitim-title');
+  if(titleEl){titleEl.value=S.egitim.title||'🎓 Eğitim';titleEl.onchange=()=>S.egitim.title=titleEl.value;}
+  const c=$('egitim-items');if(!c)return;
+  c.innerHTML='';
+  (S.egitim.items||[]).forEach((it,i)=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center';d.innerHTML=`<input class="f-input egitim-label" type="text" value="${it.label||''}" placeholder="Etiket" style="flex:1"><input class="f-input egitim-value" type="text" value="${it.value||''}" placeholder="Değer" style="flex:1"><button class="btn btn-red btn-xs" onclick="S.egitim.items.splice(${i},1);renderEgitimAdmin()">✕</button>`;c.appendChild(d);});
+}
+function addEgitimRow(){if(!S.egitim.items)S.egitim.items=[];S.egitim.items.push({label:'',value:''});renderEgitimAdmin();}
+function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
+
+// =================================================================
+// METRIC LABELS
+// =================================================================
+function renderMetricLabels(){
+  const c=$('metric-labels-list');if(!c)return;
+  if(!S.metricLabels||S.metricLabels.length!==5)S.metricLabels=XL.metricNames.slice();
+  c.innerHTML='';
+  XL.metricNames.forEach((def,i)=>{
+    const d=document.createElement('div');
+    d.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)';
+    d.innerHTML=`<div style="min-width:30px;height:30px;border-radius:7px;background:rgba(var(--accent-rgb),0.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent)">${i+1}</div><div style="flex:1"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Excel: <strong style="color:var(--text)">${def}</strong></div><input class="f-input metric-label-inp" type="text" value="${S.metricLabels[i]||def}" placeholder="${def}" data-idx="${i}"></div>`;
+    c.appendChild(d);
+  });
+}
+function resetMetricLabels(){if(!confirm('Varsayılana dönsün mü?'))return;S.metricLabels=XL.metricNames.slice();renderMetricLabels();if(S.excelData)applyViewMode();toast('✓');}
+
+// =================================================================
+// BG + PDF + DANISMAN + TICKER admin
+// =================================================================
+function setBgType(type){S.bg.type=type;['bg-solid','bg-image','bg-video'].forEach(id=>$(id).classList.remove('active'));$('bg-'+type).classList.add('active');$('bg-solid-opts').style.display=type==='solid'?'block':'none';$('bg-image-opts').style.display=type==='image'?'block':'none';$('bg-video-opts').style.display=type==='video'?'block':'none';}
+function setKioskBg(c,el){S.bg.color=c;document.querySelectorAll('#kiosk-bg-presets .cp').forEach(p=>p.classList.remove('sel'));if(el)el.classList.add('sel');$('kiosk-bg-pick').value=c;$('kiosk-bg-hex').textContent=c;}
+function loadBgImages(inp){
+  const files=Array.from(inp.files);
+  if(!files.length)return;
+  let n=0;
+  files.forEach(f=>{
+    const r=new FileReader();
+    r.onload=async e=>{
+      const idx=S.bg.images.length;
+      S.bg.images.push(e.target.result);
+      try{await idbSet('bg_image_'+idx,e.target.result);}catch(err){console.warn('bg img idb:',err);}
+      n++;
+      if(n===files.length){renderBgImageList();persist();toast(`${files.length} resim ✓`);}
+    };
+    r.readAsDataURL(f);
+  });
+}
+function dropBgImage(e){e.preventDefault();e.currentTarget.classList.remove('drag');const files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/'));if(files.length)loadBgImages({files});}
+function renderBgImageList(){const c=$('bg-image-list');c.innerHTML='';S.bg.images.forEach((img,i)=>{const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:12px;padding:8px;background:var(--bg3);border-radius:8px;margin-bottom:8px';d.innerHTML=`<img src="${img}" style="width:60px;height:40px;object-fit:cover;border-radius:6px"><span style="flex:1;font-size:12px;color:var(--muted)">Resim ${i+1}</span><button class="btn btn-red btn-xs" onclick="removeBgImage(${i})">✕</button>`;c.appendChild(d);});}
+function removeBgImage(i){S.bg.images.splice(i,1);renderBgImageList();}
+function loadBgVideo(inp){const f=inp.files[0];if(!f)return;if(f.size>200*1024*1024){toast('Video 200MB üstü',true);return;}const r=new FileReader();r.onload=async e=>{S.bg.video=e.target.result;try{await idbSet('bg_video',e.target.result);$('bg-video-status').style.display='block';$('bg-video-status').innerHTML=`<div style="padding:10px;background:rgba(78,205,196,0.1);border-radius:8px;color:#4ecdc4;font-size:12px">✓ ${(f.size/1024/1024).toFixed(1)} MB</div>`;toast('Video ✓');}catch(err){toast('IDB hata',true);}};r.readAsDataURL(f);}
+function dropBgVideo(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video/'))loadBgVideo({files:[f]});}
+function clearBgVideo(){S.bg.video='';idbDel('bg_video');$('bg-video-status').style.display='none';toast('Kaldırıldı');}
+function renderBgOptions(){setBgType(S.bg.type||'solid');$('kiosk-bg-pick').value=S.bg.color;$('kiosk-bg-hex').textContent=S.bg.color;$('bg-opacity-range').value=S.bg.opacity;$('bg-opacity-lbl').textContent=S.bg.opacity;$('bg-slide-dur-range').value=S.bg.slideDur;$('bg-slide-dur-lbl').textContent=S.bg.slideDur;renderBgImageList();if(S.bg.video){$('bg-video-status').style.display='block';$('bg-video-status').innerHTML=`<div style="padding:10px;background:rgba(78,205,196,0.1);border-radius:8px;color:#4ecdc4;font-size:12px">✓ Video yüklü</div>`;}}
+
+function renderDan(){const tb=$('dan-tbody');tb.innerHTML='';S.danismanlar.forEach((d,i)=>{const tr=document.createElement('tr');const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:${d.color}">${inits(d.name)}</span>`;const sc=d.scores||[0,0,0,0,0];tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('avf${i}').click()">${av}</div><input type="file" id="avf${i}" accept="image/*" style="display:none" onchange="loadAv(this,${i})"></td><td><input class="f-input" type="text" value="${d.name}" onchange="S.danismanlar[${i}].name=this.value"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="S.danismanlar[${i}].voc=+this.value"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="S.danismanlar[${i}].scores[${j}]=+this.value"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="S.danismanlar[${i}].anket=+this.value"></td><td><input type="color" value="${d.color}" onchange="S.danismanlar[${i}].color=this.value"></td><td><button class="btn btn-red btn-xs" onclick="S.danismanlar.splice(${i},1);renderDan()">✕</button></td>`;tb.appendChild(tr);});}
+function loadAv(inp,i){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{S.danismanlar[i].photo=e.target.result;renderDan();};r.readAsDataURL(f);}
+
+function renderPdfs(){const c=$('pdf-list');c.innerHTML='';S.pdfs.forEach((p,i)=>{const d=document.createElement('div');d.className='pdf-row pdf-admin-row';d.dataset.pdfdata=p.data||'';d.dataset.idx=i;const hasF=!!p.data;d.innerHTML=`<div class="pdf-row-head"><div class="pdf-num">${i+1}</div><input class="f-input pdf-t" type="text" value="${p.title}" style="flex:1"><button class="btn btn-red btn-xs" onclick="removePdfRow(${i})">✕</button></div><input class="f-input pdf-u" type="url" value="${p.url||''}" placeholder="https://..." style="margin-bottom:8px"><div class="pdf-drop-zone ${hasF?'has-file':''}" onclick="document.getElementById('pdff${i}').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropPdf(event,${i})">${hasF?'✓ Yüklendi (kalıcı)':'PDF sürükle / tıkla'}</div><input type="file" id="pdff${i}" accept="application/pdf" style="display:none" onchange="loadPdfFile(this,${i})">`;c.appendChild(d);});}
+async function removePdfRow(idx){
+  if(!confirm('PDF silinsin mi?'))return;
+  S.pdfs.splice(idx,1);
+  // IDB'den de temizle - tüm pdf_* keys silip yeniden yaz
+  try{
+    const keys=await idbKeys();
+    for(const k of keys){if(k.startsWith('pdf_'))await idbDel(k);}
+    for(let i=0;i<S.pdfs.length;i++){if(S.pdfs[i].data)await idbSet('pdf_'+i,S.pdfs[i].data);}
+  }catch(e){}
+  persist();
+  renderPdfs();
+  toast('PDF silindi ✓');
+}
+function addPdf(){S.pdfs.push({title:'Yeni',url:'',data:''});renderPdfs();}
+function loadPdfFile(inp,i){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{const row=document.querySelectorAll('.pdf-admin-row')[i];if(row){row.dataset.pdfdata=e.target.result;const dz=row.querySelector('.pdf-drop-zone');dz.textContent='✓ Yüklendi (kalıcı)';dz.classList.add('has-file');if(!row.querySelector('.pdf-t').value||row.querySelector('.pdf-t').value==='Yeni')row.querySelector('.pdf-t').value=f.name.replace('.pdf','');}try{await idbSet('pdf_'+i,e.target.result);if(S.pdfs[i])S.pdfs[i].data=e.target.result;toast('PDF kalıcı kaydedildi ✓');}catch(err){toast('IDB hata',true);}};r.readAsDataURL(f);}
+function dropPdf(e,i){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')loadPdfFile({files:[f]},i);}
+
+function renderTicker(){const c=$('ticker-list');c.innerHTML='';S.ticker.items.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text" value="${t}"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;c.appendChild(d);});}
+function addTickerRow(){const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;$('ticker-list').appendChild(d);}
+
+function setAccent(c,el){S.accent=c;document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-rgb',hexToRgb(c));document.querySelectorAll('#accent-presets .cp').forEach(p=>p.classList.remove('sel'));if(el)el.classList.add('sel');$('accent-pick').value=c;$('accent-hex').textContent=c;}
+function loadLogoFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{S.brand.logo=e.target.result;$('logo-preview').src=e.target.result;$('logo-preview').style.display='block';$('logo-drop-txt').style.display='none';toast('Logo ✓');};r.readAsDataURL(f);}
+function dropLogo(e){e.preventDefault();$('logo-drop').classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadLogoFile({files:[f]});}
+function changePw(){const a=$('new-pw1').value,b=$('new-pw2').value;if(!a||a!==b){toast('Geçersiz',true);return;}S.pw=a;persist();toast('✓');}
+function exportData(){const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kiosk.json';a.click();}
+function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{S=JSON.parse(e.target.result);mergeDefaults(S,DEF);persist();renderAdmin();toast('✓');}catch{toast('Hata',true);}};r.readAsText(f);}
+
+function collectAdmin(){
+  if($('brand-name'))S.brand.name=$('brand-name').value||S.brand.name;
+  if($('brand-sub'))S.brand.sub=$('brand-sub').value||S.brand.sub;
+  const vmode=S.viewMode.mode||'auto';
+  if(vmode==='period'){const v1=$('view-period-select')?.value;if(v1)S.viewMode.period=v1;}
+  else if(vmode==='month'){const v2=$('view-period-select-2')?.value;const m=$('view-month-select')?.value;if(v2)S.viewMode.period=v2;if(m)S.viewMode.month=m;}
+  const pdfRows=document.querySelectorAll('.pdf-admin-row');
+  if(pdfRows.length){
+    const ps=[];
+    pdfRows.forEach(r=>{
+      const idx=+r.dataset.idx;
+      const existing=S.pdfs[idx];
+      ps.push({title:r.querySelector('.pdf-t').value,url:r.querySelector('.pdf-u').value,data:r.dataset.pdfdata||(existing?existing.data:'')});
+    });
+    S.pdfs=ps;
+  }
+  if($('pdf-scroll-range'))S.pdfScrollDur=+$('pdf-scroll-range').value||25;
+  if($('pdf-page-range'))S.pdfPageLimit=+$('pdf-page-range').value||3;
+  if($('bg-opacity-range'))S.bg.opacity=+$('bg-opacity-range').value||40;
+  if($('bg-slide-dur-range'))S.bg.slideDur=+$('bg-slide-dur-range').value||8;
+  collectEgitim();
+  const metInps=document.querySelectorAll('.metric-label-inp');
+  if(metInps.length===5){const arr=[];metInps.forEach((el,i)=>arr.push(el.value.trim()||XL.metricNames[i]));S.metricLabels=arr;}
+  const ti=[];document.querySelectorAll('.ticker-inp').forEach(i=>{if(i.value.trim())ti.push(i.value.trim());});if(ti.length)S.ticker.items=ti;
+  if($('ticker-speed'))S.ticker.speed=+$('ticker-speed').value||25;
+}
+
+function renderAdmin(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+  document.documentElement.style.setProperty('--accent',S.accent);
+  document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
+  $('theme-btn').textContent=S.theme==='dark'?'☀️ Açık':'🌙 Koyu';
+  $('brand-name').value=S.brand.name;$('brand-sub').value=S.brand.sub;
+  if(S.brand.logo){$('logo-preview').src=S.brand.logo;$('logo-preview').style.display='block';$('logo-drop-txt').style.display='none';}
+  if($('pdf-scroll-range')){$('pdf-scroll-range').value=S.pdfScrollDur;$('pdf-scroll-lbl').textContent=S.pdfScrollDur;}
+  if($('pdf-page-range')){$('pdf-page-range').value=S.pdfPageLimit;$('pdf-page-lbl').textContent=S.pdfPageLimit;}
+  $('ticker-speed').value=S.ticker.speed;
+  $('accent-pick').value=S.accent;$('accent-hex').textContent=S.accent;
+  setViewMode(S.viewMode.mode||'auto');
+  renderBgOptions();
+  if(!S.metricLabels||S.metricLabels.length!==5)S.metricLabels=XL.metricNames.slice();
+}
+
+// =================================================================
+// DESIGNER - Canvas editör (drag + resize + properties)
+// =================================================================
+let _selectedWidget=null;
+let _dragState=null;
+let _showGrid=true;
+
+function renderDesigner(){
+  document.body.classList.add('designer-fs');
+  ensureDesignerFsToolbar();
+  renderWidgetPalette();
+  renderDesignerCanvas();
+  renderPropsPanel();
+  // Canvas yeniden boyutlanınca ölçek güncellensin
+  requestAnimationFrame(()=>renderDesignerCanvas());
+}
+function ensureDesignerFsToolbar(){
+  if(document.querySelector('.designer-fs-toolbar'))return;
+  const bar=document.createElement('div');
+  bar.className='designer-fs-toolbar';
+  bar.innerHTML=`
+    <button class="btn btn-ghost btn-sm" onclick="toggleFsPanel('left')" title="Widget kütüphanesi">📚</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleFsPanel('right')" title="Özellikler">⚙️</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleGrid()" title="Izgara">⊞</button>
+    <button class="btn btn-accent btn-sm" onclick="saveAndKiosk()">▶ Kiosk</button>
+    <button class="btn btn-ghost btn-sm" onclick="exitDesignerFs()">← Admin</button>
+  `;
+  document.body.appendChild(bar);
+}
+function toggleFsPanel(side){
+  const cls='hide-'+side;
+  document.body.classList.toggle(cls);
+  // canvas'ı yeniden boyutlandır - panel gizli ama canvas-scaler yine tüm ekran olduğu için
+  // scale değişmez. Yine de refresh edelim.
+  requestAnimationFrame(()=>renderDesignerCanvas());
+}
+function exitDesignerFs(){
+  document.body.classList.remove('designer-fs');
+  // Varsayılan sekmeye (Excel) dön
+  const excelTab=document.querySelector('.adm-nav-item');
+  if(excelTab)goTab('excel',excelTab);
+}
+function renderWidgetPalette(){
+  const c=$('widget-palette');if(!c)return;
+  c.innerHTML='';
+  Object.keys(WIDGETS).forEach(type=>{
+    const w=WIDGETS[type];
+    const btn=document.createElement('div');
+    btn.className='widget-btn';
+    btn.draggable=true;
+    btn.dataset.type=type;
+    btn.innerHTML=`<div class="widget-btn-ico">${w.icon}</div><div><div class="widget-btn-name">${w.name}</div><div class="widget-btn-desc">${w.w}×${w.h} hücre</div></div>`;
+    btn.ondragstart=e=>{e.dataTransfer.setData('widget-type',type);e.dataTransfer.effectAllowed='copy';};
+    btn.onclick=()=>addWidgetToCanvas(type);
+    c.appendChild(btn);
+  });
+}
+
+const CANVAS_REAL={w:1920,h:1080}; // Tasarım mantıksal boyut (kioskla aynı)
+function getCanvasSize(){
+  // Dışarıdan görünen boyutu hesapla (scale için)
+  const scaler=$('canvas-scaler');
+  if(!scaler)return{w:CANVAS_REAL.w,h:CANVAS_REAL.h,scale:1};
+  const rect=scaler.getBoundingClientRect();
+  const maxW=rect.width-16,maxH=rect.height-16;
+  const scale=Math.min(maxW/CANVAS_REAL.w,maxH/CANVAS_REAL.h);
+  return{w:CANVAS_REAL.w,h:CANVAS_REAL.h,scale:scale};
+}
+
+function renderDesignerCanvas(){
+  const canvas=$('designer-canvas');
+  if(!canvas)return;
+  const size=getCanvasSize();
+  canvas.style.width=size.w+'px';
+  canvas.style.height=size.h+'px';
+  canvas.style.transform=`scale(${size.scale})`;
+  canvas.style.transformOrigin='top left';
+  // Scaler'a gerçek dış boyutu ver ki scroll olmasın
+  const scaler=$('canvas-scaler');
+  if(scaler){
+    scaler.style.position='relative';
+    // Scaled boyut için wrapper bir yükseklik ayarı
+    canvas.style.margin='0';
+  }
+  const bgColor=S.bg.color||'#06080f';
+  canvas.style.background=bgColor;
+  canvas.innerHTML='';
+
+  // Grid overlay
+  if(_showGrid){
+    const gridEl=document.createElement('div');
+    gridEl.className='designer-canvas-grid';
+    const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
+    const cellW=w/cols,cellH=h/rows;
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        const cell=document.createElement('div');
+        cell.className='designer-canvas-grid-cell';
+        cell.style.left=(x*cellW)+'px';
+        cell.style.top=(y*cellH)+'px';
+        cell.style.width=cellW+'px';
+        cell.style.height=cellH+'px';
+        gridEl.appendChild(cell);
+      }
+    }
+    canvas.appendChild(gridEl);
+  }
+
+  // Drop zone
+  canvas.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';};
+  canvas.ondrop=e=>{
+    e.preventDefault();
+    const type=e.dataTransfer.getData('widget-type');
+    if(!type||!WIDGETS[type])return;
+    const rect=canvas.getBoundingClientRect();
+    const cellW=rect.width/S.canvas.gridCols,cellH=rect.height/S.canvas.gridRows;
+    const x=Math.floor((e.clientX-rect.left)/cellW);
+    const y=Math.floor((e.clientY-rect.top)/cellH);
+    addWidgetToCanvas(type,x,y);
+  };
+
+  // Deseçtir: boş alana tık
+  canvas.onclick=e=>{if(e.target===canvas||e.target.classList.contains('designer-canvas-grid')||e.target.classList.contains('designer-canvas-grid-cell')){_selectedWidget=null;renderDesignerCanvas();renderPropsPanel();}};
+
+  // Widget'ları çiz
+  (S.canvas.layout||[]).forEach(w=>drawCanvasWidget(canvas,w));
+}
+
+function drawCanvasWidget(canvas,widget){
+  const cw=CANVAS_REAL.w,ch=CANVAS_REAL.h;
+  const cellW=cw/S.canvas.gridCols,cellH=ch/S.canvas.gridRows;
+  const el=document.createElement('div');
+  el.className='canvas-widget designer-mode'+(_selectedWidget===widget.id?' selected':'');
+  el.dataset.id=widget.id;
+  el.style.left=(widget.x*cellW)+'px';
+  el.style.top=(widget.y*cellH)+'px';
+  el.style.width=(widget.w*cellW)+'px';
+  el.style.height=(widget.h*cellH)+'px';
+  el.style.background=widget.bg||'rgba(255,255,255,0.04)';
+  el.style.border=widget.border?`1px solid rgba(255,255,255,0.15)`:'none';
+  el.style.opacity=(widget.opacity??100)/100;
+
+  // Move handle (tam kaplıyor)
+  const mv=document.createElement('div');
+  mv.className='cw-move';
+  mv.onmousedown=e=>startDrag(e,widget,'move');
+  el.appendChild(mv);
+
+  // Widget içeriği (preview, küçük)
+  const content=document.createElement('div');
+  content.className='canvas-widget-content';
+  content.innerHTML=renderWidgetHtml(widget,true);
+  el.appendChild(content);
+
+  // Resize handles
+  ['se','ne','sw','nw'].forEach(dir=>{
+    const h=document.createElement('div');
+    h.className='resize-handle rh-'+dir;
+    h.onmousedown=e=>{e.stopPropagation();startDrag(e,widget,'resize-'+dir);};
+    el.appendChild(h);
+  });
+
+  // Delete button
+  const del=document.createElement('button');
+  del.className='cw-del';
+  del.textContent='✕';
+  del.onclick=e=>{e.stopPropagation();deleteWidget(widget.id);};
+  el.appendChild(del);
+
+  el.onclick=e=>{
+    if(e.target.classList.contains('resize-handle'))return;
+    e.stopPropagation();
+    _selectedWidget=widget.id;
+    renderDesignerCanvas();
+    renderPropsPanel();
+  };
+
+  canvas.appendChild(el);
+}
+
+function startDrag(e,widget,mode){
+  e.preventDefault();
+  const canvas=$('designer-canvas');
+  const rect=canvas.getBoundingClientRect();
+  const cellW=rect.width/S.canvas.gridCols,cellH=rect.height/S.canvas.gridRows;
+  _dragState={
+    widget:widget,mode:mode,
+    startMouseX:e.clientX,startMouseY:e.clientY,
+    startX:widget.x,startY:widget.y,
+    startW:widget.w,startH:widget.h,
+    cellW,cellH,
+    maxCols:S.canvas.gridCols,maxRows:S.canvas.gridRows
+  };
+  _selectedWidget=widget.id;
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',endDrag);
+}
+function onDrag(e){
+  if(!_dragState)return;
+  const s=_dragState;
+  const dx=Math.round((e.clientX-s.startMouseX)/s.cellW);
+  const dy=Math.round((e.clientY-s.startMouseY)/s.cellH);
+  if(s.mode==='move'){
+    s.widget.x=Math.max(0,Math.min(s.maxCols-s.widget.w,s.startX+dx));
+    s.widget.y=Math.max(0,Math.min(s.maxRows-s.widget.h,s.startY+dy));
+  }else if(s.mode==='resize-se'){
+    s.widget.w=Math.max(1,Math.min(s.maxCols-s.widget.x,s.startW+dx));
+    s.widget.h=Math.max(1,Math.min(s.maxRows-s.widget.y,s.startH+dy));
+  }else if(s.mode==='resize-ne'){
+    s.widget.w=Math.max(1,Math.min(s.maxCols-s.widget.x,s.startW+dx));
+    const nh=s.startH-dy;const ny=s.startY+dy;
+    if(nh>=1&&ny>=0){s.widget.h=nh;s.widget.y=ny;}
+  }else if(s.mode==='resize-sw'){
+    const nw=s.startW-dx;const nx=s.startX+dx;
+    if(nw>=1&&nx>=0){s.widget.w=nw;s.widget.x=nx;}
+    s.widget.h=Math.max(1,Math.min(s.maxRows-s.widget.y,s.startH+dy));
+  }else if(s.mode==='resize-nw'){
+    const nw=s.startW-dx;const nx=s.startX+dx;
+    if(nw>=1&&nx>=0){s.widget.w=nw;s.widget.x=nx;}
+    const nh=s.startH-dy;const ny=s.startY+dy;
+    if(nh>=1&&ny>=0){s.widget.h=nh;s.widget.y=ny;}
+  }
+  renderDesignerCanvas();
+}
+function endDrag(){
+  document.removeEventListener('mousemove',onDrag);
+  document.removeEventListener('mouseup',endDrag);
+  _dragState=null;
+  renderPropsPanel();
+  try{persist();}catch(e){}
+}
+
+function addWidgetToCanvas(type,x,y){
+  const w=WIDGETS[type];if(!w)return;
+  const id=type+'_'+Date.now();
+  const widget={
+    id,type,
+    x:x??0,y:y??0,
+    w:w.w,h:w.h,
+    bg:'#ffffff06',border:1,opacity:100,fontScale:1,
+    minCard:180,speed:30
+  };
+  // Sığmıyorsa sola sığdır
+  if(widget.x+widget.w>S.canvas.gridCols)widget.x=S.canvas.gridCols-widget.w;
+  if(widget.y+widget.h>S.canvas.gridRows)widget.y=S.canvas.gridRows-widget.h;
+  if(widget.x<0)widget.x=0;if(widget.y<0)widget.y=0;
+  if(!S.canvas.layout)S.canvas.layout=[];
+  S.canvas.layout.push(widget);
+  _selectedWidget=id;
+  renderDesignerCanvas();
+  renderPropsPanel();
+  try{persist();}catch(e){}
+  toast(`${w.name} eklendi`);
+}
+function deleteWidget(id){
+  S.canvas.layout=S.canvas.layout.filter(w=>w.id!==id);
+  _selectedWidget=null;
+  renderDesignerCanvas();
+  renderPropsPanel();
+  try{persist();}catch(e){}
+}
+function toggleGrid(){_showGrid=!_showGrid;renderDesignerCanvas();}
+function clearCanvas(){if(!confirm('Tüm widget\'lar silinsin mi?'))return;S.canvas.layout=[];_selectedWidget=null;renderDesignerCanvas();renderPropsPanel();}
+function loadTemplate(name){
+  if(!confirm('Mevcut düzen silinecek, devam?'))return;
+  if(name==='default')S.canvas.layout=JSON.parse(JSON.stringify(DEFAULT_LAYOUT));
+  else if(name==='pdf-focus')S.canvas.layout=[
+    {id:'logo1',type:'logo',x:0,y:0,w:3,h:1,bg:'transparent',border:0,opacity:100},
+    {id:'voc1',type:'voc',x:3,y:0,w:2,h:2,bg:'#ffffff06',border:1,opacity:100,fontScale:1},
+    {id:'clock1',type:'clock',x:0,y:1,w:3,h:1,bg:'transparent',border:0,opacity:100,fontScale:1},
+    {id:'rings1',type:'rings',x:0,y:2,w:5,h:2,bg:'transparent',border:0,opacity:100},
+    {id:'dan1',type:'danismanlar',x:0,y:4,w:5,h:2,bg:'transparent',border:0,opacity:100,minCard:160},
+    {id:'pdf1',type:'pdf',x:5,y:0,w:3,h:6,bg:'#ffffff06',border:1,opacity:100,speed:25},
+  ];
+  else if(name==='minimal')S.canvas.layout=[
+    {id:'logo1',type:'logo',x:0,y:0,w:4,h:1,bg:'transparent',border:0,opacity:100},
+    {id:'voc1',type:'voc',x:6,y:0,w:2,h:2,bg:'#ffffff06',border:1,opacity:100,fontScale:1.2},
+    {id:'rings1',type:'rings',x:0,y:2,w:8,h:2,bg:'transparent',border:0,opacity:100},
+    {id:'dan1',type:'danismanlar',x:0,y:4,w:8,h:2,bg:'transparent',border:0,opacity:100,minCard:200},
+  ];
+  _selectedWidget=null;
+  renderDesignerCanvas();
+  renderPropsPanel();
+  try{persist();}catch(e){}
+  toast('Şablon yüklendi');
+}
+
+function renderPropsPanel(){
+  const c=$('designer-props');if(!c)return;
+  const w=(S.canvas.layout||[]).find(x=>x.id===_selectedWidget);
+  if(!w){c.innerHTML='<h3>Özellikler</h3><div class="prop-empty">Düzenlemek için bir widget seçin</div>';return;}
+  const def=WIDGETS[w.type];
+  let html=`<h3>${def?def.icon:''} ${def?def.name:w.type}</h3>`;
+  html+=`<div class="prop-row"><label>Pozisyon (X / Y)</label><div class="prop-pair"><input type="number" id="pp-x" value="${w.x}" min="0" max="${S.canvas.gridCols-1}"><input type="number" id="pp-y" value="${w.y}" min="0" max="${S.canvas.gridRows-1}"></div></div>`;
+  html+=`<div class="prop-row"><label>Boyut (W / H)</label><div class="prop-pair"><input type="number" id="pp-w" value="${w.w}" min="1" max="${S.canvas.gridCols}"><input type="number" id="pp-h" value="${w.h}" min="1" max="${S.canvas.gridRows}"></div></div>`;
+  html+=`<div class="prop-row"><label>Arka Plan Rengi</label><input type="text" id="pp-bg" value="${w.bg||'transparent'}" placeholder="transparent veya #ffffff06"></div>`;
+  html+=`<div class="prop-row"><label>Şeffaflık: <span style="color:var(--accent);font-weight:700" id="pp-op-lbl">${w.opacity??100}</span>%</label><input type="range" id="pp-op" min="0" max="100" value="${w.opacity??100}"></div>`;
+  html+=`<div class="prop-row"><label>Kenarlık</label><select id="pp-border"><option value="0" ${!w.border?'selected':''}>Yok</option><option value="1" ${w.border?'selected':''}>Var</option></select></div>`;
+  if(def&&def.props.includes('fontScale'))html+=`<div class="prop-row"><label>Font Ölçek: <span style="color:var(--accent)" id="pp-fs-lbl">${w.fontScale||1}</span>x</label><input type="range" id="pp-fs" min="0.5" max="2" step="0.1" value="${w.fontScale||1}"></div>`;
+  if(def&&def.props.includes('minCard'))html+=`<div class="prop-row"><label>Kart Min Genişlik: <span style="color:var(--accent)" id="pp-mc-lbl">${w.minCard||180}</span>px</label><input type="range" id="pp-mc" min="120" max="300" step="10" value="${w.minCard||180}"></div>`;
+  if(def&&def.props.includes('speed'))html+=`<div class="prop-row"><label>Kayma Hızı: <span style="color:var(--accent)" id="pp-sp-lbl">${w.speed||30}</span>s</label><input type="range" id="pp-sp" min="10" max="120" value="${w.speed||30}"></div>`;
+  html+=`<div class="prop-row" style="margin-top:16px"><button class="btn btn-red btn-sm" style="width:100%" onclick="deleteWidget('${w.id}')">🗑 Bu Widget'ı Sil</button></div>`;
+  c.innerHTML=html;
+
+  // Event listeners
+  const onProp=()=>{
+    w.x=+$('pp-x').value;w.y=+$('pp-y').value;
+    w.w=+$('pp-w').value;w.h=+$('pp-h').value;
+    w.bg=$('pp-bg').value;
+    w.opacity=+$('pp-op').value;$('pp-op-lbl').textContent=w.opacity;
+    w.border=+$('pp-border').value;
+    if($('pp-fs')){w.fontScale=+$('pp-fs').value;$('pp-fs-lbl').textContent=w.fontScale;}
+    if($('pp-mc')){w.minCard=+$('pp-mc').value;$('pp-mc-lbl').textContent=w.minCard;}
+    if($('pp-sp')){w.speed=+$('pp-sp').value;$('pp-sp-lbl').textContent=w.speed;}
+    renderDesignerCanvas();
+    // Anında localStorage'a yaz - Kiosk doğru veriyi alsın
+    try{persist();}catch(e){}
+  };
+  ['pp-x','pp-y','pp-w','pp-h','pp-bg','pp-op','pp-border','pp-fs','pp-mc','pp-sp'].forEach(id=>{const el=$(id);if(el){el.oninput=onProp;el.onchange=onProp;}});
+}
+
+// =================================================================
+// WIDGET HTML RENDERER (canvas + kiosk ortak)
+// =================================================================
+function renderWidgetHtml(w,preview){
+  switch(w.type){
+    case 'voc':{
+      const score=Math.round(S.voc.score||0);
+      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${score}</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
+    }
+    case 'logo':{
+      const hasLogo=!!S.brand.logo;
+      return `<div class="w-logo"><div class="w-logo-box ${hasLogo?'has-image':''}">${hasLogo?`<img src="${S.brand.logo}">`:`<span>${(S.brand.name[0]||'E').toUpperCase()}</span>`}</div><div class="w-logo-text"><div class="w-logo-name">${S.brand.name||'—'}</div><div class="w-logo-sub">${S.brand.sub||''}</div>${S.currentShowing&&S.currentShowing!=='—'?`<div class="w-logo-badge">${S.currentShowing}</div>`:''}</div></div>`;
+    }
+    case 'clock':{
+      const n=new Date();
+      const d=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});
+      const t=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+      return `<div class="w-clock"><div class="w-clock-date">${d}</div><div class="w-clock-time" style="font-size:calc(clamp(24px,5cqw,56px)*${w.fontScale||1})">${t}</div></div>`;
+    }
+    case 'rings':{
+      const P=2*Math.PI*42;
+      const cards=(S.metrics||[]).map(m=>{
+        const off=(P*(1-(m.value||0)/100)).toFixed(1);
+        return `<div class="w-ring-card" style="--ring-color:${m.color}"><svg class="w-ring-svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.08)" stroke-width="6" fill="none"/><circle cx="50" cy="50" r="42" stroke="${m.color}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="${P.toFixed(1)}" stroke-dashoffset="${off}" style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1);filter:drop-shadow(0 0 6px ${m.color})"/><text x="50" y="48" text-anchor="middle" dominant-baseline="middle" font-family="Space Grotesk,sans-serif" font-weight="800" font-size="22" fill="currentColor">%${m.value}</text><text x="50" y="64" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">PUAN</text></svg><div class="w-ring-lbl">${m.name}</div></div>`;
+      }).join('');
+      return `<div class="w-rings">${cards}</div>`;
+    }
+    case 'danismanlar':{
+      const minC=w.minCard||180;
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const av=d.photo?`<img src="${d.photo}">`:inits(d.name);return `<div class="w-dan-card" style="--dan-color:${d.color}"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${d.name}</div><div class="w-dan-score"><strong>%${v}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
+    }
+    case 'stats':{
+      const stats=[{l:'Toplam Anket',v:S.anket.toplam||0},{l:'TR Ortalama',v:'%'+(S.voc.tr||0)},{l:'1. Hedef',v:'%'+(S.voc.target1||0)},{l:'Geri Dönüş',v:'%'+Math.round(S.anket.geri||0)}];
+      const cards=stats.map(st=>`<div class="w-stat"><div class="w-stat-val">${st.v}</div><div class="w-stat-lbl">${st.l}</div></div>`).join('');
+      return `<div class="w-stats"><div class="w-stats-title">Özet</div><div class="w-stats-grid">${cards}</div></div>`;
+    }
+    case 'trend':{
+      const arr=S.trend.filter(t=>t.value>0);
+      const data=arr.length?arr:S.trend;
+      const max=Math.max(...data.map(t=>t.value),100);
+      const cols=data.map(t=>{const h=(t.value/max)*100;return `<div class="w-trend-col"><div class="w-trend-bar" style="height:${h}%;background:${t.cur?'var(--accent)':'var(--border-strong)'}"></div><div class="w-trend-lbl">${t.label}</div></div>`;}).join('');
+      return `<div class="w-trend"><div class="w-trend-title">Aylık Trend</div><div class="w-trend-chart">${cols}</div></div>`;
+    }
+    case 'egitim':{
+      const rows=(S.egitim.items||[]).map(it=>`<div class="w-egitim-row"><div class="w-egitim-ico">🎓</div><div class="w-egitim-lbl">${it.label||'—'}</div><div class="w-egitim-val">${it.value||'—'}</div></div>`).join('');
+      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim'}</div><div class="w-egitim-list">${rows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
+    }
+    case 'calls48h':{
+      const pick=pick48hForDisplay();
+      const cards=pick.items.length?pick.items.map(it=>{
+        const trimmed=smartTrim(it.aciklama,120);
+        const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
+        const moodBadgeLabel=it.mood==='kirmizi'?'OLUMSUZ MÜŞTERİ':(it.mood==='yesil'?'OLUMLU MÜŞTERİ':(it.mood==='turuncu'?'TAKİPTE':it.moodLabel));
+        return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span><span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri||it.plaka?`<div class="w-48h-meta">${[it.musteri,it.plaka].filter(Boolean).join(' · ')}</div>`:''}</div>`;
+      }).join(''):'';
+      const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
+      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div><div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
+    }
+    case 'pdf':{
+      return `<div class="w-pdf" onclick="${preview?'':'openPdfFullscreen()'}"><div class="w-pdf-head"><div class="w-pdf-title" id="pdf-title-${w.id}">PDF</div><div class="w-pdf-badge">📄 TIKLA</div></div><div class="w-pdf-content"><div class="w-pdf-inner" id="pdf-inner-${w.id}" data-speed="${w.speed||25}"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${preview?'PDF önizleme':'Yükleniyor...'}</div></div></div></div>`;
+    }
+    case 'ticker':{
+      const items=S.ticker.items&&S.ticker.items.length?S.ticker.items:['Veri bekleniyor...'];
+      const sep='<span style="color:rgba(255,255,255,0.3);margin:0 18px"> ◆ </span>';
+      const html=items.map(t=>`<span style="color:var(--text);font-weight:600;font-size:clamp(12px,1.4cqw,16px);white-space:nowrap">${t}</span>`).join(sep);
+      const dur=Math.round(65-(w.speed||30));
+      return `<div class="w-ticker"><div class="w-ticker-badge"><span class="w-ticker-dot"></span>CANLI</div><div class="w-ticker-track"><div class="w-ticker-inner" style="animation-duration:${dur}s">${html}${sep}${html}</div></div></div>`;
+    }
+    default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
+  }
+}
+
+// =================================================================
+// KIOSK RENDER
+// =================================================================
+function stopKioskTimers(){if(_clockTimer){clearInterval(_clockTimer);_clockTimer=null;}if(_slideshowTimer){clearInterval(_slideshowTimer);_slideshowTimer=null;}}
+function applyKioskBg(){
+  const bg=S.bg||{};const color=bg.color||'#06080f';
+  document.documentElement.style.setProperty('--kiosk-bg',color);
+  document.documentElement.style.setProperty('--kiosk-bg-rgb',hexToRgb(color));
+  document.documentElement.style.setProperty('--bg-opacity',(bg.opacity||40)/100);
+  if(bg.type==='solid'){$('k-bg-gradient').style.display='block';$('k-bg-video').style.display='none';$('k-bg-slideshow').style.display='none';const rgb=hexToRgb(color);$('k-bg-gradient').style.background=`radial-gradient(ellipse at 30% 20%,rgba(${rgb},1),${color} 60%)`;}
+  else if(bg.type==='video'&&bg.video){$('k-bg-gradient').style.background=color;$('k-bg-video').style.display='block';$('k-bg-video').src=bg.video;$('k-bg-slideshow').style.display='none';}
+  else if(bg.type==='image'&&bg.images&&bg.images.length){$('k-bg-gradient').style.background=color;$('k-bg-video').style.display='none';$('k-bg-slideshow').style.display='block';renderSlideshow();}
+  else{$('k-bg-gradient').style.background=color;$('k-bg-video').style.display='none';$('k-bg-slideshow').style.display='none';}
+}
+function renderSlideshow(){const c=$('k-bg-slideshow');c.innerHTML='';if(_slideshowTimer)clearInterval(_slideshowTimer);if(!S.bg.images||!S.bg.images.length)return;S.bg.images.forEach((img,i)=>{const s=document.createElement('div');s.className='k-bg-slide';s.style.backgroundImage=`url(${img})`;if(i===0)s.classList.add('on');c.appendChild(s);});_slideIdx=0;if(S.bg.images.length>1)_slideshowTimer=setInterval(()=>{const slides=c.querySelectorAll('.k-bg-slide');slides.forEach(s=>s.classList.remove('on'));_slideIdx=(_slideIdx+1)%slides.length;slides[_slideIdx].classList.add('on');},(S.bg.slideDur||8)*1000);}
+
+function renderKiosk(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+  document.documentElement.style.setProperty('--accent',S.accent);
+  document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
+  applyKioskBg();
+
+  const canvas=$('k-canvas');canvas.innerHTML='';
+  // Mantıksal boyut 1920x1080 - Designer ile AYNI. Scale ile ekrana sığdır
+  canvas.style.width=CANVAS_REAL.w+'px';
+  canvas.style.height=CANVAS_REAL.h+'px';
+  canvas.style.position='absolute';
+  const vw=window.innerWidth,vh=window.innerHeight;
+  const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+  canvas.style.transform=`scale(${kScale})`;
+  canvas.style.transformOrigin='top left';
+  canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+  canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+  const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
+  const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
+  (S.canvas.layout||[]).forEach(w=>{
+    const el=document.createElement('div');
+    el.className='k-widget';
+    el.dataset.id=w.id;
+    // Piksel bazlı - Designer ile birebir aynı hesap
+    el.style.left=(w.x*cellW)+'px';
+    el.style.top=(w.y*cellH)+'px';
+    el.style.width=(w.w*cellW)+'px';
+    el.style.height=(w.h*cellH)+'px';
+    el.style.background=w.bg||'transparent';
+    el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+    el.style.borderRadius='10px';
+    el.style.opacity=(w.opacity??100)/100;
+    el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+    el.innerHTML=renderWidgetHtml(w,false);
+    canvas.appendChild(el);
+    // PDF/48h için özel init
+    if(w.type==='pdf')initPdfTape(w);
+    if(w.type==='calls48h')initCalls48hScroll(w);
+  });
+
+  // Saat update
+  function tick(){document.querySelectorAll('.w-clock-time').forEach(el=>{const n=new Date();el.textContent=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});});document.querySelectorAll('.w-clock-date').forEach(el=>{const n=new Date();el.textContent=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});});}
+  tick();if(_clockTimer)clearInterval(_clockTimer);_clockTimer=setInterval(tick,30000);
+  // Container query'ler için reflow tetikle
+  requestAnimationFrame(()=>{
+    document.querySelectorAll('#k-canvas .k-widget').forEach(el=>{
+      el.style.display='none';el.offsetHeight;el.style.display='';
+    });
+  });
+}
+
+// PDF Tape
+let _pdfState={idx:0,widgets:[]};
+async function initPdfTape(w){
+  const inner=$('pdf-inner-'+w.id);
+  const title=$('pdf-title-'+w.id);
+  if(!inner)return;
+  // Önce IDB'den restore et
+  if(S.pdfs){
+    for(let i=0;i<S.pdfs.length;i++){
+      if(!S.pdfs[i].data||S.pdfs[i].data==='__IDB__'){
+        try{const d=await idbGet('pdf_'+i);if(d)S.pdfs[i].data=d;}catch(e){}
+      }
+    }
+  }
+  // Ayrıca: silinmiş pdf'lerin IDB blob'larını temizle
+  const expected=new Set((S.pdfs||[]).map((p,i)=>'pdf_'+i));
+  try{
+    const keys=await idbKeys();
+    for(const k of keys){
+      if(k.startsWith('pdf_')&&!expected.has(k))await idbDel(k);
+    }
+  }catch(e){}
+  const valid=(S.pdfs||[]).filter(p=>p.data&&p.data!=='__IDB__');
+  if(!valid.length){inner.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">PDF yok — Admin→PDF sekmesinden ekleyin</div>';return;}
+  inner.innerHTML='';
+  try{
+    for(const item of valid){
+      const head=document.createElement('div');head.style.cssText='padding:6px 10px;color:var(--accent);font-size:10px;font-weight:800;background:rgba(var(--accent-rgb),.1);border-radius:4px;text-align:center';head.textContent=item.title||'PDF';inner.appendChild(head);
+      const pdf=await pdfjsLib.getDocument(item.data).promise;
+      const pages=Math.min(pdf.numPages,S.pdfPageLimit||3);
+      for(let p=1;p<=pages;p++){
+        const page=await pdf.getPage(p);
+        const ratio=1.5;
+        const vp=page.getViewport({scale:ratio});
+        const cv=document.createElement('canvas');
+        cv.width=vp.width;cv.height=vp.height;
+        cv.className='w-pdf-page';
+        await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+        inner.appendChild(cv);
+      }
+    }
+    if(title)title.textContent=valid[0].title||'PDF';
+    setTimeout(()=>{
+      const cH=inner.offsetHeight;const bH=inner.parentElement.offsetHeight;
+      if(cH>bH){
+        const dist=cH-bH+20;
+        inner.style.setProperty('--pdf-end',`-${dist}px`);
+        // Süre = hiz_ayari * (mesafe / 100px). Slider 25 -> her 100px için 2.5sn
+        const speedSlider=w.speed||25; // saniye/100px oranı için baz
+        const dur=Math.max(20,Math.round(dist/100*speedSlider/10));
+        inner.style.animation=`pdfScroll ${dur}s linear infinite alternate`;
+      }
+    },1000);
+  }catch(err){inner.innerHTML=`<div style="padding:20px;color:#ff5252;font-size:11px">${err.message}</div>`;}
+}
+async function openPdfFullscreen(){
+  const modal=$('k-pdf-modal'),content=$('k-pdf-modal-content');
+  // IDB restore
+  if(S.pdfs){for(let i=0;i<S.pdfs.length;i++){if(!S.pdfs[i].data||S.pdfs[i].data==='__IDB__'){try{const d=await idbGet('pdf_'+i);if(d)S.pdfs[i].data=d;}catch(e){}}}}
+  const valid=(S.pdfs||[]).filter(p=>p.data&&p.data!=='__IDB__');if(!valid.length){toast('PDF yok',true);return;}
+  $('k-pdf-modal-title').textContent=valid.length>1?`${valid.length} PDF`:(valid[0].title||'PDF');
+  content.innerHTML='<div style="color:#fff;padding:40px">Yükleniyor...</div>';
+  modal.classList.add('open');
+  try{content.innerHTML='';for(const item of valid){const head=document.createElement('div');head.style.cssText='width:100%;max-width:900px;color:#fff;font-weight:800;padding:8px 0';head.textContent=item.title||'PDF';content.appendChild(head);const pdf=await pdfjsLib.getDocument(item.data).promise;for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.className='k-pdf-modal-page';cv.style.maxWidth='900px';cv.style.width='100%';await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;content.appendChild(cv);}}}catch(err){content.innerHTML=`<div style="color:#ff5252;padding:40px">${err.message}</div>`;}
+}
+function closePdfModal(){$('k-pdf-modal').classList.remove('open');}
+
+// 48h scroll init
+function initCalls48hScroll(w){
+  setTimeout(()=>{
+    document.querySelectorAll('.w-48h-inner').forEach(inner=>{
+      const cH=inner.offsetHeight;const bH=inner.parentElement.offsetHeight;
+      if(cH>bH){
+        const dist=(cH/2);
+        inner.style.setProperty('--calls-end',`-${dist}px`);
+        // Süre dynamically: widget speed (slider) + içerik yüksekliğiyle orantılı
+        const speedSlider=w.speed||30;
+        const dur=Math.max(15,Math.round(dist/50*speedSlider/30));
+        inner.style.animation=`calls48hScroll ${dur}s linear infinite`;
+      }
+    });
+  },400);
+}
+
+// Init
+document.documentElement.setAttribute('data-theme',S.theme);
+document.documentElement.style.setProperty('--accent',S.accent);
+document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
+document.documentElement.style.setProperty('--kiosk-bg',S.bg.color);
+document.documentElement.style.setProperty('--kiosk-bg-rgb',hexToRgb(S.bg.color));
+// URL routing - /yonetim ise admin login, / ise direkt kiosk
+async function routeStart(){
+  const path=location.pathname.toLowerCase();
+  const hash=location.hash.toLowerCase();
+  const isAdmin=path.includes('/yonetim')||path.includes('yonetim.html')||hash.includes('yonetim')||hash.includes('admin');
+  // Cloud'dan en güncel veriyi çek
+  toast('Bulut verisi yükleniyor...');
+  const loaded=await loadFromCloud();
+  if(loaded&&S.excelData&&Object.keys(S.excelData).length)applyViewMode();
+  if(!isAdmin){
+    // Direkt kiosk
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const kioskEl=document.getElementById('s-kiosk');
+    if(kioskEl){kioskEl.classList.add('active');renderKiosk();}
+  }
+}
+restoreBigFromIdb().then(()=>{
+  console.log('[Kiosk] IDB restore done');
+  routeStart();
+});
+let _kioskResizeHandler=null;
+window.addEventListener('resize',()=>{
+  if($('s-admin').classList.contains('active')&&$('tab-designer').classList.contains('active'))renderDesignerCanvas();
+  if($('s-kiosk').classList.contains('active')){
+    const canvas=$('k-canvas');
+    if(canvas){
+      const vw=window.innerWidth,vh=window.innerHeight;
+      const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+      canvas.style.transform=`scale(${kScale})`;
+      canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+      canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+    }
+  }
+});
+
+</script>
+</body>
+</html>
