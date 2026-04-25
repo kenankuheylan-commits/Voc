@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260425_175653</title>
+<title>VOC Kiosk v26-20260425_180216</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -354,12 +354,12 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260425_175653</div>
+    <div>✓ SÜRÜM: v26-20260425_180216</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_175653</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_180216</span></div>
     <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
     <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -675,7 +675,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260425_175653 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260425_180216 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -744,7 +744,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260425_175653';
+const STORAGE_KEY='kiosk_v26-20260425_180216';
 
 // =================================================================
 // GITHUB CLOUD SYNC (data.json üzerinden, AdBlocker engellemez)
@@ -761,68 +761,160 @@ function _ghKey(){
 let _cachedData=null;
 let _cachedSha=null;
 
-// Public read (token gerekmez, AdBlocker raw.githubusercontent.com'u engellemez)
-async function ghLoad(){
+// ===== Tek dosya GitHub okuma =====
+async function _ghReadFile(filename){
   try{
-    const url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+GH_DATA_FILE+'?t='+Date.now();
+    const url='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/'+filename+'?t='+Date.now();
     const res=await fetch(url,{cache:'no-cache'});
-    if(!res.ok){
-      if(res.status===404){console.log('[GH] data.json henüz yok');return null;}
-      throw new Error('GH read '+res.status);
-    }
-    const data=await res.json();
-    _cachedData=data;
-    return data;
-  }catch(err){console.warn('[GH] load:',err.message);return null;}
+    if(!res.ok)return null;
+    return await res.json();
+  }catch(err){return null;}
 }
 
-// Authenticated write (PAT kullanır)
-async function ghSave(stateObj){
-  const slim=JSON.parse(JSON.stringify(stateObj));
-  // Ağır blob'ları temizle - cloud'da sadece state
-  if(slim.bg){slim.bg.video='';slim.bg.images=[];}
-  if(slim.pdfs)slim.pdfs.forEach(p=>{if(p.data)p.data='';});
-  const content=JSON.stringify(slim,null,0);
-  const sizeKB=(content.length/1024).toFixed(0);
-  console.log('[ghSave] toplam boyut:',sizeKB,'KB');
-  if(content.length>950*1024){
-    throw new Error('Veri çok büyük: '+sizeKB+' KB. Maksimum ~900 KB. Eski dönemleri temizleyin.');
-  }
-  // Mevcut dosyanın SHA'sını al (varsa) - update için gerekli
-  let sha=_cachedSha;
+// ===== Tek dosya GitHub yazma (PAT) =====
+const _shaCache={};
+async function _ghWriteFile(filename,jsonObj,commitMsg){
+  const content=JSON.stringify(jsonObj);
+  if(content.length>950*1024)throw new Error(filename+' >950 KB');
+  // SHA'yı al (update için lazım)
+  let sha=_shaCache[filename];
   if(!sha){
     try{
-      const getUrl='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_DATA_FILE+'?ref='+GH_BRANCH;
-      const getRes=await fetch(getUrl,{headers:{'Authorization':'Bearer '+_ghKey(),'Accept':'application/vnd.github+json'}});
-      if(getRes.ok){const j=await getRes.json();sha=j.sha;_cachedSha=sha;}
-      // 404: dosya yok, yeni oluşturulacak
-    }catch(e){console.warn('SHA alınamadı:',e);}
+      const r=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+filename+'?ref='+GH_BRANCH,
+        {headers:{'Authorization':'Bearer '+_ghKey(),'Accept':'application/vnd.github+json'}});
+      if(r.ok){const j=await r.json();sha=j.sha;_shaCache[filename]=sha;}
+    }catch(e){}
   }
-  // base64 encode (UTF-8 safe)
   const b64=btoa(unescape(encodeURIComponent(content)));
-  const body={
-    message:'Update kiosk data '+new Date().toISOString(),
-    content:b64,
-    branch:GH_BRANCH
-  };
+  const body={message:commitMsg||('Update '+filename),content:b64,branch:GH_BRANCH};
   if(sha)body.sha=sha;
-  const putUrl='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_DATA_FILE;
-  const res=await fetch(putUrl,{
+  const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+filename,{
     method:'PUT',
-    headers:{
-      'Authorization':'Bearer '+_ghKey(),
-      'Accept':'application/vnd.github+json',
-      'Content-Type':'application/json'
-    },
+    headers:{'Authorization':'Bearer '+_ghKey(),'Accept':'application/vnd.github+json','Content-Type':'application/json'},
     body:JSON.stringify(body)
   });
   if(!res.ok){
     const errTxt=await res.text();
-    throw new Error('GitHub yazma hatası: '+res.status+' - '+errTxt.slice(0,200));
+    // 409 = SHA conflict, cache temizle ve bir kez retry yap
+    if(res.status===409||res.status===422){
+      delete _shaCache[filename];
+      try{
+        const r2=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+filename+'?ref='+GH_BRANCH,
+          {headers:{'Authorization':'Bearer '+_ghKey()}});
+        if(r2.ok){const j2=await r2.json();_shaCache[filename]=j2.sha;body.sha=j2.sha;}
+      }catch(e){}
+      const res2=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+filename,{
+        method:'PUT',
+        headers:{'Authorization':'Bearer '+_ghKey(),'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      });
+      if(!res2.ok){const e2=await res2.text();throw new Error(filename+' yazma: '+res2.status+' '+e2.slice(0,150));}
+      const j=await res2.json();if(j.content)_shaCache[filename]=j.content.sha;
+      return;
+    }
+    throw new Error(filename+' yazma: '+res.status+' '+errTxt.slice(0,150));
   }
-  const result=await res.json();
-  if(result.content&&result.content.sha)_cachedSha=result.content.sha;
-  console.log('[ghSave] OK, yeni SHA:',_cachedSha);
+  const j=await res.json();if(j.content)_shaCache[filename]=j.content.sha;
+}
+
+// ===== Güvenli dosya adı =====
+function _safeName(s){return String(s).replace(/[^a-zA-Z0-9]/g,'_').slice(0,80);}
+
+// ===== Public read - tüm parçaları topla =====
+async function ghLoad(){
+  // Önce ana index/manifest dosyayı oku
+  const main=await _ghReadFile('data.json');
+  if(!main)return null;
+  const result=main.state||{};
+  // Excel parçalarını yükle (paralel)
+  if(main.excelKeys&&main.excelKeys.length){
+    result.excelData={};
+    const promises=main.excelKeys.map(async k=>{
+      const f=await _ghReadFile('data_excel_'+_safeName(k)+'.json');
+      if(f&&f.data)result.excelData[k]=f.data;
+    });
+    await Promise.all(promises);
+  }
+  // 48h gün parçalarını yükle (paralel)
+  if(main.callsKeys&&main.callsKeys.length){
+    if(!result.calls48h)result.calls48h={};
+    result.calls48h.data={};
+    const promises=main.callsKeys.map(async d=>{
+      const f=await _ghReadFile('data_calls_day_'+d+'.json');
+      if(f&&f.data)result.calls48h.data[d]=f.data;
+    });
+    await Promise.all(promises);
+  }
+  return result;
+}
+
+// ===== Authenticated write - parçalara bölerek =====
+async function ghSave(stateObj){
+  const slim=JSON.parse(JSON.stringify(stateObj));
+  // Ağır blob'ları temizle
+  if(slim.bg){slim.bg.video='';slim.bg.images=[];}
+  if(slim.pdfs)slim.pdfs.forEach(p=>{if(p.data)p.data='';});
+  // Excel ve 48h verisini ayır
+  const excelData=slim.excelData||{};
+  const callsData=(slim.calls48h&&slim.calls48h.data)||{};
+  delete slim.excelData;
+  if(slim.calls48h)slim.calls48h.data={};
+  // Boyutları logla
+  const stateStr=JSON.stringify(slim);
+  console.log('[ghSave] state:',(stateStr.length/1024).toFixed(0),'KB');
+  // Eski manifest'i çek - hangi parçalar siliniyor anlamak için
+  let oldMain=null;
+  try{oldMain=await _ghReadFile('data.json');}catch(e){}
+  const oldExcelKeys=(oldMain&&oldMain.excelKeys)||[];
+  const oldCallsKeys=(oldMain&&oldMain.callsKeys)||[];
+  // Yeni parça anahtarları
+  const excelKeys=Object.keys(excelData);
+  const callsKeys=Object.keys(callsData);
+  // Toplam dosya sayısını kullanıcıya bildir
+  const total=1+excelKeys.length+callsKeys.length;
+  console.log('[ghSave] toplam',total,'dosya yazılacak ('+excelKeys.length,'dönem +',callsKeys.length,'gün + 1 manifest)');
+  // Yazma sırası: önce parçalar, sonra manifest (manifest atomik index)
+  let written=0;
+  const updateBtn=()=>{
+    const btn=document.getElementById('publish-btn');
+    if(btn)btn.innerHTML='⏳ '+written+'/'+total;
+  };
+  // Excel parçaları (sıralı - GitHub aynı anda paralel yazma sevmiyor)
+  for(const periodName of excelKeys){
+    const periodObj={periodName,data:excelData[periodName]};
+    const periodStr=JSON.stringify(periodObj);
+    console.log('  excel ['+periodName+']:',(periodStr.length/1024).toFixed(0),'KB');
+    if(periodStr.length>950*1024){
+      console.warn('Dönem çok büyük, atlanıyor:',periodName);
+      continue;
+    }
+    await _ghWriteFile('data_excel_'+_safeName(periodName)+'.json',periodObj,'Update excel '+periodName);
+    written++;updateBtn();
+  }
+  // 48h gün parçaları
+  for(const dayNum of callsKeys){
+    const dayItems=callsData[dayNum];
+    if(!dayItems||!dayItems.length)continue;
+    const dayObj={day:dayNum,data:dayItems};
+    const dayStr=JSON.stringify(dayObj);
+    console.log('  48h gün',dayNum+':',(dayStr.length/1024).toFixed(0),'KB');
+    if(dayStr.length>950*1024){
+      console.warn('Gün çok büyük, atlanıyor:',dayNum);
+      continue;
+    }
+    await _ghWriteFile('data_calls_day_'+dayNum+'.json',dayObj,'Update 48h day '+dayNum);
+    written++;updateBtn();
+  }
+  // Manifest (ana data.json) - bu atomik bayrak: sadece bu güncellenince yöneticiler değişikliği görür
+  await _ghWriteFile('data.json',{
+    state:slim,
+    excelKeys:excelKeys,
+    callsKeys:callsKeys,
+    updated:Date.now(),
+    updatedAt:new Date().toISOString()
+  },'Publish kiosk data');
+  written++;updateBtn();
+  console.log('[ghSave] BAŞARILI, toplam yazılan:',written);
 }
 
 // Geriye uyumluluk: eski fonksiyon adları
