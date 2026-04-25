@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260425_170813</title>
+<title>VOC Kiosk v26-20260425_171419</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -352,14 +352,14 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 </head>
 <body>
 <!-- LOGIN -->
-<div id="s-login" class="screen active">
+<div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260425_170813</div>
+    <div>✓ SÜRÜM: v26-20260425_171419</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_170813</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_171419</span></div>
     <div class="login-err" id="login-err">Hatalı şifre.</div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doLogin()">Yönetim Paneline Gir</button>
@@ -663,10 +663,18 @@ body.designer-fs .designer-fs-toolbar{display:flex}
   </div>
 </div>
 
+<div id="s-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 50% 40%,rgba(249,200,14,0.06),#06080f 70%);color:#fff">
+  <div style="display:flex;align-items:center;gap:14px;font-family:'Space Grotesk',sans-serif">
+    <div style="width:42px;height:42px;border:3px solid rgba(249,200,14,0.2);border-top-color:#f9c80e;border-radius:50%;animation:spinL 0.9s linear infinite"></div>
+    <div style="font-size:16px;font-weight:700;letter-spacing:0.02em">Yükleniyor...</div>
+  </div>
+  <style>@keyframes spinL{to{transform:rotate(360deg)}}</style>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260425_170813 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260425_171419 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -735,7 +743,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260425_170813';
+const STORAGE_KEY='kiosk_v26-20260425_171419';
 
 // =================================================================
 // FIREBASE CLOUD SYNC
@@ -2055,12 +2063,13 @@ async function routeStart(){
     ||search.includes('admin')
     ||search.includes('yonetim');
   // Cloud'dan en güncel veriyi çek
-  toast('Bulut verisi yükleniyor...');
   const loaded=await loadFromCloud();
   if(loaded&&S.excelData&&Object.keys(S.excelData).length)applyViewMode();
-  if(!isAdmin){
-    // Direkt kiosk
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  // Loading ekranını kapat, doğru ekranı aç
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  if(isAdmin){
+    document.getElementById('s-login').classList.add('active');
+  }else{
     const kioskEl=document.getElementById('s-kiosk');
     if(kioskEl){kioskEl.classList.add('active');renderKiosk();}
   }
