@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260425_162526</title>
+<title>VOC Kiosk v26-20260425_170813</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -354,12 +354,12 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen active">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260425_162526</div>
+    <div>✓ SÜRÜM: v26-20260425_170813</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_162526</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260425_170813</span></div>
     <div class="login-err" id="login-err">Hatalı şifre.</div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doLogin()">Yönetim Paneline Gir</button>
@@ -666,7 +666,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260425_162526 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260425_170813 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -735,7 +735,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260425_162526';
+const STORAGE_KEY='kiosk_v26-20260425_170813';
 
 // =================================================================
 // FIREBASE CLOUD SYNC
@@ -2042,11 +2042,18 @@ document.documentElement.style.setProperty('--accent',S.accent);
 document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
 document.documentElement.style.setProperty('--kiosk-bg',S.bg.color);
 document.documentElement.style.setProperty('--kiosk-bg-rgb',hexToRgb(S.bg.color));
-// URL routing - /yonetim ise admin login, / ise direkt kiosk
+// URL routing - /yonetim, #yonetim, ?admin, yonetim.html ise admin login
 async function routeStart(){
   const path=location.pathname.toLowerCase();
   const hash=location.hash.toLowerCase();
-  const isAdmin=path.includes('/yonetim')||path.includes('yonetim.html')||hash.includes('yonetim')||hash.includes('admin');
+  const search=location.search.toLowerCase();
+  // Aşağıdaki herhangi biri varsa admin moduna gir
+  const isAdmin=path.includes('/yonetim')
+    ||path.includes('yonetim.html')
+    ||hash.includes('yonetim')
+    ||hash.includes('admin')
+    ||search.includes('admin')
+    ||search.includes('yonetim');
   // Cloud'dan en güncel veriyi çek
   toast('Bulut verisi yükleniyor...');
   const loaded=await loadFromCloud();
