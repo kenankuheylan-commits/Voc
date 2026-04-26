@@ -2894,7 +2894,7 @@ function renderKiosk(){
   if(isMobile){
     // MOBİL: widget'ları dikey sırala, scale yok
     canvas.className='k-canvas mobile-mode';
-    canvas.style.cssText='';
+    canvas.style.cssText='position:relative;transform:none;width:100%;height:auto;left:0;top:0;display:flex;flex-direction:column;padding:10px;gap:10px;min-height:100vh';
     // Widget sıralama: logo → voc → rings → danismanlar → stats → 48h → ticker → diğer
     const typeOrder={'logo':0,'voc':1,'clock':2,'rings':3,'danismanlar':4,'stats':5,'trend':6,'calls48h':7,'egitim':8,'pdf':9,'ticker':10};
     const sorted=[...(S.canvas.layout||[])].sort((a,b)=>(typeOrder[a.type]??50)-(typeOrder[b.type]??50));
@@ -2902,11 +2902,8 @@ function renderKiosk(){
       const el=document.createElement('div');
       el.className='k-widget';
       el.dataset.id=w.id;
-      el.style.background=w.bg||'transparent';
-      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
-      el.style.borderRadius='10px';
-      el.style.opacity=(w.opacity??100)/100;
-      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+      // MOBİL: position/size inline olarak override
+      el.style.cssText=`position:relative;left:auto;top:auto;width:100%;height:auto;min-height:60px;background:${w.bg||'transparent'};border:${w.border?'1px solid rgba(255,255,255,0.12)':'none'};border-radius:10px;opacity:${(w.opacity??100)/100};${w.bg&&w.bg!=='transparent'?'backdrop-filter:blur(10px)':''}`;
       el.innerHTML=renderWidgetHtml(w,false);
       canvas.appendChild(el);
       if(w.type==='pdf')initPdfTape(w);
