@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260426_063243</title>
+<title>VOC Kiosk v26-20260426_065206</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -354,12 +354,12 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260426_063243</div>
+    <div>✓ SÜRÜM: v26-20260426_065206</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260426_063243</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260426_065206</span></div>
     <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
     <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -683,7 +683,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260426_063243 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260426_065206 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -752,7 +752,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260426_063243';
+const STORAGE_KEY='kiosk_v26-20260426_065206';
 
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
@@ -1062,10 +1062,12 @@ async function publishDesign(progressCb){
 
   // 4) PDF'ler
   const pdfMeta=[];
+  const skippedPdfs=[];
   if(S.pdfs){
     for(let i=0;i<S.pdfs.length;i++){
       const p=S.pdfs[i];
       let pdfPath='';
+      let skipped=false;
       if(p.data&&p.data.startsWith('data:')){
         const b64=dataUrlToBase64(p.data);
         if(b64){
@@ -1073,18 +1075,25 @@ async function publishDesign(progressCb){
           const sizeKB=(b64.length*0.75)/1024;
           if(sizeKB>950){
             console.warn('PDF',i,'çok büyük, atlandı:',sizeKB.toFixed(0),'KB');
-            alert('PDF '+(p.title||(i+1))+' çok büyük ('+sizeKB.toFixed(0)+' KB). Maksimum 950 KB. smallpdf.com ile küçültüp tekrar yükleyin. Bu PDF yayınlanmadı.');
-            continue;
+            skippedPdfs.push((p.title||('PDF '+(i+1)))+' ('+sizeKB.toFixed(0)+' KB)');
+            // Eski URL varsa onu kullan
+            pdfPath=p.url||'';
+            skipped=true;
+          }else{
+            pdfPath='assets/pdf_'+i+'.pdf';
+            updateProgress(0,0,'PDF '+(i+1)+'/'+S.pdfs.length+'...');
+            await ghPutFile(pdfPath,b64,'Update pdf '+i);
           }
-          pdfPath='assets/pdf_'+i+'.pdf';
-          updateProgress(0,0,'PDF '+(i+1)+'/'+S.pdfs.length+'...');
-          await ghPutFile(pdfPath,b64,'Update pdf '+i);
         }
       }else if(p.url){
         pdfPath=p.url;
       }
+      // Her zaman pdfMeta'ya ekle (atlanmış olsa bile - sadece path boş)
       pdfMeta.push({title:p.title||'PDF '+(i+1),path:pdfPath,url:p.url||''});
     }
+  }
+  if(skippedPdfs.length){
+    alert('Bu PDF\'ler çok büyük olduğu için yayınlanmadı:\n\n'+skippedPdfs.join('\n')+'\n\nÇözüm: smallpdf.com ile küçültüp tekrar yükleyin (max 950 KB).');
   }
 
   // 5) design.json (küçük, asset URL'lerini içerir)
@@ -1093,8 +1102,16 @@ async function publishDesign(progressCb){
   if(slim.brand)slim.brand.logoPath=logoPath;
   if(slim.brand)slim.brand.logo=''; // base64'ü kaldır
   if(slim.danismanlar){slim.danismanlar.forEach((d,i)=>{d.photoPath=danPaths[i]||'';d.photo='';});}
-  if(slim.bg){slim.bg.imagePaths=bgPaths;slim.bg.images=[];slim.bg.video='';} // video çok büyük, GitHub'a girmez
-  if(slim.pdfs)slim.pdfs.forEach((p,i)=>{const m=pdfMeta[i];if(m){p.path=m.path;p.url=m.url;p.data='';}});
+  if(slim.bg){slim.bg.imagePaths=bgPaths;slim.bg.images=[];slim.bg.video='';}
+  // PDF'lerin data'sını HER ZAMAN temizle (atlanmış olsa bile - design.json küçük kalsın)
+  if(slim.pdfs){
+    slim.pdfs.forEach((p,i)=>{
+      const m=pdfMeta[i];
+      p.path=m?m.path:'';
+      p.url=m?m.url:'';
+      p.data=''; // base64 kaldır
+    });
+  }
   // excelData ve calls48h.data zaten Sheets'ten gelir, bunları temizle
   delete slim.excelData;
   if(slim.calls48h)slim.calls48h.data={};
