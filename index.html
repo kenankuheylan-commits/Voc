@@ -284,6 +284,66 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-48h-txt{font-size:clamp(9px,.95cqw,11px);line-height:1.3;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .w-48h-meta{font-size:8px;color:var(--muted);opacity:.75}
 @keyframes calls48hScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--calls-end,-50%))}}
+
+/* ============ MOBİL RESPONSIVE ============ */
+@media (max-width:768px){
+  .login-card{width:calc(100vw - 32px)!important;max-width:380px;padding:24px 20px!important;margin-top:16px!important}
+  .login-logo{font-size:24px}
+  #s-admin{flex-direction:column!important}
+  .adm-nav{width:100%!important;height:auto!important;min-height:auto!important;flex-direction:row!important;border-right:none!important;border-bottom:1px solid var(--border)!important;position:sticky;top:0;z-index:20}
+  .adm-nav-brand{display:none!important}
+  .adm-nav-items{display:flex!important;flex-direction:row!important;overflow-x:auto!important;overflow-y:hidden!important;padding:4px 8px!important;gap:2px!important;flex:1!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .adm-nav-items::-webkit-scrollbar{display:none}
+  .adm-nav-item{padding:8px 10px!important;font-size:11px!important;white-space:nowrap!important;flex-shrink:0!important;gap:4px!important;border-radius:6px!important}
+  .adm-nav-item.active::before{display:none!important}
+  .adm-nav-icon{font-size:13px!important;width:auto!important}
+  .adm-nav-bottom{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;padding:6px 8px!important;gap:4px!important;border-top:none!important;border-left:1px solid var(--border)!important;align-items:center!important}
+  .adm-nav-bottom .btn{font-size:10px!important;padding:6px 8px!important}
+  #auth-user-info{display:none!important}
+  .adm-topbar{padding:10px 14px!important}
+  .adm-topbar .btn{font-size:10px!important;padding:5px 8px!important}
+  .adm-page-title{font-size:15px!important}
+  .adm-content{padding:12px!important}
+  .card{padding:14px!important}
+  .g2,.g3{grid-template-columns:1fr!important}
+  .designer-wrap{grid-template-columns:1fr!important}
+  .designer-sidebar,.designer-props{display:none!important}
+  #s-kiosk{overflow-y:auto!important;overflow-x:hidden!important}
+  .k-canvas.mobile-mode{position:relative!important;transform:none!important;width:100%!important;height:auto!important;left:0!important;top:0!important;display:flex!important;flex-direction:column!important;padding:12px!important;gap:12px!important;min-height:100vh}
+  .k-canvas.mobile-mode .k-widget{position:relative!important;left:auto!important;top:auto!important;width:100%!important;height:auto!important;min-height:80px;transform:none!important}
+  .w-voc{padding:20px 12px!important}
+  .w-voc-val{font-size:42px!important}
+  .w-voc-lbl{font-size:11px!important}
+  .w-rings{grid-template-columns:repeat(2,1fr)!important;gap:8px!important;padding:10px!important}
+  .w-ring-card{padding:10px 8px!important}
+  .w-ring-svg{max-width:80px!important}
+  .w-ring-lbl{font-size:10px!important}
+  .w-dan-list{grid-template-columns:1fr!important}
+  .w-dan-card{padding:10px!important}
+  .w-dan-name{font-size:13px!important}
+  .w-dan-score{font-size:12px!important}
+  .w-stats-grid{grid-template-columns:1fr 1fr!important}
+  .w-48h{padding:10px!important;min-height:200px}
+  .w-48h-track{position:relative!important;overflow-y:auto!important;max-height:350px}
+  .w-48h-inner{position:relative!important;animation:none!important}
+  .w-48h-txt{font-size:12px!important;-webkit-line-clamp:4!important}
+  .w-logo{flex-direction:column!important;align-items:center!important;text-align:center!important;padding:16px 12px!important}
+  .w-logo-name{font-size:18px!important;white-space:normal!important}
+  .w-logo-sub{font-size:12px!important}
+  .w-clock .w-clock-time{font-size:28px!important}
+  .w-ticker{min-height:36px}
+  .w-ticker-inner{font-size:12px!important}
+  .k-controls{bottom:8px!important;right:8px!important;gap:4px!important}
+  .k-ctrl-btn{font-size:11px!important;padding:6px 10px!important}
+  .k-pdf-modal-content{padding:12px!important}
+  .k-pdf-modal-head{padding:12px 16px!important}
+  .k-pdf-modal-title{font-size:16px!important}
+  .rapor-section{padding:14px!important;margin-bottom:10px!important}
+  .rapor-grid{grid-template-columns:1fr!important}
+  .rapor-48h-badge{font-size:13px!important;padding:5px 12px!important}
+  .view-mode-buttons{flex-wrap:wrap!important}
+  .vmb{font-size:11px!important;padding:6px 10px!important}
+}
 /* RAPOR PRINT STILI */
 @media print{
   @page{margin:0;size:A4}
@@ -798,7 +858,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
         <button class="k-pdf-modal-close" onclick="closeRaporModal()">✕</button>
       </div>
     </div>
-    <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1000px;margin:0 auto;width:100%"></div>
+    <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1000px;margin:0 auto;width:100%;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -2802,38 +2862,62 @@ function renderKiosk(){
   applyKioskBg();
 
   const canvas=$('k-canvas');canvas.innerHTML='';
-  // Mantıksal boyut 1920x1080 - Designer ile AYNI. Scale ile ekrana sığdır
-  canvas.style.width=CANVAS_REAL.w+'px';
-  canvas.style.height=CANVAS_REAL.h+'px';
-  canvas.style.position='absolute';
-  const vw=window.innerWidth,vh=window.innerHeight;
-  const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
-  canvas.style.transform=`scale(${kScale})`;
-  canvas.style.transformOrigin='top left';
-  canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
-  canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
-  const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
-  const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
-  (S.canvas.layout||[]).forEach(w=>{
-    const el=document.createElement('div');
-    el.className='k-widget';
-    el.dataset.id=w.id;
-    // Piksel bazlı - Designer ile birebir aynı hesap
-    el.style.left=(w.x*cellW)+'px';
-    el.style.top=(w.y*cellH)+'px';
-    el.style.width=(w.w*cellW)+'px';
-    el.style.height=(w.h*cellH)+'px';
-    el.style.background=w.bg||'transparent';
-    el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
-    el.style.borderRadius='10px';
-    el.style.opacity=(w.opacity??100)/100;
-    el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
-    el.innerHTML=renderWidgetHtml(w,false);
-    canvas.appendChild(el);
-    // PDF/48h için özel init
-    if(w.type==='pdf')initPdfTape(w);
-    if(w.type==='calls48h')initCalls48hScroll(w);
-  });
+  const isMobile=window.innerWidth<=768;
+  
+  if(isMobile){
+    // MOBİL: widget'ları dikey sırala, scale yok
+    canvas.className='k-canvas mobile-mode';
+    canvas.style.cssText='';
+    // Widget sıralama: logo → voc → rings → danismanlar → stats → 48h → ticker → diğer
+    const typeOrder={'logo':0,'voc':1,'clock':2,'rings':3,'danismanlar':4,'stats':5,'trend':6,'calls48h':7,'egitim':8,'pdf':9,'ticker':10};
+    const sorted=[...(S.canvas.layout||[])].sort((a,b)=>(typeOrder[a.type]??50)-(typeOrder[b.type]??50));
+    sorted.forEach(w=>{
+      const el=document.createElement('div');
+      el.className='k-widget';
+      el.dataset.id=w.id;
+      el.style.background=w.bg||'transparent';
+      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+      el.style.borderRadius='10px';
+      el.style.opacity=(w.opacity??100)/100;
+      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+      el.innerHTML=renderWidgetHtml(w,false);
+      canvas.appendChild(el);
+      if(w.type==='pdf')initPdfTape(w);
+      if(w.type==='calls48h')initCalls48hScroll(w);
+    });
+  }else{
+    // DESKTOP: normal 1920x1080 scale modu
+    canvas.className='k-canvas';
+    canvas.style.width=CANVAS_REAL.w+'px';
+    canvas.style.height=CANVAS_REAL.h+'px';
+    canvas.style.position='absolute';
+    const vw=window.innerWidth,vh=window.innerHeight;
+    const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+    canvas.style.transform=`scale(${kScale})`;
+    canvas.style.transformOrigin='top left';
+    canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+    canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+    const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
+    const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
+    (S.canvas.layout||[]).forEach(w=>{
+      const el=document.createElement('div');
+      el.className='k-widget';
+      el.dataset.id=w.id;
+      el.style.left=(w.x*cellW)+'px';
+      el.style.top=(w.y*cellH)+'px';
+      el.style.width=(w.w*cellW)+'px';
+      el.style.height=(w.h*cellH)+'px';
+      el.style.background=w.bg||'transparent';
+      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+      el.style.borderRadius='10px';
+      el.style.opacity=(w.opacity??100)/100;
+      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+      el.innerHTML=renderWidgetHtml(w,false);
+      canvas.appendChild(el);
+      if(w.type==='pdf')initPdfTape(w);
+      if(w.type==='calls48h')initCalls48hScroll(w);
+    });
+  }
 
   // Saat update
   function tick(){document.querySelectorAll('.w-clock-time').forEach(el=>{const n=new Date();el.textContent=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});});document.querySelectorAll('.w-clock-date').forEach(el=>{const n=new Date();el.textContent=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});});}
@@ -3020,7 +3104,7 @@ function openRaporModal(){
   
   // 1) HEADER - arka plan fotoğrafı tüm rapora (img ile - print uyumlu)
   const bgImg=(S.bg&&S.bg.images&&S.bg.images.length)?S.bg.images[0]:'';
-  let html=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:hidden;padding:24px">`;
+  let html=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:visible;padding:24px">`;
   if(bgImg){
     html+=`<img src="${bgImg}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none" />`;
     html+=`<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,12,20,0.82);z-index:1;pointer-events:none"></div>`;
@@ -3070,16 +3154,16 @@ function openRaporModal(){
   });
   html+=`</div></div>`;
 
-  // 5) 48 SAAT ARAMALARI ÖZETİ
+  // 5) 48 SAAT ARAMALARI ÖZETİ — ekranda gösterilen günün verileri
   const pick=pick48hForDisplay();
-  const allItems48h=get48hAllItems();
-  const olumlu=allItems48h.filter(x=>x.mood==='yesil').length;
-  const olumsuz=allItems48h.filter(x=>x.mood==='kirmizi').length;
-  const uyari=allItems48h.filter(x=>x.mood==='turuncu').length;
-  const takipte=allItems48h.filter(x=>x.mood==='mavi').length;
-  const toplam48h=allItems48h.length;
+  const displayItems=pick.items||[];
+  const olumlu=displayItems.filter(x=>x.mood==='yesil').length;
+  const olumsuz=displayItems.filter(x=>x.mood==='kirmizi').length;
+  const uyari=displayItems.filter(x=>x.mood==='turuncu').length;
+  const takipte=displayItems.filter(x=>x.mood==='mavi').length;
+  const toplam48h=displayItems.length;
 
-  html+=`<div class="rapor-section"><div class="rapor-section-title">48 Saat Aramaları Özeti</div>`;
+  html+=`<div class="rapor-section"><div class="rapor-section-title">48 Saat Aramaları — ${pick.dateStr||'Bugün'}</div>`;
   html+=`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">`;
   html+=`<div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${olumlu} Olumlu</div>`;
   html+=`<div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${olumsuz} Olumsuz</div>`;
@@ -3088,8 +3172,8 @@ function openRaporModal(){
   html+=`<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:var(--muted)">Toplam: ${toplam48h}</div>`;
   html+=`</div>`;
 
-  // 6) OLUMSUZ YORUMLAR DETAYI
-  const negItems=allItems48h.filter(x=>x.mood==='kirmizi');
+  // 6) SADECE O GÜNDEKİ OLUMSUZ YORUMLAR
+  const negItems=displayItems.filter(x=>x.mood==='kirmizi');
   if(negItems.length){
     html+=`<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:10px">⚠ Olumsuz Müşteri Yorumları (${negItems.length} adet)</div>`;
     negItems.forEach(it=>{
@@ -3114,19 +3198,6 @@ function openRaporModal(){
 
   content.innerHTML=html;
   modal.classList.add('open');
-}
-
-// 48h tüm günlerin tüm itemlerini al (rapor için)
-function get48hAllItems(){
-  if(!S.calls48h||!S.calls48h.data)return[];
-  const data=S.calls48h.data;
-  const all=[];
-  Object.keys(data).forEach(day=>{
-    if(Array.isArray(data[day])){
-      data[day].forEach(it=>all.push(it));
-    }
-  });
-  return all;
 }
 
 function closeRaporModal(){$('k-rapor-modal').classList.remove('open');}
