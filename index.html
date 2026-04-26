@@ -7,6 +7,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- Firebase SDK (compat mode - tek dosya, global erişim) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
@@ -354,19 +358,43 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <body>
 <!-- LOGIN -->
 <div id="s-login" class="screen">
-  <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v27-20260426_bugfix7</div>
-    <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
-  </div>
-  <div class="login-card" style="margin-top:50px">
+  <div class="login-card" style="margin-top:30px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v27-20260426_bugfix7</span></div>
-    <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
-    <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doLogin()">Yönetim Paneline Gir</button>
-    <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="goKiosk()">Sadece Kiosk Ekranını Görüntüle →</button>
-    <button onclick="fullReset()" style="width:100%;padding:10px;background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.4);color:#ef4444;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:700">🗑 HER ŞEYİ SİL VE SIFIRLA</button>
+    <div class="login-sub">Bayi yönetim paneli</div>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-info" id="login-info" style="display:none;background:rgba(78,205,196,0.1);border:1px solid rgba(78,205,196,0.3);color:#4ecdc4;padding:10px;border-radius:10px;margin-bottom:14px;font-size:13px"></div>
+
+    <!-- GİRİŞ FORMU -->
+    <div id="login-form-signin">
+      <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doFirebaseLogin()"></div>
+      <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doFirebaseLogin()"></div>
+      <button class="btn btn-accent" style="width:100%;margin-bottom:10px" id="btn-login" onclick="doFirebaseLogin()">Giriş Yap</button>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="goKiosk()">Sadece Kiosk Ekranını Görüntüle →</button>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <a href="#" onclick="showLoginForm('forgot');return false" style="font-size:12px;color:var(--accent);text-decoration:none">Şifremi Unuttum</a>
+        <a href="#" onclick="showLoginForm('register');return false" style="font-size:12px;color:var(--accent);text-decoration:none">Üye Ol →</a>
+      </div>
+    </div>
+
+    <!-- ŞİFREMİ UNUTTUM -->
+    <div id="login-form-forgot" style="display:none">
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">🔑 Şifre Sıfırlama</div>
+      <div class="f-row"><label class="f-label">Kayıtlı E-posta</label><input class="f-input" type="email" id="forgot-email" autocomplete="email" onkeydown="if(event.key==='Enter')doForgotPassword()"></div>
+      <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doForgotPassword()">Sıfırlama Bağlantısı Gönder</button>
+      <a href="#" onclick="showLoginForm('signin');return false" style="font-size:12px;color:var(--muted);text-decoration:none">← Giriş Ekranına Dön</a>
+    </div>
+
+    <!-- ÜYE OL -->
+    <div id="login-form-register" style="display:none">
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">👤 Yeni Hesap Oluştur</div>
+      <div class="f-row"><label class="f-label">Ad Soyad</label><input class="f-input" type="text" id="reg-name" placeholder="Adınız Soyadınız"></div>
+      <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="reg-email" autocomplete="email"></div>
+      <div class="f-row"><label class="f-label">Şifre (en az 6 karakter)</label><input class="f-input" type="password" id="reg-pw" autocomplete="new-password"></div>
+      <div class="f-row"><label class="f-label">Şifre Tekrar</label><input class="f-input" type="password" id="reg-pw2" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <button class="btn btn-accent" style="width:100%;margin-bottom:10px" onclick="doRegister()">Hesap Oluştur</button>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Hesabınız oluşturulduktan sonra admin tarafından onaylanması gerekir. Onaylanana kadar sadece kiosk ekranını görüntüleyebilirsiniz.</div>
+      <a href="#" onclick="showLoginForm('signin');return false" style="font-size:12px;color:var(--muted);text-decoration:none">← Giriş Ekranına Dön</a>
+    </div>
   </div>
 </div>
 
@@ -387,11 +415,14 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="adm-nav-item" onclick="goTab('gorunum',this)"><span class="adm-nav-icon">🎨</span>Görünüm</div>
       <div class="adm-nav-item" onclick="goTab('ticker',this)"><span class="adm-nav-icon">📢</span>Ticker</div>
       <div class="adm-nav-item" onclick="goTab('ayarlar',this)"><span class="adm-nav-icon">⚙️</span>Ayarlar</div>
+      <div class="adm-nav-item" id="nav-users" onclick="goTab('kullanicilar',this)" style="display:none"><span class="adm-nav-icon">👥</span>Kullanıcılar</div>
     </div>
     <div class="adm-nav-bottom">
+      <div id="auth-user-info" style="padding:6px 8px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);margin-bottom:6px;word-break:break-all"></div>
       <button class="btn btn-sm" onclick="publishToCloud()" id="publish-btn" style="background:linear-gradient(135deg,#22c55e,#4ecdc4);color:#000;font-weight:700;border:none">☁ Yayına Al</button>
       <button class="btn btn-accent btn-sm" onclick="saveAndKiosk()">▶ Önizle</button>
       <button class="btn btn-ghost btn-sm" onclick="saveAll()">💾 Yerel Kaydet</button>
+      <button class="btn btn-red btn-sm" onclick="doLogout()">🚪 Çıkış Yap</button>
     </div>
   </div>
   <div class="adm-main">
@@ -635,15 +666,21 @@ body.designer-fs .designer-fs-toolbar{display:flex}
           <button class="btn btn-accent btn-sm" onclick="saveGhToken()">Token'ı Kaydet</button>
           <span id="gh-token-status" style="margin-left:10px;font-size:12px"></span>
         </div>
-        <div class="sec-title sec-gap">Giriş Bilgileri</div>
+      </div>
+
+      <!-- KULLANICILAR (sadece admin görür) -->
+      <div class="tab-pane" id="tab-kullanicilar">
+        <div class="sec-title">Kullanıcı Yönetimi</div>
         <div class="card">
-          <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="set-email"></div>
-          <div class="g2">
-            <div class="f-row"><label class="f-label">Yeni Şifre</label><input class="f-input" type="password" id="new-pw1" placeholder="Boş bırakırsan değişmez"></div>
-            <div class="f-row"><label class="f-label">Tekrar</label><input class="f-input" type="password" id="new-pw2"></div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Kayıtlı kullanıcıların yetki seviyelerini buradan yönetebilirsin.</p>
+          <div style="display:flex;gap:8px;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;line-height:1.6">
+            <div><strong style="color:#22c55e">🟢 Admin:</strong> Tüm yetkiler — ayar değiştirme, yayınlama, kullanıcı yönetimi</div>
+            <div style="margin-left:16px"><strong style="color:#4ecdc4">🔵 Görüntüleyici:</strong> Sadece kiosk ekranını görebilir, admin paneline sınırlı erişim</div>
+            <div style="margin-left:16px"><strong style="color:var(--muted)">⏳ Beklemede:</strong> Yeni kayıt, henüz onaylanmamış</div>
           </div>
-          <button class="btn btn-accent btn-sm" onclick="changeCredentials()">Güncelle</button>
-          <p style="margin-top:12px;font-size:11px;color:var(--muted)">Değişikliği yayınlamak için sonra <strong>☁ Yayına Al</strong>'a basmayı unutmayın.</p>
+          <div id="users-list" style="display:flex;flex-direction:column;gap:8px">
+            <div style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Yükleniyor...</div>
+          </div>
         </div>
       </div>
 
@@ -1272,16 +1309,239 @@ async function persistBigToIdb(){
   }catch(e){console.warn('idb save:',e);}
 }
 
-function doLogin(){
-  const em=$('login-email').value.trim().toLowerCase();
+// =================================================================
+// FIREBASE AUTH + FIRESTORE USER MANAGEMENT
+// =================================================================
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyCyxUT9zDoPdy23Wxhhq-mOjpqJcllaoI8",
+  authDomain:"voc-kiosk.firebaseapp.com",
+  projectId:"voc-kiosk",
+  storageBucket:"voc-kiosk.firebasestorage.app",
+  messagingSenderId:"1025560137158",
+  appId:"1:1025560137158:web:9e32b968f20374bf0436c7"
+};
+const fbApp=firebase.initializeApp(FIREBASE_CONFIG);
+const fbAuth=firebase.auth();
+const fbDb=firebase.firestore();
+
+let _currentUser=null;   // Firebase User objesi
+let _currentRole=null;    // 'admin' | 'viewer' | 'pending'
+
+function showLoginForm(form){
+  ['signin','forgot','register'].forEach(f=>{
+    const el=$('login-form-'+f);
+    if(el)el.style.display=f===form?'block':'none';
+  });
+  $('login-err').classList.remove('show');
+  $('login-err').textContent='';
+  const info=$('login-info');
+  if(info){info.style.display='none';info.textContent='';}
+}
+function showLoginErr(msg){
+  const el=$('login-err');
+  el.textContent=msg;el.classList.add('show');
+}
+function showLoginInfo(msg){
+  const el=$('login-info');
+  el.textContent=msg;el.style.display='block';
+}
+
+// Giriş Yap
+async function doFirebaseLogin(){
+  const em=$('login-email').value.trim();
   const pw=$('login-pw').value;
-  const expectedEm=(S.email||'').trim().toLowerCase();
-  if(em===expectedEm&&pw===S.pw){
+  if(!em||!pw){showLoginErr('E-posta ve şifre boş olamaz.');return;}
+  const btn=$('btn-login');
+  btn.disabled=true;btn.textContent='Giriş yapılıyor...';
+  try{
+    const cred=await fbAuth.signInWithEmailAndPassword(em,pw);
     $('login-err').classList.remove('show');
-    goAdmin();
-  }else{
-    $('login-err').classList.add('show');
+    // Rol kontrolü → Firestore'dan oku
+    await loadUserRole(cred.user);
+  }catch(err){
+    console.error('Login err:',err);
+    const msgs={'auth/user-not-found':'Bu e-posta ile kayıtlı hesap yok.','auth/wrong-password':'Şifre hatalı.','auth/invalid-email':'Geçersiz e-posta.','auth/too-many-requests':'Çok fazla deneme. Biraz bekle.','auth/invalid-credential':'E-posta veya şifre hatalı.'};
+    showLoginErr(msgs[err.code]||err.message);
   }
+  btn.disabled=false;btn.textContent='Giriş Yap';
+}
+
+// Şifremi Unuttum
+async function doForgotPassword(){
+  const em=$('forgot-email').value.trim();
+  if(!em){showLoginErr('E-posta adresini gir.');return;}
+  try{
+    await fbAuth.sendPasswordResetEmail(em);
+    showLoginInfo('📧 Şifre sıfırlama bağlantısı gönderildi! E-postanı kontrol et.');
+    showLoginForm('signin');
+    showLoginInfo('📧 Şifre sıfırlama bağlantısı '+em+' adresine gönderildi!');
+  }catch(err){
+    const msgs={'auth/user-not-found':'Bu e-posta ile kayıtlı hesap yok.','auth/invalid-email':'Geçersiz e-posta.'};
+    showLoginErr(msgs[err.code]||err.message);
+  }
+}
+
+// Üye Ol
+async function doRegister(){
+  const name=$('reg-name').value.trim();
+  const em=$('reg-email').value.trim();
+  const pw=$('reg-pw').value;
+  const pw2=$('reg-pw2').value;
+  if(!name){showLoginErr('Ad soyad boş olamaz.');return;}
+  if(!em){showLoginErr('E-posta boş olamaz.');return;}
+  if(pw.length<6){showLoginErr('Şifre en az 6 karakter olmalı.');return;}
+  if(pw!==pw2){showLoginErr('Şifreler eşleşmiyor.');return;}
+  try{
+    const cred=await fbAuth.createUserWithEmailAndPassword(em,pw);
+    // Kullanıcı profilini güncelle
+    await cred.user.updateProfile({displayName:name});
+    // Firestore'a kullanıcı dokümanı oluştur (rol: pending)
+    await fbDb.collection('users').doc(cred.user.uid).set({
+      email:em,
+      name:name,
+      role:'pending',
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showLoginForm('signin');
+    showLoginInfo('✅ Hesabın oluşturuldu! Admin onayından sonra giriş yapabilirsin. Şimdilik kiosk ekranını görüntüleyebilirsin.');
+  }catch(err){
+    const msgs={'auth/email-already-in-use':'Bu e-posta zaten kayıtlı.','auth/invalid-email':'Geçersiz e-posta.','auth/weak-password':'Şifre çok zayıf (en az 6 karakter).'};
+    showLoginErr(msgs[err.code]||err.message);
+  }
+}
+
+// Çıkış
+async function doLogout(){
+  try{await fbAuth.signOut();}catch(e){}
+  _currentUser=null;_currentRole=null;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('s-login').classList.add('active');
+  showLoginForm('signin');
+  stopKioskTimers();
+}
+
+// Kullanıcı rolünü Firestore'dan oku
+async function loadUserRole(user){
+  _currentUser=user;
+  try{
+    const doc=await fbDb.collection('users').doc(user.uid).get();
+    if(doc.exists){
+      _currentRole=doc.data().role||'pending';
+    }else{
+      // Firestore'da yok — ilk admin ise otomatik admin yap
+      const isFirstAdmin=user.email.toLowerCase()==='kenankuheylan@gmail.com';
+      _currentRole=isFirstAdmin?'admin':'pending';
+      await fbDb.collection('users').doc(user.uid).set({
+        email:user.email,
+        name:user.displayName||user.email.split('@')[0],
+        role:_currentRole,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  }catch(err){
+    console.warn('Rol okunamadı:',err);
+    // Firestore rules henüz açık değilse fallback
+    _currentRole=user.email.toLowerCase()==='kenankuheylan@gmail.com'?'admin':'pending';
+  }
+  applyUserRole();
+}
+
+// Role göre UI aç/kapa
+function applyUserRole(){
+  if(!_currentUser){return;}
+  const info=$('auth-user-info');
+  if(info){
+    const roleLabels={'admin':'🟢 Admin','viewer':'🔵 Görüntüleyici','pending':'⏳ Onay Bekliyor'};
+    info.innerHTML=`<strong>${_currentUser.displayName||_currentUser.email}</strong><br><span style="font-size:10px">${roleLabels[_currentRole]||_currentRole}</span>`;
+  }
+  // Admin: tüm yetkiler
+  // Viewer: sadece gösterim, Excel, 48 saat görebilir — kaydedemez/yayınlayamaz
+  // Pending: sadece kiosk
+  if(_currentRole==='admin'){
+    $('s-login').classList.remove('active');
+    $('s-admin').classList.add('active');
+    document.body.classList.remove('designer-fs');
+    // Kullanıcılar sekmesini göster
+    const navU=$('nav-users');if(navU)navU.style.display='';
+    // Tüm butonları aç
+    document.querySelectorAll('#publish-btn,.btn-save-admin').forEach(b=>b.style.display='');
+    renderAdmin();
+  }else if(_currentRole==='viewer'){
+    $('s-login').classList.remove('active');
+    $('s-admin').classList.add('active');
+    document.body.classList.remove('designer-fs');
+    // Kullanıcılar sekmesini gizle
+    const navU=$('nav-users');if(navU)navU.style.display='none';
+    // Yayınla butonunu gizle
+    const pubBtn=$('publish-btn');if(pubBtn)pubBtn.style.display='none';
+    renderAdmin();
+    toast('Görüntüleyici modundasın — değişiklik yapamazsın');
+  }else{
+    // Pending — sadece kiosk
+    goKiosk();
+    toast('Hesabın henüz onaylanmadı. Sadece kiosk ekranını görebilirsin.');
+  }
+}
+
+// Kullanıcı yönetimi (admin paneli)
+async function renderUsersAdmin(){
+  const list=$('users-list');
+  if(!list)return;
+  if(_currentRole!=='admin'){list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Bu sayfayı görüntüleme yetkiniz yok.</div>';return;}
+  list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Yükleniyor...</div>';
+  try{
+    const snap=await fbDb.collection('users').orderBy('createdAt','desc').get();
+    if(snap.empty){list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Henüz kayıtlı kullanıcı yok.</div>';return;}
+    list.innerHTML='';
+    snap.forEach(doc=>{
+      const u=doc.data();
+      const uid=doc.id;
+      const isSelf=_currentUser&&uid===_currentUser.uid;
+      const roleColors={'admin':'#22c55e','viewer':'#4ecdc4','pending':'#f59e0b'};
+      const roleLabels={'admin':'Admin','viewer':'Görüntüleyici','pending':'Beklemede'};
+      const card=document.createElement('div');
+      card.style.cssText='display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;border-left:4px solid '+(roleColors[u.role]||'var(--border)');
+      let actions='';
+      if(!isSelf){
+        actions=`<select class="f-input" style="width:140px;font-size:12px;padding:6px" onchange="changeUserRole('${uid}',this.value)">
+          <option value="admin" ${u.role==='admin'?'selected':''}>🟢 Admin</option>
+          <option value="viewer" ${u.role==='viewer'?'selected':''}>🔵 Görüntüleyici</option>
+          <option value="pending" ${u.role==='pending'?'selected':''}>⏳ Beklemede</option>
+        </select>`;
+      }else{
+        actions='<span style="font-size:11px;color:var(--accent);font-weight:700">(Sen)</span>';
+      }
+      card.innerHTML=`
+        <div style="width:36px;height:36px;border-radius:50%;background:${roleColors[u.role]||'var(--border)'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;flex-shrink:0">${(u.name||u.email||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${u.name||'İsimsiz'}</div>
+          <div style="font-size:12px;color:var(--muted)">${u.email||'—'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${actions}
+        </div>`;
+      list.appendChild(card);
+    });
+  }catch(err){
+    console.error('Users load err:',err);
+    list.innerHTML='<div style="color:#ff5252;padding:20px;text-align:center">Kullanıcılar yüklenemedi: '+err.message+'</div>';
+  }
+}
+
+async function changeUserRole(uid,newRole){
+  try{
+    await fbDb.collection('users').doc(uid).update({role:newRole});
+    toast('Yetki güncellendi ✓');
+    renderUsersAdmin();
+  }catch(err){
+    toast('Hata: '+err.message,true);
+  }
+}
+
+// Eski doLogin'i yedek olarak tut (fallback)
+function doLogin(){
+  // Artık Firebase Auth kullanılıyor
+  doFirebaseLogin();
 }
 function goAdmin(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-admin').classList.add('active');document.body.classList.remove('designer-fs');stopKioskTimers();renderAdmin();}
 function goKiosk(){try{document.body.classList.remove('designer-fs');collectAdmin();if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();persist();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-kiosk').classList.add('active');renderKiosk();const bk=document.getElementById('k-back-admin');if(bk)bk.style.display='block';}catch(err){alert('Kiosk hata: '+err.message+'\n\n'+err.stack);console.error(err);}}
@@ -1293,8 +1553,9 @@ document.addEventListener('keydown',e=>{
     if(bk&&bk.style.display!=='none'){goAdmin();}
   }
 });
-function saveAll(){collectAdmin();if(S.excelData)applyViewMode();persist();renderAdmin();toast('Yerel kaydedildi ✓');}
+function saveAll(){if(_currentRole&&_currentRole!=='admin'){toast('Kaydetme yetkiniz yok',true);return;}collectAdmin();if(S.excelData)applyViewMode();persist();renderAdmin();toast('Yerel kaydedildi ✓');}
 async function publishToCloud(){
+  if(_currentRole&&_currentRole!=='admin'){toast('Yayınlama yetkiniz yok',true);return;}
   if(!_ghKey()){
     alert('GitHub Token kayıtlı değil!\n\nAyarlar → GitHub Yayın Token\'ı sekmesinden tokenınızı girin.');
     return;
@@ -1340,7 +1601,7 @@ function goTab(id,el){
   if(el)el.classList.add('active');
   // Designer dışı sekmeye geçilince fullscreen'ten çık
   if(id!=='designer')document.body.classList.remove('designer-fs');
-  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar'};
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar'};
   $('adm-page-title').textContent=titles[id]||id;
   if(id==='designer')renderDesigner();
   if(id==='goster')refreshViewModeUI();
@@ -1351,6 +1612,7 @@ function goTab(id,el){
   if(id==='calls48h')render48hAdmin();
   if(id==='egitim')renderEgitimAdmin();
   if(id==='metrikler')renderMetricLabels();
+  if(id==='kullanicilar')renderUsersAdmin();
 }
 function setTheme(t){S.theme=t;document.documentElement.setAttribute('data-theme',t);const b=$('theme-btn');if(b)b.textContent=t==='dark'?'☀️ Açık':'🌙 Koyu';}
 function toggleTheme(){setTheme(S.theme==='dark'?'light':'dark');persist();}
@@ -1853,21 +2115,6 @@ function saveGhToken(){
     toast('Geçersiz format',true);
   }
 }
-function changeCredentials(){
-  const newEmail=$('set-email').value.trim().toLowerCase();
-  const a=$('new-pw1').value;
-  const b=$('new-pw2').value;
-  if(!newEmail||!newEmail.includes('@')){toast('Geçerli bir e-posta gir',true);return;}
-  S.email=newEmail;
-  if(a||b){
-    if(a.length<4){toast('Şifre en az 4 karakter olmalı',true);return;}
-    if(a!==b){toast('Şifreler eşleşmiyor',true);return;}
-    S.pw=a;
-  }
-  persist();
-  $('new-pw1').value='';$('new-pw2').value='';
-  toast('Güncellendi ✓ — Yayına Al ile bulutla eşitleyin');
-}
 function exportData(){const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kiosk.json';a.click();}
 function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{S=JSON.parse(e.target.result);mergeDefaults(S,DEF);persist();renderAdmin();toast('✓');}catch{toast('Hata',true);}};r.readAsText(f);}
 
@@ -1909,7 +2156,6 @@ function renderAdmin(){
   if($('pdf-page-range')){$('pdf-page-range').value=S.pdfPageLimit;$('pdf-page-lbl').textContent=S.pdfPageLimit;}
   $('ticker-speed').value=S.ticker.speed;
   $('accent-pick').value=S.accent;$('accent-hex').textContent=S.accent;
-  if($('set-email'))$('set-email').value=S.email||'';
   // GitHub token durumunu göster
   if(document.getElementById('gh-token-status')){
     const has=!!_ghKey();
@@ -2611,7 +2857,6 @@ async function routeStart(){
   const path=location.pathname.toLowerCase();
   const hash=location.hash.toLowerCase();
   const search=location.search.toLowerCase();
-  // Aşağıdaki herhangi biri varsa admin moduna gir
   const isAdmin=path.includes('/yonetim')
     ||path.includes('yonetim.html')
     ||hash.includes('yonetim')
@@ -2621,10 +2866,21 @@ async function routeStart(){
   // Cloud'dan en güncel veriyi çek
   const loaded=await loadFromCloud();
   if(loaded&&S.excelData&&Object.keys(S.excelData).length)applyViewMode();
-  // Loading ekranını kapat, doğru ekranı aç
+  // Loading ekranını kapat
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  
   if(isAdmin){
-    document.getElementById('s-login').classList.add('active');
+    // Firebase Auth: kullanıcı zaten giriş yapmış mı kontrol et
+    fbAuth.onAuthStateChanged(async(user)=>{
+      if(user){
+        // Giriş yapmış — rol kontrolü yap
+        await loadUserRole(user);
+      }else{
+        // Giriş yapmamış — login ekranını göster
+        $('s-login').classList.add('active');
+        showLoginForm('signin');
+      }
+    });
   }else{
     const kioskEl=document.getElementById('s-kiosk');
     if(kioskEl){kioskEl.classList.add('active');renderKiosk();}
