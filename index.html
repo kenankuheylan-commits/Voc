@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>VOC Panel | Ernaz Servis Sakarya</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -286,7 +289,7 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 @keyframes calls48hScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--calls-end,-50%))}}
 
 /* ============ MOBIL RESPONSIVE ============ */
-@media (max-width:768px){
+@media (max-width:1024px) and (hover:none), (max-width:768px){
   .login-card{width:calc(100vw - 32px)!important;max-width:380px;padding:24px 20px!important;margin-top:16px!important}
   .login-logo{font-size:24px}
   #s-admin{flex-direction:column!important}
@@ -2889,7 +2892,8 @@ function renderKiosk(){
   applyKioskBg();
 
   const canvas=$('k-canvas');canvas.innerHTML='';
-  const isMobile=window.innerWidth<=768;
+  const isMobile=window.innerWidth<=1024 && ('ontouchstart' in window || navigator.maxTouchPoints>0 || window.innerWidth<=768);
+  console.log('[KIOSK] innerWidth='+window.innerWidth+' isMobile='+isMobile);
   
   if(isMobile){
     // MOBİL: widget'ları dikey sırala, scale yok
