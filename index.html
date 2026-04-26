@@ -284,6 +284,50 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-48h-txt{font-size:clamp(9px,.95cqw,11px);line-height:1.3;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .w-48h-meta{font-size:8px;color:var(--muted);opacity:.75}
 @keyframes calls48hScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--calls-end,-50%))}}
+/* RAPOR PRINT STILI */
+@media print{
+  @page{margin:0;size:A4}
+  *{visibility:hidden!important;margin:0!important;padding:0!important}
+  body{background:#000!important;margin:0!important}
+  #k-rapor-print,#k-rapor-print *{visibility:visible!important}
+  #k-rapor-print{
+    position:fixed!important;top:0!important;left:0!important;
+    width:100vw!important;min-height:100vh!important;z-index:99999;
+    padding:0!important;margin:0!important;
+    overflow:visible!important;display:block!important;
+    border-radius:0!important;
+  }
+  #k-rapor-print>img{min-height:100vh!important}
+  #k-rapor-print>div:nth-child(2){min-height:100vh!important}
+  #k-rapor-print>div:last-child{min-height:100vh!important;padding:24px!important}
+  #k-rapor-modal,#k-rapor-content{
+    position:fixed!important;top:0!important;left:0!important;
+    width:100vw!important;height:100vh!important;
+    overflow:visible!important;display:block!important;
+    background:transparent!important;padding:0!important;
+    backdrop-filter:none!important;
+  }
+  .k-pdf-modal-head{display:none!important}
+  #k-rapor-print *{color:#fff!important;border-color:rgba(255,255,255,0.15)!important}
+  #k-rapor-print{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-section{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;page-break-inside:avoid;background:rgba(0,0,0,0.4)!important;padding:14px!important;margin-bottom:10px!important}
+  .rapor-metric-card{border:1px solid rgba(255,255,255,0.15)!important;background:rgba(0,0,0,0.2)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;padding:8px 12px!important}
+  .rapor-neg-card{border:1px solid rgba(239,68,68,0.3)!important;background:rgba(239,68,68,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-bar-bg{background:rgba(255,255,255,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-bar{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-48h-badge{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .k-controls,#k-back-admin,.k-bg-layer,#k-canvas,#s-login,#s-admin,.screen{display:none!important}
+  #s-kiosk{display:block!important;position:static!important;background:#000!important}
+  .k-pdf-modal:not(#k-rapor-modal){display:none!important}
+}
+.rapor-section{margin-bottom:20px;padding:20px;border-radius:12px;background:rgba(0,0,0,0.35);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.12)}
+.rapor-section-title{font-size:14px;font-weight:800;color:var(--accent);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.05em}
+.rapor-grid{display:grid;gap:10px}
+.rapor-metric-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.08)}
+.rapor-bar-bg{flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+.rapor-bar{height:100%;border-radius:4px;transition:width 0.6s}
+.rapor-48h-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:99px;font-size:16px;font-weight:800}
+.rapor-neg-card{padding:12px 16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;margin-bottom:8px}
 
 .w-egitim{padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;overflow:hidden}
 .w-egitim-title{font-size:clamp(9px,1cqw,12px);letter-spacing:.05em;color:var(--accent);font-weight:700;flex-shrink:0}
@@ -719,6 +763,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
   <div class="k-canvas" id="k-canvas"></div>
   <button id="k-back-admin" onclick="goAdmin()" title="Admin'e dön (ESC)" style="position:fixed;top:8px;left:8px;z-index:999;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:11px;padding:6px 10px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;opacity:0.15;transition:opacity .2s;display:none" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.15'">← Admin</button>
   <div class="k-controls">
+    <button class="k-ctrl-btn" onclick="openRaporModal()">📊 Rapor Al</button>
     <button class="k-ctrl-btn" onclick="toggleFullscreen()" id="fs-btn">⛶ Tam Ekran</button>
   </div>
   <div class="k-pdf-modal" id="k-pdf-modal">
@@ -743,6 +788,17 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <button class="k-pdf-modal-close" onclick="closeRingModal()">✕</button>
     </div>
     <div class="k-pdf-modal-content" id="k-ring-modal-content" style="align-items:stretch;max-width:900px;margin:0 auto;width:100%"></div>
+  </div>
+  <!-- RAPOR MODAL -->
+  <div class="k-pdf-modal" id="k-rapor-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title">📊 VOC Raporu</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="k-ctrl-btn" onclick="printRapor()" style="font-size:12px;padding:6px 14px">🖨 Yazdır / PDF</button>
+        <button class="k-pdf-modal-close" onclick="closeRaporModal()">✕</button>
+      </div>
+    </div>
+    <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1000px;margin:0 auto;width:100%"></div>
   </div>
 </div>
 
@@ -2951,6 +3007,133 @@ function openRingModal(metricIdx){
   modal.classList.add('open');
 }
 function closeRingModal(){$('k-ring-modal').classList.remove('open');}
+
+// ========== RAPOR SİSTEMİ ==========
+function openRaporModal(){
+  const modal=$('k-rapor-modal'),content=$('k-rapor-content');
+  if(!modal||!content)return;
+  const now=new Date();
+  const tarih=now.toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const vocScore=S.voc.score||0;
+  const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
+  const thresholds=S._thresholds||[80,80,80,80,80];
+  
+  // 1) HEADER - arka plan fotoğrafı tüm rapora (img ile - print uyumlu)
+  const bgImg=(S.bg&&S.bg.images&&S.bg.images.length)?S.bg.images[0]:'';
+  let html=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:hidden;padding:24px">`;
+  if(bgImg){
+    html+=`<img src="${bgImg}" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none" />`;
+    html+=`<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,12,20,0.82);z-index:1;pointer-events:none"></div>`;
+  }
+  html+=`<div style="position:relative;z-index:2">`;
+  html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:14px;margin-bottom:20px">`;
+  html+=`<div><div style="font-size:24px;font-weight:900;color:#fff">${S.brand?.name||'ERNAZ SERVİS'}</div><div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">${S.brand?.sub||'VOC Raporu'}</div></div>`;
+  html+=`<div style="text-align:right"><div style="font-size:11px;color:rgba(255,255,255,0.5)">RAPOR TARİHİ</div><div style="font-size:16px;font-weight:700;color:#fff">${tarih}</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${S.currentShowing||''}</div></div>`;
+  html+=`</div>`;
+
+  // 2) VOC ENDEKS SKORU
+  const vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444');
+  html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44">`;
+  html+=`<div style="font-size:56px;font-weight:900;color:${vocColor}">%${displayVoc}</div>`;
+  html+=`<div style="font-size:14px;font-weight:700;color:var(--muted);margin-top:4px">VOC ENDEKS SKORU</div>`;
+  html+=`<div style="font-size:12px;color:var(--muted);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div>`;
+  html+=`</div>`;
+
+  // 3) 5 SORU KIRILIMI
+  html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;
+  (S.metrics||[]).forEach((m,i)=>{
+    const val=m.value||0;
+    const displayVal=Number.isInteger(val)?val:val.toFixed(1);
+    const thr=thresholds[i]||80;
+    const color=val>=thr?'#22c55e':'#ef4444';
+    html+=`<div class="rapor-metric-card" style="border-left:3px solid ${color}">
+      <div style="min-width:60px;text-align:center"><div style="font-size:22px;font-weight:800;color:${color}">%${displayVal}</div><div style="font-size:9px;color:var(--muted)">Hedef: %${thr}</div></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${color}"></div></div></div>
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // 4) DANIŞMAN PERFORMANSI
+  html+=`<div class="rapor-section"><div class="rapor-section-title">Danışman Performansları</div><div class="rapor-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">`;
+  (S.danismanlar||[]).forEach(d=>{
+    const v=d.voc||0;
+    const displayV=Number.isInteger(v)?v:v.toFixed(1);
+    const danColor=v>=80?'#22c55e':'#ef4444';
+    html+=`<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid ${danColor}44;border-left:4px solid ${danColor};border-radius:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700">${d.name}</span>
+        <span style="font-size:20px;font-weight:800;color:${danColor}">%${displayV}</span>
+      </div>
+      <div class="rapor-bar-bg"><div class="rapor-bar" style="width:${v}%;background:${danColor}"></div></div>
+      ${d.anket?`<div style="font-size:11px;color:var(--muted);margin-top:6px">${d.anket} anket</div>`:''}
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // 5) 48 SAAT ARAMALARI ÖZETİ
+  const pick=pick48hForDisplay();
+  const allItems48h=get48hAllItems();
+  const olumlu=allItems48h.filter(x=>x.mood==='yesil').length;
+  const olumsuz=allItems48h.filter(x=>x.mood==='kirmizi').length;
+  const uyari=allItems48h.filter(x=>x.mood==='turuncu').length;
+  const takipte=allItems48h.filter(x=>x.mood==='mavi').length;
+  const toplam48h=allItems48h.length;
+
+  html+=`<div class="rapor-section"><div class="rapor-section-title">48 Saat Aramaları Özeti</div>`;
+  html+=`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">`;
+  html+=`<div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${olumlu} Olumlu</div>`;
+  html+=`<div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${olumsuz} Olumsuz</div>`;
+  if(uyari) html+=`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! ${uyari} Uyarı</div>`;
+  if(takipte) html+=`<div class="rapor-48h-badge" style="background:#3b82f622;color:#3b82f6">⏳ ${takipte} Takipte</div>`;
+  html+=`<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:var(--muted)">Toplam: ${toplam48h}</div>`;
+  html+=`</div>`;
+
+  // 6) OLUMSUZ YORUMLAR DETAYI
+  const negItems=allItems48h.filter(x=>x.mood==='kirmizi');
+  if(negItems.length){
+    html+=`<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:10px">⚠ Olumsuz Müşteri Yorumları (${negItems.length} adet)</div>`;
+    negItems.forEach(it=>{
+      html+=`<div class="rapor-neg-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700;color:var(--text)">${it.danisman||'—'}</span>
+          <span style="font-size:11px;color:var(--muted)">${it.musteri||'—'} ${it.plaka?'· '+it.plaka:''}</span>
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.6">${it.aciklama||'(yorum yok)'}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }else{
+    html+=`<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">🎉 Olumsuz yorum bulunmuyor</div>`;
+  }
+  html+=`</div>`;
+
+  // FOOTER
+  html+=`<div style="text-align:center;padding:16px;font-size:11px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.06)">Bu rapor ${tarih} tarihinde VOC Panel tarafından otomatik oluşturulmuştur.</div>`;
+  html+=`</div>`; // z-index:2 wrapper kapanışı
+  html+=`</div>`; // k-rapor-print kapanışı
+
+  content.innerHTML=html;
+  modal.classList.add('open');
+}
+
+// 48h tüm günlerin tüm itemlerini al (rapor için)
+function get48hAllItems(){
+  if(!S.calls48h||!S.calls48h.data)return[];
+  const data=S.calls48h.data;
+  const all=[];
+  Object.keys(data).forEach(day=>{
+    if(Array.isArray(data[day])){
+      data[day].forEach(it=>all.push(it));
+    }
+  });
+  return all;
+}
+
+function closeRaporModal(){$('k-rapor-modal').classList.remove('open');}
+
+function printRapor(){
+  window.print();
+}
 
 // 48h scroll init
 function initCalls48hScroll(w){
