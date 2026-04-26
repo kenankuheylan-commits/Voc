@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260426_061220</title>
+<title>VOC Kiosk v26-20260426_063243</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -354,12 +354,12 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260426_061220</div>
+    <div>✓ SÜRÜM: v26-20260426_063243</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260426_061220</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260426_063243</span></div>
     <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
     <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -683,7 +683,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260426_061220 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v26-20260426_063243 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -752,7 +752,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260426_061220';
+const STORAGE_KEY='kiosk_v26-20260426_063243';
 
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
@@ -2243,7 +2243,8 @@ function renderWidgetHtml(w,preview){
 // =================================================================
 // KIOSK RENDER
 // =================================================================
-function stopKioskTimers(){if(_clockTimer){clearInterval(_clockTimer);_clockTimer=null;}if(_slideshowTimer){clearInterval(_slideshowTimer);_slideshowTimer=null;}}
+function stopKioskTimers(){if(_clockTimer){clearInterval(_clockTimer);_clockTimer=null;}if(_slideshowTimer){clearInterval(_slideshowTimer);_slideshowTimer=null;}if(_autoRefreshTimer){clearInterval(_autoRefreshTimer);_autoRefreshTimer=null;}}
+let _autoRefreshTimer=null;
 function applyKioskBg(){
   const bg=S.bg||{};const color=bg.color||'#06080f';
   document.documentElement.style.setProperty('--kiosk-bg',color);
@@ -2299,6 +2300,18 @@ function renderKiosk(){
   // Saat update
   function tick(){document.querySelectorAll('.w-clock-time').forEach(el=>{const n=new Date();el.textContent=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});});document.querySelectorAll('.w-clock-date').forEach(el=>{const n=new Date();el.textContent=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});});}
   tick();if(_clockTimer)clearInterval(_clockTimer);_clockTimer=setInterval(tick,30000);
+  // Otomatik yenileme: her 5 dakikada Sheets'ten ve design.json'dan veriyi tekrar çek
+  if(_autoRefreshTimer)clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer=setInterval(async()=>{
+    if(!document.getElementById('s-kiosk').classList.contains('active'))return;
+    console.log('[AutoRefresh] Sheets+design yenileniyor...');
+    try{
+      await loadDesignFromCloud();
+      await loadAllFromSheets();
+      renderKiosk();
+      console.log('[AutoRefresh] tamamlandı');
+    }catch(e){console.warn('[AutoRefresh] hata:',e);}
+  },5*60*1000); // 5 dakika
   // Container query'ler için reflow tetikle
   requestAnimationFrame(()=>{
     document.querySelectorAll('#k-canvas .k-widget').forEach(el=>{
@@ -2329,13 +2342,16 @@ async function initPdfTape(w){
       if(k.startsWith('pdf_')&&!expected.has(k))await idbDel(k);
     }
   }catch(e){}
-  const valid=(S.pdfs||[]).filter(p=>p.data&&p.data!=='__IDB__');
+  // Hem data (base64) hem url (cloud) destekle
+  const valid=(S.pdfs||[]).filter(p=>(p.data&&p.data!=='__IDB__')||p.url);
   if(!valid.length){inner.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">PDF yok — Admin→PDF sekmesinden ekleyin</div>';return;}
   inner.innerHTML='';
   try{
     for(const item of valid){
       const head=document.createElement('div');head.style.cssText='padding:6px 10px;color:var(--accent);font-size:10px;font-weight:800;background:rgba(var(--accent-rgb),.1);border-radius:4px;text-align:center';head.textContent=item.title||'PDF';inner.appendChild(head);
-      const pdf=await pdfjsLib.getDocument(item.data).promise;
+      // Source: önce data (yerel base64), yoksa url (cloud)
+      const src=item.data||item.url;
+      const pdf=await pdfjsLib.getDocument(src).promise;
       const pages=Math.min(pdf.numPages,S.pdfPageLimit||3);
       for(let p=1;p<=pages;p++){
         const page=await pdf.getPage(p);
@@ -2366,11 +2382,11 @@ async function openPdfFullscreen(){
   const modal=$('k-pdf-modal'),content=$('k-pdf-modal-content');
   // IDB restore
   if(S.pdfs){for(let i=0;i<S.pdfs.length;i++){if(!S.pdfs[i].data||S.pdfs[i].data==='__IDB__'){try{const d=await idbGet('pdf_'+i);if(d)S.pdfs[i].data=d;}catch(e){}}}}
-  const valid=(S.pdfs||[]).filter(p=>p.data&&p.data!=='__IDB__');if(!valid.length){toast('PDF yok',true);return;}
+  const valid=(S.pdfs||[]).filter(p=>(p.data&&p.data!=='__IDB__')||p.url);if(!valid.length){toast('PDF yok',true);return;}
   $('k-pdf-modal-title').textContent=valid.length>1?`${valid.length} PDF`:(valid[0].title||'PDF');
   content.innerHTML='<div style="color:#fff;padding:40px">Yükleniyor...</div>';
   modal.classList.add('open');
-  try{content.innerHTML='';for(const item of valid){const head=document.createElement('div');head.style.cssText='width:100%;max-width:900px;color:#fff;font-weight:800;padding:8px 0';head.textContent=item.title||'PDF';content.appendChild(head);const pdf=await pdfjsLib.getDocument(item.data).promise;for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.className='k-pdf-modal-page';cv.style.maxWidth='900px';cv.style.width='100%';await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;content.appendChild(cv);}}}catch(err){content.innerHTML=`<div style="color:#ff5252;padding:40px">${err.message}</div>`;}
+  try{content.innerHTML='';for(const item of valid){const head=document.createElement('div');head.style.cssText='width:100%;max-width:900px;color:#fff;font-weight:800;padding:8px 0';head.textContent=item.title||'PDF';content.appendChild(head);const src=item.data||item.url;const pdf=await pdfjsLib.getDocument(src).promise;for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.className='k-pdf-modal-page';cv.style.maxWidth='900px';cv.style.width='100%';await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;content.appendChild(cv);}}}catch(err){content.innerHTML=`<div style="color:#ff5252;padding:40px">${err.message}</div>`;}
 }
 function closePdfModal(){$('k-pdf-modal').classList.remove('open');}
 
