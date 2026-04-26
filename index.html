@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VOC Kiosk v26-20260426_065206</title>
+<title>VOC Kiosk v27-20260426_bugfix7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -223,7 +223,8 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-clock-time{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,5cqw,56px);font-weight:700;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
 
 .w-rings{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:8px;height:100%}
-.w-ring-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;overflow:hidden;min-width:0}
+.w-ring-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;overflow:hidden;min-width:0;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s}
+.w-ring-card:hover{transform:translateY(-2px)}
 .w-ring-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ring-color)}
 .w-ring-svg{width:100%;max-width:130px;aspect-ratio:1/1;min-width:0}
 .w-ring-lbl{font-size:clamp(8px,.9cqw,11px);color:var(--text);text-align:center;line-height:1.1;font-weight:500;word-break:break-word}
@@ -354,12 +355,12 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <!-- LOGIN -->
 <div id="s-login" class="screen">
   <div style="position:fixed;top:10px;left:10px;right:10px;background:linear-gradient(90deg,#22c55e,#4ecdc4);color:#000;padding:10px 16px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-weight:800;font-size:13px;z-index:9999;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(34,197,94,0.4)">
-    <div>✓ SÜRÜM: v26-20260426_065206</div>
+    <div>✓ SÜRÜM: v27-20260426_bugfix7</div>
     <div style="font-size:11px;opacity:0.8">Eski sürüm görüyorsan Ctrl+Shift+R</div>
   </div>
   <div class="login-card" style="margin-top:50px">
     <div class="login-logo">⬢ VOC Premium</div>
-    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v26-20260426_065206</span></div>
+    <div class="login-sub">Bayi yönetim paneli <span style="background:var(--accent);color:#000;font-weight:800;padding:3px 10px;border-radius:6px">v27-20260426_bugfix7</span></div>
     <div class="login-err" id="login-err">Hatalı e-posta veya şifre.</div>
     <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -463,7 +464,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
             <button class="vmb" id="vm-month" onclick="setViewMode('month')">📆 Belirli Ay</button>
           </div>
           <div id="view-mode-period-options" style="display:none"><label class="f-label">Dönem</label><select class="f-input" id="view-period-select"></select></div>
-          <div id="view-mode-month-options" style="display:none"><div class="g2"><div class="f-row"><label class="f-label">Dönem</label><select class="f-input" id="view-period-select-2"></select></div><div class="f-row"><label class="f-label">Ay</label><select class="f-input" id="view-month-select"></select></div></div></div>
+          <div id="view-mode-month-options" style="display:none"><div class="f-row"><label class="f-label">Dönem</label><select class="f-input" id="view-period-select-2"></select></div><div class="f-row" style="margin-top:10px"><label class="f-label">Ay</label><div id="month-buttons" class="view-mode-buttons" style="flex-wrap:wrap"></div><select class="f-input" id="view-month-select" style="display:none"></select></div></div>
           <div style="margin-top:14px;padding:14px;background:var(--bg3);border-radius:10px;font-size:13px">
             <strong style="color:var(--accent)" id="info-showing">—</strong>
             <div style="font-size:11px;color:var(--muted);margin-top:4px" id="info-today">—</div>
@@ -620,7 +621,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <!-- TICKER -->
       <div class="tab-pane" id="tab-ticker">
         <div class="sec-title">Kayan Yazı</div>
-        <div class="card"><div id="ticker-list"></div><button class="btn btn-ghost btn-sm" onclick="addTickerRow()" style="margin-top:10px">+ Satır</button></div>
+        <div class="card"><div id="ticker-list"></div><button class="btn btn-ghost btn-sm" onclick="addTickerRow()" style="margin-top:10px">+ Satır</button><button class="btn btn-ghost btn-sm" onclick="resetTickerAuto()" style="margin-top:10px;margin-left:8px">↺ Otomatik Moda Dön</button></div>
         <div class="sec-title sec-gap">Hız</div>
         <div class="card"><input type="range" min="5" max="55" value="25" id="ticker-speed"></div>
       </div>
@@ -670,6 +671,22 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     </div>
     <div class="k-pdf-modal-content" id="k-pdf-modal-content"></div>
   </div>
+  <!-- 48 Saat Fullscreen Modal -->
+  <div class="k-pdf-modal" id="k-48h-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title" id="k-48h-modal-title">48 Saat Aramaları</div>
+      <button class="k-pdf-modal-close" onclick="close48hModal()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" id="k-48h-modal-content" style="align-items:stretch;max-width:1200px;margin:0 auto;width:100%"></div>
+  </div>
+  <!-- Ring/Danışman Kırılımı Modal -->
+  <div class="k-pdf-modal" id="k-ring-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title" id="k-ring-modal-title">Danışman Kırılımı</div>
+      <button class="k-pdf-modal-close" onclick="closeRingModal()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" id="k-ring-modal-content" style="align-items:stretch;max-width:900px;margin:0 auto;width:100%"></div>
+  </div>
 </div>
 
 <div id="s-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 50% 40%,rgba(249,200,14,0.06),#06080f 70%);color:#fff">
@@ -683,7 +700,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
-console.log('%c VOC KIOSK v26-20260426_065206 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
+console.log('%c VOC KIOSK v27-20260426_bugfix7 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // =================================================================
@@ -752,7 +769,7 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
 };
 
-const STORAGE_KEY='kiosk_v26-20260426_065206';
+const STORAGE_KEY='kiosk_v27-20260426_bugfix7';
 
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
@@ -1219,7 +1236,7 @@ const $=id=>document.getElementById(id);
 function inits(n){return(n||'').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';}
 function toast(msg,err=false){const el=$('toast');el.textContent=msg;el.className='toast'+(err?' err':'');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
 function hexToRgb(hex){const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return m?`${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`:'6,8,15';}
-function pctRound(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);if(isNaN(n))return 0;if(n>1.5)return Math.round(n);return Math.round(n*100);}
+function pctRound(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);if(isNaN(n))return 0;if(n>1.5)return Math.round(n*10)/10;return Math.round(n*1000)/10;}
 function pct(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);if(isNaN(n))return 0;return Math.round(n*10)/10;}
 function safeNum(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&v.startsWith('#'))return 0;if(typeof v==='object')return 0;const n=parseFloat(v);return isNaN(n)?0:n;}
 function normTR(s){return String(s||'').toUpperCase().replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ş/g,'S').replace(/İ/g,'I').replace(/Ö/g,'O').replace(/Ç/g,'C').trim();}
@@ -1379,6 +1396,17 @@ function parseSinglePeriod(data,sheetName){
     let vocScoreCellR=11;
     for(let r=8;r<16;r++){if(data[r]&&data[r][0]&&String(data[r][0]).toLowerCase().includes('endeks'))vocScoreCellR=r;}
     const metricsBase=XL.metricRows.map((r,i)=>{const v=data[r]&&data[r][XL.metricCol]!=null?data[r][XL.metricCol]:null;return{name:(S.metricLabels&&S.metricLabels[i])||XL.metricNames[i],value:v!==null?pctRound(v):0,color:colors[i]};});
+    // 1. SEVİYE HEDEF kolonunu oku (soru satırlarındaki hedef değerleri)
+    // Hedefler genelde 3. kolonda (index 3) veya 5. kolonda (index 5) - "1. Seviye Hedef" kolonu
+    const thresholds=XL.metricRows.map(r=>{
+      // Kolon 3'te hedef var (sheets yapısına göre)
+      const v=data[r]&&data[r][3];
+      if(v===null||v===undefined)return 80;
+      const n=parseFloat(v);
+      if(isNaN(n))return 80;
+      // Eğer 0-1 arası ise yüzdeye çevir
+      return n>1.5?n:Math.round(n*100);
+    });
     const vocScore=pct(data[vocScoreCellR]&&data[vocScoreCellR][3]);
     const totalAnket=Math.round(safeNum(data[XL.totalAnketCell[0]]&&data[XL.totalAnketCell[0]][XL.totalAnketCell[1]]));
     const geriDonus=pctRound(data[XL.geriDonusCell[0]]&&data[XL.geriDonusCell[0]][XL.geriDonusCell[1]]||0);
@@ -1422,7 +1450,7 @@ function parseSinglePeriod(data,sheetName){
       });
       months[n]={label:String(cell).trim(),voc:bayiVoc,metrics:mm,anket:mAnket,danismanlar:mDan};
     }
-    return{sheetName,vocScore,totalAnket,geriDonus,metrics:metricsBase,danismanlar,months};
+    return{sheetName,vocScore,totalAnket,geriDonus,metrics:metricsBase,danismanlar,months,thresholds};
   }catch(err){console.error('parse err:',err);return null;}
 }
 
@@ -1432,7 +1460,39 @@ function parseSinglePeriod(data,sheetName){
 function setViewMode(m){S.viewMode.mode=m;['vm-auto','vm-period','vm-month'].forEach(id=>$(id)?.classList.remove('active'));$('vm-'+m)?.classList.add('active');$('view-mode-period-options').style.display=m==='period'?'block':'none';$('view-mode-month-options').style.display=m==='month'?'block':'none';applyViewMode();refreshViewModeUI();}
 function refreshViewModeUI(){populatePeriodSelects();$('info-today').textContent=new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});$('info-showing').textContent='Gösterilen: '+(S.currentShowing||'—');}
 function populatePeriodSelects(){['view-period-select','view-period-select-2'].forEach(id=>{const sel=$(id);if(!sel)return;sel.innerHTML='';if(!S.excelData){sel.innerHTML='<option>Önce Excel</option>';return;}Object.keys(S.excelData).forEach(pn=>{const o=document.createElement('option');o.value=pn;o.textContent=pn;sel.appendChild(o);});if(S.viewMode.period)sel.value=S.viewMode.period;sel.onchange=()=>{S.viewMode.period=sel.value;if(id==='view-period-select-2'){S.viewMode.month='';updateMonthOptions();}applyViewMode();renderAdmin();refreshViewModeUI();};});updateMonthOptions();const msel=$('view-month-select');if(msel)msel.onchange=()=>{S.viewMode.month=msel.value;applyViewMode();renderAdmin();refreshViewModeUI();};}
-function updateMonthOptions(){const sel=$('view-month-select');if(!sel)return;sel.innerHTML='';const pname=$('view-period-select-2')?.value;if(!S.excelData||!S.excelData[pname]){sel.innerHTML='<option>—</option>';return;}const mk=Object.keys(S.excelData[pname].months);mk.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=S.excelData[pname].months[k].label;sel.appendChild(o);});if(S.viewMode.month&&mk.includes(S.viewMode.month))sel.value=S.viewMode.month;else if(mk.length){sel.value=mk[0];S.viewMode.month=mk[0];}}
+function updateMonthOptions(){
+  const sel=$('view-month-select');
+  const btnContainer=$('month-buttons');
+  if(!sel)return;
+  sel.innerHTML='';
+  if(btnContainer)btnContainer.innerHTML='';
+  const pname=$('view-period-select-2')?.value;
+  if(!S.excelData||!S.excelData[pname]){sel.innerHTML='<option>—</option>';return;}
+  const mk=Object.keys(S.excelData[pname].months);
+  const monthDisplayNames={'OCAK':'Ocak','SUBAT':'Şubat','MART':'Mart','NISAN':'Nisan','MAYIS':'Mayıs','HAZIRAN':'Haziran','TEMMUZ':'Temmuz','AGUSTOS':'Ağustos','EYLUL':'Eylül','EKIM':'Ekim','KASIM':'Kasım','ARALIK':'Aralık'};
+  mk.forEach(k=>{
+    const label=S.excelData[pname].months[k].label||monthDisplayNames[k]||k;
+    // Dropdown (hidden, for compatibility)
+    const o=document.createElement('option');
+    o.value=k;o.textContent=label;sel.appendChild(o);
+    // Button
+    if(btnContainer){
+      const btn=document.createElement('button');
+      btn.className='vmb'+(S.viewMode.month===k?' active':'');
+      btn.textContent=label;
+      btn.onclick=()=>{
+        S.viewMode.month=k;sel.value=k;
+        applyViewMode();renderAdmin();refreshViewModeUI();
+        // Update button active states
+        btnContainer.querySelectorAll('.vmb').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+      btnContainer.appendChild(btn);
+    }
+  });
+  if(S.viewMode.month&&mk.includes(S.viewMode.month))sel.value=S.viewMode.month;
+  else if(mk.length){sel.value=mk[0];S.viewMode.month=mk[0];}
+}
 function extractDonemNo(sn){const m=/(\d+)\.\s*DÖNEM/i.exec(sn);return m?parseInt(m[1]):0;}
 function applyViewMode(){
   if(!S.excelData)return;
@@ -1449,13 +1509,26 @@ function applyViewMode(){
   S.viewMode.period=cp;S.viewMode.month=cm;
   const pd=S.excelData[cp];if(!pd)return;
   const periodDan=(pd.danismanlar&&pd.danismanlar.length)?pd.danismanlar:S.danismanlar;
+  S._noData=false; // reset no-data flag
+  S._thresholds=pd.thresholds||[80,80,80,80,80]; // default fallback
   if(cm&&pd.months&&pd.months[cm]){
     const m=pd.months[cm];
-    S.metrics=(m.metrics&&m.metrics.some(x=>x.value))?m.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name})):pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
-    S.voc.score=m.voc||pd.vocScore;
-    S.anket.toplam=m.anket||pd.totalAnket;S.anket.ay=m.anket||pd.totalAnket;S.anket.geri=pd.geriDonus;
-    S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
-    S.currentShowing=`${cp} — ${m.label}`;
+    const hasData=m.metrics&&m.metrics.some(x=>x.value&&x.value>0);
+    if(!hasData){
+      // Bu ayda veri yok
+      S._noData=true;
+      S.metrics=(pd.metrics||[]).map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name,_empty:true}));
+      S.voc.score=0;
+      S.anket.toplam=0;S.anket.ay=0;S.anket.geri=pd.geriDonus;
+      S.danismanlar=periodDan.map(d=>({...d,voc:0,scores:[0,0,0,0,0],_empty:true}));
+      S.currentShowing=`${cp} — ${m.label} (Veri yok)`;
+    }else{
+      S.metrics=m.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
+      S.voc.score=m.voc||pd.vocScore;
+      S.anket.toplam=m.anket||pd.totalAnket;S.anket.ay=m.anket||pd.totalAnket;S.anket.geri=pd.geriDonus;
+      S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
+      S.currentShowing=`${cp} — ${m.label}`;
+    }
   }else{
     S.metrics=pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
     S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonus;
@@ -1465,7 +1538,10 @@ function applyViewMode(){
   S.trend=[];
   Object.keys(S.excelData).forEach(pn=>{const pdd=S.excelData[pn];if(pdd.months)Object.keys(pdd.months).forEach(mk=>{S.trend.push({label:pdd.months[mk].label.slice(0,3).toUpperCase(),value:pdd.months[mk].voc||0,cur:cm&&mk===cm});});});
   const topD=[...(S.danismanlar||[])].sort((a,b)=>b.voc-a.voc)[0];
-  S.ticker.items=[`VOC %${Math.round(S.voc.score)}`,`Toplam ${S.anket.toplam} Anket`,topD?`En Yüksek: ${topD.name} %${topD.voc}`:'',`Gösterilen: ${S.currentShowing}`].filter(Boolean);
+  // Ticker: sadece otomatik modda güncelle, kullanıcı elle değiştirdiyse dokunma
+  if(!S.ticker._manual){
+    S.ticker.items=[`VOC %${Math.round(S.voc.score)}`,`Toplam ${S.anket.toplam} Anket`,topD?`En Yüksek: ${topD.name} %${topD.voc}`:'',`Gösterilen: ${S.currentShowing}`].filter(Boolean);
+  }
 }
 
 // =================================================================
@@ -1759,6 +1835,7 @@ function dropPdf(e,i){e.preventDefault();e.currentTarget.classList.remove('drag'
 
 function renderTicker(){const c=$('ticker-list');c.innerHTML='';S.ticker.items.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text" value="${t}"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;c.appendChild(d);});}
 function addTickerRow(){const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;$('ticker-list').appendChild(d);}
+function resetTickerAuto(){S.ticker._manual=false;if(S.excelData)applyViewMode();renderTicker();toast('Ticker otomatik moda döndü');}
 
 function setAccent(c,el){S.accent=c;document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-rgb',hexToRgb(c));document.querySelectorAll('#accent-presets .cp').forEach(p=>p.classList.remove('sel'));if(el)el.classList.add('sel');$('accent-pick').value=c;$('accent-hex').textContent=c;}
 function loadLogoFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{S.brand.logo=e.target.result;$('logo-preview').src=e.target.result;$('logo-preview').style.display='block';$('logo-drop-txt').style.display='none';toast('Logo ✓');};r.readAsDataURL(f);}
@@ -1817,7 +1894,7 @@ function collectAdmin(){
   collectEgitim();
   const metInps=document.querySelectorAll('.metric-label-inp');
   if(metInps.length===5){const arr=[];metInps.forEach((el,i)=>arr.push(el.value.trim()||XL.metricNames[i]));S.metricLabels=arr;}
-  const ti=[];document.querySelectorAll('.ticker-inp').forEach(i=>{if(i.value.trim())ti.push(i.value.trim());});if(ti.length)S.ticker.items=ti;
+  const ti=[];document.querySelectorAll('.ticker-inp').forEach(i=>{if(i.value.trim())ti.push(i.value.trim());});if(ti.length){S.ticker.items=ti;S.ticker._manual=true;}
   if($('ticker-speed'))S.ticker.speed=+$('ticker-speed').value||25;
 }
 
@@ -2189,8 +2266,12 @@ function renderPropsPanel(){
 function renderWidgetHtml(w,preview){
   switch(w.type){
     case 'voc':{
-      const score=Math.round(S.voc.score||0);
-      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${score}</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
+      const score=S.voc.score||0;
+      const displayScore=Number.isInteger(score)?score:score.toFixed(1);
+      if(S._noData){
+        return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
+      }
+      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -2203,16 +2284,31 @@ function renderWidgetHtml(w,preview){
       return `<div class="w-clock"><div class="w-clock-date">${d}</div><div class="w-clock-time" style="font-size:calc(clamp(24px,5cqw,56px)*${w.fontScale||1})">${t}</div></div>`;
     }
     case 'rings':{
+      if(S._noData){
+        return `<div class="w-rings" style="display:flex;align-items:center;justify-content:center"><div style="text-align:center;color:var(--muted);font-size:clamp(14px,2cqw,22px);font-weight:600;padding:20px">📭 Bu dönemde veri yok</div></div>`;
+      }
       const P=2*Math.PI*42;
-      const cards=(S.metrics||[]).map(m=>{
-        const off=(P*(1-(m.value||0)/100)).toFixed(1);
-        return `<div class="w-ring-card" style="--ring-color:${m.color}"><svg class="w-ring-svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.08)" stroke-width="6" fill="none"/><circle cx="50" cy="50" r="42" stroke="${m.color}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="${P.toFixed(1)}" stroke-dashoffset="${off}" style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1);filter:drop-shadow(0 0 6px ${m.color})"/><text x="50" y="48" text-anchor="middle" dominant-baseline="middle" font-family="Space Grotesk,sans-serif" font-weight="800" font-size="22" fill="currentColor">%${m.value}</text><text x="50" y="64" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">PUAN</text></svg><div class="w-ring-lbl">${m.name}</div></div>`;
+      // Eşik bilgisi
+      const thresholds=(S._thresholds||[]);
+      const cards=(S.metrics||[]).map((m,mi)=>{
+        const val=m.value||0;
+        const displayVal=Number.isInteger(val)?val:val.toFixed(1);
+        const off=(P*(1-val/100)).toFixed(1);
+        // Eşik kontrolü: dinamik (Sheets'ten) veya fallback %80
+        const thr=thresholds[mi]!==undefined?thresholds[mi]:80;
+        const thrColor=val>=thr?'#22c55e':'#ef4444';
+        const borderStyle=`border:2px solid ${thrColor};box-shadow:0 0 8px ${thrColor}44`;
+        return `<div class="w-ring-card" style="${borderStyle}" onclick="openRingModal(${mi})" data-ring-idx="${mi}"><svg class="w-ring-svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" stroke="rgba(255,255,255,0.08)" stroke-width="6" fill="none"/><circle cx="50" cy="50" r="42" stroke="${m.color}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="${P.toFixed(1)}" stroke-dashoffset="${off}" style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1);filter:drop-shadow(0 0 6px ${m.color})"/><text x="50" y="48" text-anchor="middle" dominant-baseline="middle" font-family="Space Grotesk,sans-serif" font-weight="800" font-size="22" fill="currentColor">%${displayVal}</text><text x="50" y="64" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">PUAN</text></svg><div class="w-ring-lbl">${m.name}</div></div>`;
       }).join('');
       return `<div class="w-rings">${cards}</div>`;
     }
     case 'danismanlar':{
+      if(S._noData){
+        return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:clamp(12px,1.4cqw,16px)">📭 Bu dönemde veri yok</div></div>`;
+      }
       const minC=w.minCard||180;
-      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const av=d.photo?`<img src="${d.photo}">`:inits(d.name);return `<div class="w-dan-card" style="--dan-color:${d.color}"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${d.name}</div><div class="w-dan-score"><strong>%${v}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      const danThr=(S._thresholds||[])[0]||80; // Genel eşik
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const av=d.photo?`<img src="${d.photo}">`:inits(d.name);return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
@@ -2238,7 +2334,7 @@ function renderWidgetHtml(w,preview){
         const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
         const moodBadgeLabel=it.mood==='kirmizi'?'OLUMSUZ MÜŞTERİ':(it.mood==='yesil'?'OLUMLU MÜŞTERİ':(it.mood==='turuncu'?'TAKİPTE':it.moodLabel));
         const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
-        return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
+        return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
       const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
       return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div><div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
@@ -2406,6 +2502,86 @@ async function openPdfFullscreen(){
   try{content.innerHTML='';for(const item of valid){const head=document.createElement('div');head.style.cssText='width:100%;max-width:900px;color:#fff;font-weight:800;padding:8px 0';head.textContent=item.title||'PDF';content.appendChild(head);const src=item.data||item.url;const pdf=await pdfjsLib.getDocument(src).promise;for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;cv.className='k-pdf-modal-page';cv.style.maxWidth='900px';cv.style.width='100%';await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;content.appendChild(cv);}}}catch(err){content.innerHTML=`<div style="color:#ff5252;padding:40px">${err.message}</div>`;}
 }
 function closePdfModal(){$('k-pdf-modal').classList.remove('open');}
+
+// Feature 5: 48 Saat kart fullscreen modal
+function open48hModal(cardEl){
+  const modal=$('k-48h-modal'),content=$('k-48h-modal-content');
+  if(!modal||!content)return;
+  const danisman=cardEl.dataset.danisman||'—';
+  const musteri=cardEl.dataset.musteri||'—';
+  const plaka=cardEl.dataset.plaka||'—';
+  const is_=cardEl.dataset.is||'—';
+  const skf=cardEl.dataset.skf||'—';
+  const aciklama=cardEl.dataset.fullAciklama||'(yorum yok)';
+  const moodLabel=cardEl.dataset.moodLabel||'';
+  const moodColor=cardEl.dataset.moodColor||'var(--accent)';
+  $('k-48h-modal-title').textContent=`${danisman} — ${moodLabel}`;
+  content.innerHTML=`
+    <div style="background:rgba(255,255,255,0.05);border:2px solid ${moodColor};border-radius:16px;padding:28px 32px;color:#fff;max-width:800px;width:100%">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <span style="background:${moodColor};color:#000;font-weight:800;padding:6px 16px;border-radius:999px;font-size:14px">${moodLabel}</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.5)">SKF: ${skf}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Danışman</div><div style="font-size:16px;font-weight:700">${danisman}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Müşteri</div><div style="font-size:16px;font-weight:700">${musteri}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Plaka</div><div style="font-size:16px;font-weight:700;font-family:monospace">${plaka}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Yapılan İş</div><div style="font-size:16px;font-weight:700">${is_}</div></div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:20px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Açıklama / Yorum</div>
+        <div style="font-size:15px;line-height:1.7;color:rgba(255,255,255,0.9);white-space:pre-wrap;max-height:60vh;overflow-y:auto">${aciklama}</div>
+      </div>
+    </div>`;
+  modal.classList.add('open');
+}
+function close48hModal(){$('k-48h-modal').classList.remove('open');}
+
+// Feature 6: Ring click → danışman kırılımı modal
+function openRingModal(metricIdx){
+  const modal=$('k-ring-modal'),content=$('k-ring-modal-content');
+  if(!modal||!content)return;
+  const metric=S.metrics&&S.metrics[metricIdx];
+  if(!metric){toast('Metrik bulunamadı',true);return;}
+  const thr=(S._thresholds||[])[metricIdx]||80;
+  $('k-ring-modal-title').textContent=metric.name+' — Danışman Kırılımı';
+  const dans=(S.danismanlar||[]).map(d=>{
+    const score=d.scores&&d.scores[metricIdx]!==undefined?d.scores[metricIdx]:0;
+    const displayScore=Number.isInteger(score)?score:score.toFixed(1);
+    const color=score>=thr?'#22c55e':'#ef4444';
+    const barW=Math.min(score,100);
+    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:rgba(255,255,255,0.04);border:1px solid ${color}44;border-left:4px solid ${color};border-radius:10px">
+      <div style="width:36px;height:36px;border-radius:50%;border:2px solid ${d.color||'var(--accent)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${d.color||'var(--accent)'};background:rgba(255,255,255,0.05);flex-shrink:0;overflow:hidden">${d.photo?`<img src="${d.photo}" style="width:100%;height:100%;object-fit:cover">`:inits(d.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:14px;font-weight:700;color:#fff">${d.name}</span>
+          <span style="font-size:18px;font-weight:800;color:${color}">%${displayScore}</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${color};border-radius:3px;transition:width 0.8s"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const metricVal=Number.isInteger(metric.value)?metric.value:metric.value.toFixed(1);
+  content.innerHTML=`
+    <div style="max-width:800px;width:100%;color:#fff">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding:16px 20px;background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(255,255,255,0.1)">
+        <div style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:${metric.color}">%${metricVal}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">BAYİ SKORU</div>
+        </div>
+        <div style="width:1px;height:40px;background:rgba(255,255,255,0.1)"></div>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:rgba(255,255,255,0.7)">%${thr}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">1. SEVİYE HEDEF</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">${dans}</div>
+    </div>`;
+  modal.classList.add('open');
+}
+function closeRingModal(){$('k-ring-modal').classList.remove('open');}
 
 // 48h scroll init
 function initCalls48hScroll(w){
