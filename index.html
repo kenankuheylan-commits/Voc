@@ -416,6 +416,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="adm-nav-item" onclick="goTab('ticker',this)"><span class="adm-nav-icon">📢</span>Ticker</div>
       <div class="adm-nav-item" onclick="goTab('ayarlar',this)"><span class="adm-nav-icon">⚙️</span>Ayarlar</div>
       <div class="adm-nav-item" id="nav-users" onclick="goTab('kullanicilar',this)" style="display:none"><span class="adm-nav-icon">👥</span>Kullanıcılar</div>
+      <div class="adm-nav-item" id="nav-logs" onclick="goTab('loglar',this)" style="display:none"><span class="adm-nav-icon">📋</span>Aktivite Logu</div>
     </div>
     <div class="adm-nav-bottom">
       <div id="auth-user-info" style="padding:6px 8px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);margin-bottom:6px;word-break:break-all"></div>
@@ -673,13 +674,32 @@ body.designer-fs .designer-fs-toolbar{display:flex}
         <div class="sec-title">Kullanıcı Yönetimi</div>
         <div class="card">
           <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Kayıtlı kullanıcıların yetki seviyelerini buradan yönetebilirsin.</p>
-          <div style="display:flex;gap:8px;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;line-height:1.6">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;line-height:1.6">
             <div><strong style="color:#22c55e">🟢 Admin:</strong> Tüm yetkiler — ayar değiştirme, yayınlama, kullanıcı yönetimi</div>
-            <div style="margin-left:16px"><strong style="color:#4ecdc4">🔵 Görüntüleyici:</strong> Sadece kiosk ekranını görebilir, admin paneline sınırlı erişim</div>
-            <div style="margin-left:16px"><strong style="color:var(--muted)">⏳ Beklemede:</strong> Yeni kayıt, henüz onaylanmamış</div>
+            <div><strong style="color:#f59e0b">🟡 Editör:</strong> Düzenleyebilir ama yayınlayamaz — değişiklikler admin onayına düşer</div>
+            <div><strong style="color:#4ecdc4">🔵 Görüntüleyici:</strong> Sadece kiosk ekranını görebilir, admin paneline sınırlı erişim</div>
+            <div><strong style="color:var(--muted)">⏳ Beklemede:</strong> Yeni kayıt, henüz onaylanmamış</div>
           </div>
           <div id="users-list" style="display:flex;flex-direction:column;gap:8px">
             <div style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Yükleniyor...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AKTİVİTE LOGU (sadece admin görür) -->
+      <div class="tab-pane" id="tab-loglar">
+        <div class="sec-title">Aktivite Logu</div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <button class="vmb active" id="log-filter-all" onclick="filterLogs('all')">Tümü</button>
+            <button class="vmb" id="log-filter-login" onclick="filterLogs('login')">🔐 Giriş/Çıkış</button>
+            <button class="vmb" id="log-filter-change" onclick="filterLogs('change')">✏️ Değişiklikler</button>
+          </div>
+          <div id="logs-list" style="display:flex;flex-direction:column;gap:6px;max-height:600px;overflow-y:auto">
+            <div style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Yükleniyor...</div>
+          </div>
+          <div style="text-align:center;margin-top:12px">
+            <button class="btn btn-ghost btn-sm" id="logs-load-more" onclick="loadMoreLogs()" style="display:none">Daha Fazla Yükle</button>
           </div>
         </div>
       </div>
@@ -1325,7 +1345,24 @@ const fbAuth=firebase.auth();
 const fbDb=firebase.firestore();
 
 let _currentUser=null;   // Firebase User objesi
-let _currentRole=null;    // 'admin' | 'viewer' | 'pending'
+let _currentRole=null;    // 'admin' | 'editor' | 'viewer' | 'pending'
+let _logFilter='all';
+let _lastLogDoc=null;
+
+// ========== AKTİVİTE LOG SİSTEMİ ==========
+async function logActivity(type,detail){
+  if(!_currentUser)return;
+  try{
+    await fbDb.collection('activity_logs').add({
+      userId:_currentUser.uid,
+      userName:_currentUser.displayName||_currentUser.email,
+      userEmail:_currentUser.email,
+      type:type, // 'login','logout','change','publish'
+      detail:detail||'',
+      timestamp:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){console.warn('Log yazılamadı:',e);}
+}
 
 function showLoginForm(form){
   ['signin','forgot','register'].forEach(f=>{
@@ -1356,6 +1393,9 @@ async function doFirebaseLogin(){
   try{
     const cred=await fbAuth.signInWithEmailAndPassword(em,pw);
     $('login-err').classList.remove('show');
+    // Giriş logla
+    _currentUser=cred.user;
+    await logActivity('login','Giriş yapıldı');
     // Rol kontrolü → Firestore'dan oku
     await loadUserRole(cred.user);
   }catch(err){
@@ -1412,6 +1452,7 @@ async function doRegister(){
 
 // Çıkış
 async function doLogout(){
+  await logActivity('logout','Çıkış yapıldı');
   try{await fbAuth.signOut();}catch(e){}
   _currentUser=null;_currentRole=null;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -1451,33 +1492,37 @@ function applyUserRole(){
   if(!_currentUser){return;}
   const info=$('auth-user-info');
   if(info){
-    const roleLabels={'admin':'🟢 Admin','viewer':'🔵 Görüntüleyici','pending':'⏳ Onay Bekliyor'};
+    const roleLabels={'admin':'🟢 Admin','editor':'🟡 Editör','viewer':'🔵 Görüntüleyici','pending':'⏳ Onay Bekliyor'};
     info.innerHTML=`<strong>${_currentUser.displayName||_currentUser.email}</strong><br><span style="font-size:10px">${roleLabels[_currentRole]||_currentRole}</span>`;
   }
-  // Admin: tüm yetkiler
-  // Viewer: sadece gösterim, Excel, 48 saat görebilir — kaydedemez/yayınlayamaz
-  // Pending: sadece kiosk
   if(_currentRole==='admin'){
     $('s-login').classList.remove('active');
     $('s-admin').classList.add('active');
     document.body.classList.remove('designer-fs');
-    // Kullanıcılar sekmesini göster
     const navU=$('nav-users');if(navU)navU.style.display='';
-    // Tüm butonları aç
+    const navL=$('nav-logs');if(navL)navL.style.display='';
     document.querySelectorAll('#publish-btn,.btn-save-admin').forEach(b=>b.style.display='');
     renderAdmin();
+  }else if(_currentRole==='editor'){
+    $('s-login').classList.remove('active');
+    $('s-admin').classList.add('active');
+    document.body.classList.remove('designer-fs');
+    const navU=$('nav-users');if(navU)navU.style.display='none';
+    const navL=$('nav-logs');if(navL)navL.style.display='none';
+    // Editör: düzenleyebilir ama yayınlayamaz
+    const pubBtn=$('publish-btn');if(pubBtn){pubBtn.textContent='🔒 Yayınlama yetkin yok';pubBtn.disabled=true;pubBtn.style.opacity='0.5';}
+    renderAdmin();
+    toast('Editör modundasın — düzenleyebilirsin ama yayınlayamazsın');
   }else if(_currentRole==='viewer'){
     $('s-login').classList.remove('active');
     $('s-admin').classList.add('active');
     document.body.classList.remove('designer-fs');
-    // Kullanıcılar sekmesini gizle
     const navU=$('nav-users');if(navU)navU.style.display='none';
-    // Yayınla butonunu gizle
+    const navL=$('nav-logs');if(navL)navL.style.display='none';
     const pubBtn=$('publish-btn');if(pubBtn)pubBtn.style.display='none';
     renderAdmin();
     toast('Görüntüleyici modundasın — değişiklik yapamazsın');
   }else{
-    // Pending — sadece kiosk
     goKiosk();
     toast('Hesabın henüz onaylanmadı. Sadece kiosk ekranını görebilirsin.');
   }
@@ -1497,14 +1542,15 @@ async function renderUsersAdmin(){
       const u=doc.data();
       const uid=doc.id;
       const isSelf=_currentUser&&uid===_currentUser.uid;
-      const roleColors={'admin':'#22c55e','viewer':'#4ecdc4','pending':'#f59e0b'};
-      const roleLabels={'admin':'Admin','viewer':'Görüntüleyici','pending':'Beklemede'};
+      const roleColors={'admin':'#22c55e','editor':'#f59e0b','viewer':'#4ecdc4','pending':'#888'};
+      const roleLabels={'admin':'Admin','editor':'Editör','viewer':'Görüntüleyici','pending':'Beklemede'};
       const card=document.createElement('div');
       card.style.cssText='display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;border-left:4px solid '+(roleColors[u.role]||'var(--border)');
       let actions='';
       if(!isSelf){
-        actions=`<select class="f-input" style="width:140px;font-size:12px;padding:6px" onchange="changeUserRole('${uid}',this.value)">
+        actions=`<select class="f-input" style="width:150px;font-size:12px;padding:6px" onchange="changeUserRole('${uid}',this.value)">
           <option value="admin" ${u.role==='admin'?'selected':''}>🟢 Admin</option>
+          <option value="editor" ${u.role==='editor'?'selected':''}>🟡 Editör</option>
           <option value="viewer" ${u.role==='viewer'?'selected':''}>🔵 Görüntüleyici</option>
           <option value="pending" ${u.role==='pending'?'selected':''}>⏳ Beklemede</option>
         </select>`;
@@ -1531,11 +1577,81 @@ async function renderUsersAdmin(){
 async function changeUserRole(uid,newRole){
   try{
     await fbDb.collection('users').doc(uid).update({role:newRole});
+    const roleLabels={'admin':'Admin','editor':'Editör','viewer':'Görüntüleyici','pending':'Beklemede'};
+    await logActivity('change',`Kullanıcı yetkisi değiştirildi: ${uid} → ${roleLabels[newRole]||newRole}`);
     toast('Yetki güncellendi ✓');
     renderUsersAdmin();
   }catch(err){
     toast('Hata: '+err.message,true);
   }
+}
+
+// ========== AKTİVİTE LOG RENDER ==========
+async function renderLogsAdmin(){
+  _lastLogDoc=null;
+  const list=$('logs-list');
+  if(!list)return;
+  if(_currentRole!=='admin'){list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Bu sayfayı görüntüleme yetkiniz yok.</div>';return;}
+  list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Yükleniyor...</div>';
+  await fetchLogs(list,false);
+}
+
+async function fetchLogs(list,append){
+  try{
+    let q=fbDb.collection('activity_logs').orderBy('timestamp','desc').limit(30);
+    if(_logFilter==='login')q=q.where('type','in',['login','logout']);
+    else if(_logFilter==='change')q=q.where('type','in',['change','publish']);
+    if(_lastLogDoc&&append)q=q.startAfter(_lastLogDoc);
+    const snap=await q.get();
+    if(!append)list.innerHTML='';
+    if(snap.empty&&!append){
+      list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Henüz aktivite kaydı yok.</div>';
+      const btn=$('logs-load-more');if(btn)btn.style.display='none';
+      return;
+    }
+    snap.forEach(doc=>{
+      const d=doc.data();
+      _lastLogDoc=doc;
+      const ts=d.timestamp?d.timestamp.toDate():new Date();
+      const timeStr=ts.toLocaleDateString('tr-TR',{day:'2-digit',month:'short',year:'numeric'})+' '+ts.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+      const typeIcons={'login':'🔐','logout':'🚪','change':'✏️','publish':'☁️'};
+      const typeColors={'login':'#22c55e','logout':'#ef4444','change':'#f59e0b','publish':'#4ecdc4'};
+      const typeLabels={'login':'Giriş','logout':'Çıkış','change':'Değişiklik','publish':'Yayınlama'};
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;border-left:3px solid '+(typeColors[d.type]||'var(--border)');
+      row.innerHTML=`
+        <div style="font-size:18px;flex-shrink:0">${typeIcons[d.type]||'📌'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">${d.userName||d.userEmail||'Bilinmeyen'}</span>
+            <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${typeColors[d.type]||'var(--border)'}22;color:${typeColors[d.type]||'var(--muted)'};font-weight:700">${typeLabels[d.type]||d.type}</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${d.detail||'—'}</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0">${timeStr}</div>`;
+      list.appendChild(row);
+    });
+    const btn=$('logs-load-more');
+    if(btn)btn.style.display=snap.size>=30?'inline-block':'none';
+  }catch(err){
+    console.error('Log fetch err:',err);
+    if(!append)list.innerHTML='<div style="color:#ff5252;padding:20px;text-align:center">Loglar yüklenemedi: '+err.message+'</div>';
+  }
+}
+
+function filterLogs(filter){
+  _logFilter=filter;
+  ['all','login','change'].forEach(f=>{
+    const btn=$('log-filter-'+f);
+    if(btn)btn.classList.toggle('active',f===filter);
+  });
+  renderLogsAdmin();
+}
+
+async function loadMoreLogs(){
+  const list=$('logs-list');
+  if(!list)return;
+  await fetchLogs(list,true);
 }
 
 // Eski doLogin'i yedek olarak tut (fallback)
@@ -1553,7 +1669,12 @@ document.addEventListener('keydown',e=>{
     if(bk&&bk.style.display!=='none'){goAdmin();}
   }
 });
-function saveAll(){if(_currentRole&&_currentRole!=='admin'){toast('Kaydetme yetkiniz yok',true);return;}collectAdmin();if(S.excelData)applyViewMode();persist();renderAdmin();toast('Yerel kaydedildi ✓');}
+function saveAll(){
+  if(_currentRole==='viewer'){toast('Kaydetme yetkiniz yok',true);return;}
+  collectAdmin();if(S.excelData)applyViewMode();persist();renderAdmin();
+  logActivity('change','Yerel kayıt yapıldı');
+  toast('Yerel kaydedildi ✓');
+}
 async function publishToCloud(){
   if(_currentRole&&_currentRole!=='admin'){toast('Yayınlama yetkiniz yok',true);return;}
   if(!_ghKey()){
@@ -1576,6 +1697,7 @@ async function publishToCloud(){
     if(btn)btn.innerHTML='⏳ Sheets yenileniyor...';
     await loadAllFromSheets();
     toast('☁ Yayında! Yöneticiler F5 yapınca yeni veriyi görür.');
+    logActivity('publish','Yayına alındı (design.json güncellendi)');
     if(btn){btn.innerHTML='✓ Yayında';setTimeout(()=>{btn.disabled=false;btn.innerHTML='☁ Yayına Al';},2500);}
     if(document.getElementById('s-admin').classList.contains('active'))renderAdmin();
   }catch(err){
@@ -1601,7 +1723,7 @@ function goTab(id,el){
   if(el)el.classList.add('active');
   // Designer dışı sekmeye geçilince fullscreen'ten çık
   if(id!=='designer')document.body.classList.remove('designer-fs');
-  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar'};
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu'};
   $('adm-page-title').textContent=titles[id]||id;
   if(id==='designer')renderDesigner();
   if(id==='goster')refreshViewModeUI();
@@ -1613,6 +1735,7 @@ function goTab(id,el){
   if(id==='egitim')renderEgitimAdmin();
   if(id==='metrikler')renderMetricLabels();
   if(id==='kullanicilar')renderUsersAdmin();
+  if(id==='loglar')renderLogsAdmin();
 }
 function setTheme(t){S.theme=t;document.documentElement.setAttribute('data-theme',t);const b=$('theme-btn');if(b)b.textContent=t==='dark'?'☀️ Açık':'🌙 Koyu';}
 function toggleTheme(){setTheme(S.theme==='dark'?'light':'dark');persist();}
