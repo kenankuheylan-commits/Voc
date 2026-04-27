@@ -1235,17 +1235,27 @@ function calcVocScores(rows,w){
   const n=rows.length;
   if(!n)return {s1:0,s2:0,s3:0,s4:0,s5:0,vocEndeks:0,metrics:[]};
   
-  // Her soru için: 5 puan verenlerin sayısı / TOPLAM ANKET SAYISI × 100
-  // Payda her zaman toplam anket sayısı (n), soruyu boş bırakanlar da dahil
-  const count5q=(qKey)=>rows.filter(r=>r[qKey]===5).length;
+  // DOĞRU FORMÜL: (5_verenler - (1_verenler + 2_verenler + 3_verenler)) / toplam_anket × 100
+  // 4 verenler nötr — ne eklenir ne çıkarılır
+  function scorQ(qKey){
+    const vals=rows.map(r=>r[qKey]).filter(v=>v>=1&&v<=5);
+    const c5=vals.filter(v=>v===5).length;
+    const cNeg=vals.filter(v=>v<=3).length; // 1+2+3 verenler
+    return pctRound(((c5-cNeg)/n)*100);
+  }
   
-  const s1=pctRound((count5q('q1')/n)*100);
-  const s2=pctRound((count5q('q2')/n)*100);
-  const s3=pctRound((count5q('q3')/n)*100);
-  const s4=pctRound((count5q('q4')/n)*100);
-  const s5=pctRound((count5q('q5')/n)*100);
+  const s1=scorQ('q1');
+  const s2=scorQ('q2');
+  const s3=scorQ('q3');
+  const s4=scorQ('q4');
+  const s5=scorQ('q5');
   
-  console.log('[VOC Calc] n='+n+' 5-verenler: q1='+count5q('q1')+' q2='+count5q('q2')+' q3='+count5q('q3')+' q4='+count5q('q4')+' q5='+count5q('q5'));
+  // Debug
+  const dbg=(qKey)=>{
+    const vals=rows.map(r=>r[qKey]).filter(v=>v>=1&&v<=5);
+    return {c5:vals.filter(v=>v===5).length,c4:vals.filter(v=>v===4).length,cNeg:vals.filter(v=>v<=3).length};
+  };
+  console.log('[VOC Calc] n='+n, 'q1:',JSON.stringify(dbg('q1')), 'q2:',JSON.stringify(dbg('q2')), 'q3:',JSON.stringify(dbg('q3')), 'q4:',JSON.stringify(dbg('q4')), 'q5:',JSON.stringify(dbg('q5')));
   console.log('[VOC Calc] Skorlar: s1='+s1+' s2='+s2+' s3='+s3+' s4='+s4+' s5='+s5);
   
   // VOC ENDEKS = (S1×W1 + S2×W2 + S3×W3 + S4×W4 + S5×W5) / toplam ağırlık
