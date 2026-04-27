@@ -950,13 +950,21 @@ async function loadVocFromSheets(){
   console.log('[Sheets] VOC yükleniyor...');
   const wb=await gsListSheets(SHEETS_VOC_ID);
 
-  // 1) "voc data" sayfasını bul
-  const vocDataSheetName=wb.SheetNames.find(sn=>sn.toLowerCase().replace(/\s+/g,'').includes('vocdata'));
+  // 1) "voc data" sayfasını bul — farklı yazımları destekle
+  console.log('[Sheets] Tüm sayfa adları:', JSON.stringify(wb.SheetNames));
+  const vocDataSheetName=wb.SheetNames.find(sn=>{
+    const norm=sn.toLowerCase().replace(/[\s_\-\.]+/g,'');
+    return norm.includes('vocdata')||norm==='vocdata'||norm==='voc';
+  });
   
   if(vocDataSheetName){
     console.log('[Sheets] "voc data" sayfası bulundu:',vocDataSheetName);
     const sheet=wb.Sheets[vocDataSheetName];
     const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:false,raw:true});
+    console.log('[Sheets] voc data satır sayısı:',rows.length);
+    if(rows.length>1){
+      console.log('[Sheets] İlk veri satırı (row[1]) — A:',rows[1]?.[0],'L:',rows[1]?.[11],'BC:',rows[1]?.[54],'BI:',rows[1]?.[60],'BR:',rows[1]?.[69]);
+    }
     const result=parseVocDataSheet(rows);
     if(result){
       S.excelData=result.periods;
@@ -965,6 +973,8 @@ async function loadVocFromSheets(){
       const newCount=result.rawRows.length;
       if(S._prevAnketCount>0 && newCount>S._prevAnketCount){
         S._newAnketDelta=newCount-S._prevAnketCount;
+      }else if(S._prevAnketCount===0){
+        S._newAnketDelta=0; // ilk yükleme, delta gösterme
       }
       S._prevAnketCount=newCount;
       console.log('[Sheets] VOC Data hazır:',result.rawRows.length,'anket,',Object.keys(result.periods).length,'dönem');
@@ -1000,7 +1010,7 @@ async function loadVocFromSheets(){
 // BJ=61 Müşteri değeri (1-5)
 // BK=62 İş kalitesi (1-5)
 // BL=63 Paranın karşılığı (1-5)
-const VOC_COL={danisman:0,musteriAd:2,musteriSoyad:3,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63};
+const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:69};
 
 function parseVocDataSheet(rows){
   if(!rows||rows.length<2)return null;
@@ -1008,6 +1018,10 @@ function parseVocDataSheet(rows){
   // İlk satır header, 1'den itibaren veri
   const rawRows=[];
   const colors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa','#22c55e','#ec4899','#06b6d4'];
+  
+  let _skipCount=0;
+  let _noDateCount=0;
+  let _noScoreCount=0;
   
   for(let r=1;r<rows.length;r++){
     const row=rows[r];
@@ -1020,17 +1034,33 @@ function parseVocDataSheet(rows){
       if(typeof rawDate==='number'){
         // Excel serial date
         tarih=excelDateToJS(rawDate);
+      }else if(rawDate instanceof Date){
+        tarih=rawDate;
       }else{
         const s=String(rawDate).trim();
-        // ay/gün/yıl formatı
-        const m=s.match(/(\d+)\/(\d+)\/(\d+)/);
+        // Birden fazla format dene
+        // ay/gün/yıl (US): 4/1/2026
+        let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
         if(m){
           const yr=parseInt(m[3]);const mo=parseInt(m[1])-1;const dy=parseInt(m[2]);
           tarih=new Date(yr<100?yr+2000:yr,mo,dy);
         }
+        if(!tarih||isNaN(tarih.getTime())){
+          // gün.ay.yıl (TR): 01.04.2026
+          m=s.match(/^(\d{1,2})[.\-](\d{1,2})[.\-](\d{2,4})$/);
+          if(m){
+            const yr=parseInt(m[3]);const mo=parseInt(m[2])-1;const dy=parseInt(m[1]);
+            tarih=new Date(yr<100?yr+2000:yr,mo,dy);
+          }
+        }
+        if(!tarih||isNaN(tarih.getTime())){
+          // ISO: 2026-04-01
+          const d=new Date(s);
+          if(!isNaN(d.getTime()))tarih=d;
+        }
       }
     }
-    if(!tarih||isNaN(tarih.getTime()))continue;
+    if(!tarih||isNaN(tarih.getTime())){_noDateCount++;continue;}
     
     // 5 soru puanları
     const q1=safeNum(row[VOC_COL.q1]);
@@ -1040,7 +1070,7 @@ function parseVocDataSheet(rows){
     const q5=safeNum(row[VOC_COL.q5]);
     
     // En az bir sorusu dolu olmalı
-    if(!q1&&!q2&&!q3&&!q4&&!q5)continue;
+    if(!q1&&!q2&&!q3&&!q4&&!q5){_noScoreCount++;continue;}
     
     const danismanRaw=String(row[VOC_COL.danisman]||'').trim();
     const danisman=danismanRaw||'ANONİM';
@@ -1055,13 +1085,22 @@ function parseVocDataSheet(rows){
       aracModel:String(row[VOC_COL.aracModel]||'').trim(),
       sase:String(row[VOC_COL.sase]||'').trim(),
       q1,q2,q3,q4,q5,
-      // Son kolon = yorum (en sağdaki dolu kolon)
-      yorum:findLastNonEmptyCol(row),
+      // BR kolonu (index 69) = yorum
+      yorum:cleanYorum(String(row[VOC_COL.yorum]||'').trim()),
       rowIndex:r
     });
   }
   
-  if(!rawRows.length)return null;
+  if(!rawRows.length){
+    console.warn('[VOC Parse] Hiç anket bulunamadı!',{toplam:rows.length-1,tarihYok:_noDateCount,puanYok:_noScoreCount});
+    // İlk 3 satırı göster debug için
+    for(let i=1;i<Math.min(4,rows.length);i++){
+      const r=rows[i];
+      if(r)console.log('[VOC Debug] Satır',i,'→ A:',r[0],'L:',r[11],'(tip:',typeof r[11],') BC:',r[54],'BI:',r[60]);
+    }
+    return null;
+  }
+  console.log('[VOC Parse] Başarılı:',rawRows.length,'anket (',_noDateCount,'tarihsiz,',_noScoreCount,'puansız atlandı)');
   
   // Dönemlere ayır
   const periods={};
@@ -1193,6 +1232,18 @@ function calcVocScores(rows,w){
 function excelDateToJS(serial){
   const epoch=new Date(1899,11,30);
   return new Date(epoch.getTime()+serial*86400000);
+}
+
+// Consent / boilerplate yorumları filtrele
+function cleanYorum(s){
+  if(!s)return '';
+  // "Yes, I accept..." gibi consent metinleri yorum değil
+  const lower=s.toLowerCase();
+  if(lower.includes('i accept')&&lower.includes('provided to'))return '';
+  if(lower.includes('yes, i accept'))return '';
+  if(lower.startsWith('💬')&&lower.includes('accept'))return '';
+  if(s.length<3)return '';
+  return s;
 }
 
 function findLastNonEmptyCol(row){
