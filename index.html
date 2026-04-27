@@ -952,10 +952,33 @@ async function loadVocFromSheets(){
 
   // 1) "voc data" sayfasını bul — farklı yazımları destekle
   console.log('[Sheets] Tüm sayfa adları:', JSON.stringify(wb.SheetNames));
-  const vocDataSheetName=wb.SheetNames.find(sn=>{
+  let vocDataSheetName=wb.SheetNames.find(sn=>{
     const norm=sn.toLowerCase().replace(/[\s_\-\.]+/g,'');
     return norm.includes('vocdata')||norm==='vocdata'||norm==='voc';
   });
+  
+  // Eşleşme yoksa: her sayfanın header'ını kontrol et — BC kolonunda (indeks 54) puan benzeri veri olan sayfayı bul
+  if(!vocDataSheetName){
+    console.log('[Sheets] İsim eşleşmesi yok, header tarama başlıyor...');
+    for(const sn of wb.SheetNames){
+      if(sn.toUpperCase().includes('DÖNEM'))continue; // dönem sayfaları zaten fallback'te
+      const sheet=wb.Sheets[sn];
+      const testRows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:false,raw:true,range:0});
+      // En az 5 satır ve L kolonu (11) tarih, BC kolonu (54) sayı mı?
+      if(testRows.length>=3){
+        const row2=testRows[1]; // ilk veri satırı
+        if(row2){
+          const hasDate=row2[11]!==null&&row2[11]!==undefined;
+          const hasScore=typeof safeNum(row2[54])==='number'&&safeNum(row2[54])>=1&&safeNum(row2[54])<=5;
+          if(hasDate&&hasScore){
+            vocDataSheetName=sn;
+            console.log('[Sheets] Header tarama ile bulundu:',sn);
+            break;
+          }
+        }
+      }
+    }
+  }
   
   if(vocDataSheetName){
     console.log('[Sheets] "voc data" sayfası bulundu:',vocDataSheetName);
@@ -979,11 +1002,13 @@ async function loadVocFromSheets(){
       S._prevAnketCount=newCount;
       console.log('[Sheets] VOC Data hazır:',result.rawRows.length,'anket,',Object.keys(result.periods).length,'dönem');
       return Object.keys(result.periods).length;
+    }else{
+      console.warn('[Sheets] "voc data" sayfası bulundu ama parse başarısız! Fallback devreye giriyor.');
     }
   }
 
   // 2) Fallback: eski dönem sayfaları (geriye uyumluluk)
-  console.log('[Sheets] "voc data" sayfası yok, eski dönem parse kullanılıyor');
+  console.log('[Sheets] Eski dönem parse kullanılıyor (fallback)');
   const periods={};
   wb.SheetNames.forEach(sn=>{
     if(!sn.toUpperCase().includes('DÖNEM'))return;
