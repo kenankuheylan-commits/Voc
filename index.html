@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>VOC Panel | Ernaz Servis Sakarya</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -400,6 +397,15 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 .w-48h-card[data-mood="yesil"]{background:linear-gradient(90deg,rgba(34,197,94,0.13) 0%,var(--card) 70%)}
 .w-48h-card[data-mood="turuncu"]{background:linear-gradient(90deg,rgba(245,158,11,0.15) 0%,var(--card) 70%)}
 @keyframes moodPulseRed{0%,100%{box-shadow:0 0 0 1px #ef4444,0 2px 8px rgba(0,0,0,0.15)}50%{box-shadow:0 0 0 2px #ef4444,0 4px 16px rgba(239,68,68,0.3)}}
+@keyframes fadeInUp{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+/* Rapor v2 layout */
+.rapor-v2-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%}
+.rapor-v2-left,.rapor-v2-right{min-width:0}
+.rapor-new-card{padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-bottom:10px}
+.rapor-new-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.rapor-new-card-scores{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.rapor-new-card-score{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700}
+@media (max-width:800px){.rapor-v2-layout{grid-template-columns:1fr}}
 
 </style>
 </head>
@@ -460,6 +466,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="adm-nav-item" onclick="goTab('calls48h',this)"><span class="adm-nav-icon">📞</span>48 Saat</div>
       <div class="adm-nav-item" onclick="goTab('egitim',this)"><span class="adm-nav-icon">🎓</span>Eğitim</div>
       <div class="adm-nav-item" onclick="goTab('metrikler',this)"><span class="adm-nav-icon">📊</span>Metrikler</div>
+      <div class="adm-nav-item" onclick="goTab('agirliklar',this)"><span class="adm-nav-icon">⚖️</span>Ağırlıklar</div>
       <div class="adm-nav-item" onclick="goTab('gorunum',this)"><span class="adm-nav-icon">🎨</span>Görünüm</div>
       <div class="adm-nav-item" onclick="goTab('ticker',this)"><span class="adm-nav-icon">📢</span>Ticker</div>
       <div class="adm-nav-item" onclick="goTab('ayarlar',this)"><span class="adm-nav-icon">⚙️</span>Ayarlar</div>
@@ -660,6 +667,25 @@ body.designer-fs .designer-fs-toolbar{display:flex}
         <div class="card"><div id="metric-labels-list"></div><button class="btn btn-ghost btn-sm" style="margin-top:14px" onclick="resetMetricLabels()">↺ Varsayılana Dön</button></div>
       </div>
 
+      <!-- AĞIRLIKLAR -->
+      <div class="tab-pane" id="tab-agirliklar">
+        <div class="sec-title">⚖️ VOC Endeks Ağırlıkları (Kriter Puanları)</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Her sorunun VOC Endeks hesabına ne kadar etki edeceğini belirle. <strong>Toplamları 100 olmalı.</strong><br>Formül: VOC = (Skor₁×Ağırlık₁ + Skor₂×Ağırlık₂ + ... + Skor₅×Ağırlık₅) / 100</p>
+        <div class="card" id="weights-card">
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:10px;align-items:center" id="weights-grid">
+            <label class="f-label" style="font-weight:700">Genel Memnuniyet</label><input class="f-input" type="number" id="wt-1" min="0" max="100" value="50" onchange="updateWeights()">
+            <label class="f-label" style="font-weight:700">Deneyimi Kolaylaştırdı</label><input class="f-input" type="number" id="wt-2" min="0" max="100" value="0" onchange="updateWeights()">
+            <label class="f-label" style="font-weight:700">Müşteri Değeri</label><input class="f-input" type="number" id="wt-3" min="0" max="100" value="25" onchange="updateWeights()">
+            <label class="f-label" style="font-weight:700">İş Kalitesi</label><input class="f-input" type="number" id="wt-4" min="0" max="100" value="25" onchange="updateWeights()">
+            <label class="f-label" style="font-weight:700">Paranın Karşılığı</label><input class="f-input" type="number" id="wt-5" min="0" max="100" value="0" onchange="updateWeights()">
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+            <div id="weights-total" style="font-size:14px;font-weight:700"></div>
+            <button class="btn btn-accent btn-sm" onclick="applyWeightsAndRecalc()">🔄 Uygula & Yeniden Hesapla</button>
+          </div>
+        </div>
+      </div>
+
       <!-- GÖRÜNÜM -->
       <div class="tab-pane" id="tab-gorunum">
         <div class="sec-title">Logo & Marka</div>
@@ -798,11 +824,18 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     <div class="k-pdf-modal-head">
       <div class="k-pdf-modal-title">📊 VOC Raporu</div>
       <div style="display:flex;gap:8px;align-items:center">
+        <select id="rapor-anket-count" style="padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px" onchange="openRaporModal()">
+          <option value="5">Son 5 anket</option>
+          <option value="10" selected>Son 10 anket</option>
+          <option value="15">Son 15 anket</option>
+          <option value="20">Son 20 anket</option>
+          <option value="50">Son 50 anket</option>
+        </select>
         <button class="k-ctrl-btn" onclick="printRapor()" style="font-size:12px;padding:6px 14px">🖨 Yazdır / PDF</button>
         <button class="k-pdf-modal-close" onclick="closeRaporModal()">✕</button>
       </div>
     </div>
-    <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1000px;margin:0 auto;width:100%;overflow-y:auto"></div>
+    <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1400px;margin:0 auto;width:100%;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -884,9 +917,16 @@ const DEF={
   viewMode:{mode:'auto',period:'',month:''},
   currentShowing:'—',
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
+  // VOC Data ağırlıkları (kriter puanları) — toplamları 100 olmalı
+  weights:{w1:50,w2:0,w3:25,w4:25,w5:0},
+  // Ham anket verileri (voc data sayfasından)
+  vocRawData:null,
+  // Önceki anket sayısı (yeni anket sayacı için)
+  _prevAnketCount:0,
+  _newAnketDelta:0,
 };
 
-const STORAGE_KEY='kiosk_v27-20260426_bugfix7';
+const STORAGE_KEY='kiosk_v28-20260427_vocdata';
 
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
@@ -905,10 +945,35 @@ async function gsListSheets(spreadsheetId){
   return XLSX.read(new Uint8Array(buf),{type:'array'});
 }
 
-// VOC verisini Sheets'ten çek ve mevcut parse fonksiyonuna besle
+// VOC verisini Sheets'ten çek — "voc data" sayfasından ham anket verisi oku
 async function loadVocFromSheets(){
   console.log('[Sheets] VOC yükleniyor...');
   const wb=await gsListSheets(SHEETS_VOC_ID);
+
+  // 1) "voc data" sayfasını bul
+  const vocDataSheetName=wb.SheetNames.find(sn=>sn.toLowerCase().replace(/\s+/g,'').includes('vocdata'));
+  
+  if(vocDataSheetName){
+    console.log('[Sheets] "voc data" sayfası bulundu:',vocDataSheetName);
+    const sheet=wb.Sheets[vocDataSheetName];
+    const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:false,raw:true});
+    const result=parseVocDataSheet(rows);
+    if(result){
+      S.excelData=result.periods;
+      S.vocRawData=result.rawRows;
+      // Yeni anket sayacı
+      const newCount=result.rawRows.length;
+      if(S._prevAnketCount>0 && newCount>S._prevAnketCount){
+        S._newAnketDelta=newCount-S._prevAnketCount;
+      }
+      S._prevAnketCount=newCount;
+      console.log('[Sheets] VOC Data hazır:',result.rawRows.length,'anket,',Object.keys(result.periods).length,'dönem');
+      return Object.keys(result.periods).length;
+    }
+  }
+
+  // 2) Fallback: eski dönem sayfaları (geriye uyumluluk)
+  console.log('[Sheets] "voc data" sayfası yok, eski dönem parse kullanılıyor');
   const periods={};
   wb.SheetNames.forEach(sn=>{
     if(!sn.toUpperCase().includes('DÖNEM'))return;
@@ -918,8 +983,235 @@ async function loadVocFromSheets(){
     if(pd)periods[sn]=pd;
   });
   S.excelData=periods;
-  console.log('[Sheets] VOC hazır:',Object.keys(periods).length,'dönem');
+  console.log('[Sheets] VOC hazır (eski mod):',Object.keys(periods).length,'dönem');
   return Object.keys(periods).length;
+}
+
+// ═══════════════════════════════════════════════════════
+// VOC DATA SHEET PARSER — Ham anket verisinden hesaplama
+// ═══════════════════════════════════════════════════════
+// Kolon haritası (0-bazlı):
+// A=0  Danışman adı
+// C=2  Müşteri adı, D=3 Müşteri soyadı
+// L=11 Tarih (ay/gün/yıl)
+// S=18 Araç modeli, T=19 Şase/VIN
+// BC=54 Genel memnuniyet (1-5)
+// BI=60 Deneyimi kolaylaştırdı (1-5)
+// BJ=61 Müşteri değeri (1-5)
+// BK=62 İş kalitesi (1-5)
+// BL=63 Paranın karşılığı (1-5)
+const VOC_COL={danisman:0,musteriAd:2,musteriSoyad:3,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63};
+
+function parseVocDataSheet(rows){
+  if(!rows||rows.length<2)return null;
+  
+  // İlk satır header, 1'den itibaren veri
+  const rawRows=[];
+  const colors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa','#22c55e','#ec4899','#06b6d4'];
+  
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    if(!row)continue;
+    
+    // Tarih kontrolü — L kolonu
+    let tarih=null;
+    const rawDate=row[VOC_COL.tarih];
+    if(rawDate){
+      if(typeof rawDate==='number'){
+        // Excel serial date
+        tarih=excelDateToJS(rawDate);
+      }else{
+        const s=String(rawDate).trim();
+        // ay/gün/yıl formatı
+        const m=s.match(/(\d+)\/(\d+)\/(\d+)/);
+        if(m){
+          const yr=parseInt(m[3]);const mo=parseInt(m[1])-1;const dy=parseInt(m[2]);
+          tarih=new Date(yr<100?yr+2000:yr,mo,dy);
+        }
+      }
+    }
+    if(!tarih||isNaN(tarih.getTime()))continue;
+    
+    // 5 soru puanları
+    const q1=safeNum(row[VOC_COL.q1]);
+    const q2=safeNum(row[VOC_COL.q2]);
+    const q3=safeNum(row[VOC_COL.q3]);
+    const q4=safeNum(row[VOC_COL.q4]);
+    const q5=safeNum(row[VOC_COL.q5]);
+    
+    // En az bir sorusu dolu olmalı
+    if(!q1&&!q2&&!q3&&!q4&&!q5)continue;
+    
+    const danismanRaw=String(row[VOC_COL.danisman]||'').trim();
+    const danisman=danismanRaw||'ANONİM';
+    
+    rawRows.push({
+      danisman,
+      musteriAd:String(row[VOC_COL.musteriAd]||'').trim(),
+      musteriSoyad:String(row[VOC_COL.musteriSoyad]||'').trim(),
+      tarih,
+      ay:tarih.getMonth(), // 0-11
+      yil:tarih.getFullYear(),
+      aracModel:String(row[VOC_COL.aracModel]||'').trim(),
+      sase:String(row[VOC_COL.sase]||'').trim(),
+      q1,q2,q3,q4,q5,
+      // Son kolon = yorum (en sağdaki dolu kolon)
+      yorum:findLastNonEmptyCol(row),
+      rowIndex:r
+    });
+  }
+  
+  if(!rawRows.length)return null;
+  
+  // Dönemlere ayır
+  const periods={};
+  const donemMap=[[0,1,2],[3,4,5],[6,7,8],[9,10,11]]; // ay → dönem
+  
+  // Yıla göre grupla
+  const years=[...new Set(rawRows.map(r=>r.yil))].sort();
+  
+  for(const yr of years){
+    const yrRows=rawRows.filter(r=>r.yil===yr);
+    for(let di=0;di<4;di++){
+      const donemAylar=donemMap[di];
+      const donemRows=yrRows.filter(r=>donemAylar.includes(r.ay));
+      if(!donemRows.length)continue;
+      
+      const pName=`${yr} ${di+1}. DÖNEM`;
+      const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};
+      
+      // Dönem genel hesaplama
+      const bayiCalc=calcVocScores(donemRows,w);
+      
+      // Danışman bazlı
+      const danGroups=groupBy(donemRows,'danisman');
+      const danismanlar=[];
+      let ci=0;
+      for(const [name,dRows] of Object.entries(danGroups)){
+        const dc=calcVocScores(dRows,w);
+        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        danismanlar.push({
+          name,
+          voc:dc.vocEndeks,
+          scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],
+          anket:dRows.length,
+          color:ex?.color||colors[ci%colors.length],
+          photo:ex?.photo||'',
+          isAnonim:name==='ANONİM'
+        });
+        ci++;
+      }
+      danismanlar.sort((a,b)=>b.voc-a.voc);
+      
+      // Ay bazlı kırılım
+      const months={};
+      const ayNames=['OCAK','SUBAT','MART','NISAN','MAYIS','HAZIRAN','TEMMUZ','AGUSTOS','EYLUL','EKIM','KASIM','ARALIK'];
+      const ayDisplay=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+      
+      for(const ayIdx of donemAylar){
+        const ayRows=donemRows.filter(r=>r.ay===ayIdx);
+        if(!ayRows.length)continue;
+        
+        const ayCalc=calcVocScores(ayRows,w);
+        const mDanGroups=groupBy(ayRows,'danisman');
+        const mDan=[];
+        let mci=0;
+        for(const [name,mdRows] of Object.entries(mDanGroups)){
+          const mdc=calcVocScores(mdRows,w);
+          const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+          mDan.push({
+            name,voc:mdc.vocEndeks,
+            scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],
+            anket:mdRows.length,
+            color:ex?.color||colors[mci%colors.length],
+            photo:ex?.photo||'',
+            isAnonim:name==='ANONİM'
+          });
+          mci++;
+        }
+        mDan.sort((a,b)=>b.voc-a.voc);
+        
+        months[ayNames[ayIdx]]={
+          label:ayDisplay[ayIdx],
+          voc:ayCalc.vocEndeks,
+          metrics:ayCalc.metrics,
+          anket:ayRows.length,
+          danismanlar:mDan
+        };
+      }
+      
+      periods[pName]={
+        sheetName:pName,
+        vocScore:bayiCalc.vocEndeks,
+        totalAnket:donemRows.length,
+        geriDonus:0,
+        metrics:bayiCalc.metrics,
+        danismanlar,
+        months,
+        thresholds:[80,80,80,80,80]
+      };
+    }
+  }
+  
+  return {periods,rawRows};
+}
+
+// Her soru için: (5 puan verenler / toplam) × 100
+function calcVocScores(rows,w){
+  const n=rows.length;
+  if(!n)return {s1:0,s2:0,s3:0,s4:0,s5:0,vocEndeks:0,metrics:[]};
+  
+  const count5=(arr)=>arr.filter(v=>v===5).length;
+  const countValid=(arr)=>arr.filter(v=>v>=1&&v<=5).length;
+  
+  const q1vals=rows.map(r=>r.q1).filter(v=>v>=1&&v<=5);
+  const q2vals=rows.map(r=>r.q2).filter(v=>v>=1&&v<=5);
+  const q3vals=rows.map(r=>r.q3).filter(v=>v>=1&&v<=5);
+  const q4vals=rows.map(r=>r.q4).filter(v=>v>=1&&v<=5);
+  const q5vals=rows.map(r=>r.q5).filter(v=>v>=1&&v<=5);
+  
+  const s1=q1vals.length?pctRound((count5(q1vals)/q1vals.length)*100):0;
+  const s2=q2vals.length?pctRound((count5(q2vals)/q2vals.length)*100):0;
+  const s3=q3vals.length?pctRound((count5(q3vals)/q3vals.length)*100):0;
+  const s4=q4vals.length?pctRound((count5(q4vals)/q4vals.length)*100):0;
+  const s5=q5vals.length?pctRound((count5(q5vals)/q5vals.length)*100):0;
+  
+  // VOC ENDEKS = (S1×W1 + S2×W2 + S3×W3 + S4×W4 + S5×W5) / 100
+  const wTotal=(w.w1||0)+(w.w2||0)+(w.w3||0)+(w.w4||0)+(w.w5||0);
+  let vocEndeks=0;
+  if(wTotal>0){
+    vocEndeks=pctRound((s1*(w.w1||0)+s2*(w.w2||0)+s3*(w.w3||0)+s4*(w.w4||0)+s5*(w.w5||0))/wTotal);
+  }
+  
+  const mColors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa'];
+  const mNames=(S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı']);
+  const metrics=[s1,s2,s3,s4,s5].map((v,i)=>({name:mNames[i],value:v,color:mColors[i]}));
+  
+  return {s1,s2,s3,s4,s5,vocEndeks,metrics};
+}
+
+function excelDateToJS(serial){
+  const epoch=new Date(1899,11,30);
+  return new Date(epoch.getTime()+serial*86400000);
+}
+
+function findLastNonEmptyCol(row){
+  if(!row)return '';
+  for(let c=row.length-1;c>=0;c--){
+    const v=row[c];
+    if(v!==null&&v!==undefined&&String(v).trim().length>3)return String(v).trim();
+  }
+  return '';
+}
+
+function groupBy(arr,key){
+  const map={};
+  for(const item of arr){
+    const k=item[key]||'ANONİM';
+    if(!map[k])map[k]=[];
+    map[k].push(item);
+  }
+  return map;
 }
 
 // 48 Saat verisini Sheets'ten çek
@@ -1248,6 +1540,9 @@ async function publishDesign(progressCb){
   }
   // excelData ve calls48h.data zaten Sheets'ten gelir, bunları temizle
   delete slim.excelData;
+  delete slim.vocRawData;
+  delete slim._prevAnketCount;
+  delete slim._newAnketDelta;
   if(slim.calls48h)slim.calls48h.data={};
 
   updateProgress(0,0,'design.json yazılıyor...');
@@ -1339,6 +1634,11 @@ async function restoreBigFromIdb(){
     }
     // Restore sonrası viewMode'u uygula - çünkü sayfa yenilendi
     if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();
+    // vocRawData restore
+    if(!S.vocRawData){
+      const vrd=await idbGet('voc_raw_data');
+      if(vrd){try{const arr=JSON.parse(vrd);S.vocRawData=arr.map(r=>({...r,tarih:new Date(r.tarih)}));S._prevAnketCount=S.vocRawData.length;}catch(e){S.vocRawData=null;}}
+    }
     // Admin açıksa UI'ı yenile
     if(document.getElementById('s-admin')&&document.getElementById('s-admin').classList.contains('active')){
       if(typeof renderAdmin==='function')renderAdmin();
@@ -1386,6 +1686,11 @@ async function persistBigToIdb(){
     // Excel ve 48h verisini JSON olarak IDB'ye yaz
     if(S.excelData&&typeof S.excelData==='object')await idbSet('excel_data',JSON.stringify(S.excelData));
     if(S.calls48h&&S.calls48h.data&&typeof S.calls48h.data==='object')await idbSet('calls48h_data',JSON.stringify(S.calls48h.data));
+    // vocRawData — tarih objeleri string olarak sakla
+    if(S.vocRawData&&Array.isArray(S.vocRawData)){
+      const serialized=S.vocRawData.map(r=>({...r,tarih:r.tarih instanceof Date?r.tarih.toISOString():r.tarih}));
+      await idbSet('voc_raw_data',JSON.stringify(serialized));
+    }
   }catch(e){console.warn('idb save:',e);}
 }
 
@@ -1783,7 +2088,7 @@ function goTab(id,el){
   if(el)el.classList.add('active');
   // Designer dışı sekmeye geçilince fullscreen'ten çık
   if(id!=='designer')document.body.classList.remove('designer-fs');
-  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu'};
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',agirliklar:'Ağırlıklar',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu'};
   $('adm-page-title').textContent=titles[id]||id;
   if(id==='designer')renderDesigner();
   if(id==='goster')refreshViewModeUI();
@@ -2347,6 +2652,7 @@ function renderAdmin(){
   setViewMode(S.viewMode.mode||'auto');
   renderBgOptions();
   if(!S.metricLabels||S.metricLabels.length!==5)S.metricLabels=XL.metricNames.slice();
+  renderWeightsTab();
 }
 
 // =================================================================
@@ -2697,10 +3003,12 @@ function renderWidgetHtml(w,preview){
     case 'voc':{
       const score=S.voc.score||0;
       const displayScore=Number.isInteger(score)?score:score.toFixed(1);
+      const anketDelta=S._newAnketDelta||0;
+      const deltaHtml=anketDelta>0?`<div class="w-voc-delta" style="font-size:clamp(10px,1.5cqw,14px);color:#22c55e;font-weight:700;margin-top:4px;animation:fadeInUp 0.6s ease">📊 +${anketDelta} yeni anket</div>`:'';
       if(S._noData){
         return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
       }
-      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
+      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div><div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket</div>${deltaHtml}</div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -2737,7 +3045,7 @@ function renderWidgetHtml(w,preview){
       }
       const minC=w.minCard||180;
       const danThr=(S._thresholds||[])[0]||80; // Genel eşik
-      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const av=d.photo?`<img src="${d.photo}">`:inits(d.name);return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
@@ -2806,60 +3114,37 @@ function renderKiosk(){
   applyKioskBg();
 
   const canvas=$('k-canvas');canvas.innerHTML='';
-  const isMobile=window.innerWidth<=1024 && ('ontouchstart' in window || navigator.maxTouchPoints>0 || window.innerWidth<=768);
-  console.log('[KIOSK] innerWidth='+window.innerWidth+' isMobile='+isMobile);
-  
-  if(isMobile){
-    // MOBİL: widget'ları dikey sırala, scale yok
-    canvas.className='k-canvas mobile-mode';
-    canvas.style.cssText='position:relative;transform:none;width:100%;height:auto;left:0;top:0;display:flex;flex-direction:column;padding:10px;gap:10px;min-height:100vh';
-    // Widget sıralama: logo → voc → rings → danismanlar → stats → 48h → ticker → diğer
-    const typeOrder={'logo':0,'voc':1,'clock':2,'rings':3,'danismanlar':4,'stats':5,'trend':6,'calls48h':7,'egitim':8,'pdf':9,'ticker':10};
-    const sorted=[...(S.canvas.layout||[])].sort((a,b)=>(typeOrder[a.type]??50)-(typeOrder[b.type]??50));
-    sorted.forEach(w=>{
-      const el=document.createElement('div');
-      el.className='k-widget';
-      el.dataset.id=w.id;
-      // MOBİL: position/size inline olarak override
-      el.style.cssText=`position:relative;left:auto;top:auto;width:100%;height:auto;min-height:60px;background:${w.bg||'transparent'};border:${w.border?'1px solid rgba(255,255,255,0.12)':'none'};border-radius:10px;opacity:${(w.opacity??100)/100};${w.bg&&w.bg!=='transparent'?'backdrop-filter:blur(10px)':''}`;
-      el.innerHTML=renderWidgetHtml(w,false);
-      canvas.appendChild(el);
-      if(w.type==='pdf')initPdfTape(w);
-      if(w.type==='calls48h')initCalls48hScroll(w);
-    });
-  }else{
-    // DESKTOP: normal 1920x1080 scale modu
-    canvas.className='k-canvas';
-    canvas.style.width=CANVAS_REAL.w+'px';
-    canvas.style.height=CANVAS_REAL.h+'px';
-    canvas.style.position='absolute';
-    const vw=window.innerWidth,vh=window.innerHeight;
-    const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
-    canvas.style.transform=`scale(${kScale})`;
-    canvas.style.transformOrigin='top left';
-    canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
-    canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
-    const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
-    const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
-    (S.canvas.layout||[]).forEach(w=>{
-      const el=document.createElement('div');
-      el.className='k-widget';
-      el.dataset.id=w.id;
-      el.style.left=(w.x*cellW)+'px';
-      el.style.top=(w.y*cellH)+'px';
-      el.style.width=(w.w*cellW)+'px';
-      el.style.height=(w.h*cellH)+'px';
-      el.style.background=w.bg||'transparent';
-      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
-      el.style.borderRadius='10px';
-      el.style.opacity=(w.opacity??100)/100;
-      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
-      el.innerHTML=renderWidgetHtml(w,false);
-      canvas.appendChild(el);
-      if(w.type==='pdf')initPdfTape(w);
-      if(w.type==='calls48h')initCalls48hScroll(w);
-    });
-  }
+  // Desktop: 1920x1080 scale modu
+  canvas.className='k-canvas';
+  canvas.style.width=CANVAS_REAL.w+'px';
+  canvas.style.height=CANVAS_REAL.h+'px';
+  canvas.style.position='absolute';
+  const vw=window.innerWidth,vh=window.innerHeight;
+  const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+  canvas.style.transform=`scale(${kScale})`;
+  canvas.style.transformOrigin='top left';
+  canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+  canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+  const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
+  const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
+  (S.canvas.layout||[]).forEach(w=>{
+    const el=document.createElement('div');
+    el.className='k-widget';
+    el.dataset.id=w.id;
+    el.style.left=(w.x*cellW)+'px';
+    el.style.top=(w.y*cellH)+'px';
+    el.style.width=(w.w*cellW)+'px';
+    el.style.height=(w.h*cellH)+'px';
+    el.style.background=w.bg||'transparent';
+    el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+    el.style.borderRadius='10px';
+    el.style.opacity=(w.opacity??100)/100;
+    el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+    el.innerHTML=renderWidgetHtml(w,false);
+    canvas.appendChild(el);
+    if(w.type==='pdf')initPdfTape(w);
+    if(w.type==='calls48h')initCalls48hScroll(w);
+  });
 
   // Saat update
   function tick(){document.querySelectorAll('.w-clock-time').forEach(el=>{const n=new Date();el.textContent=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});});document.querySelectorAll('.w-clock-date').forEach(el=>{const n=new Date();el.textContent=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});});}
@@ -3034,7 +3319,111 @@ function openRingModal(metricIdx){
 }
 function closeRingModal(){$('k-ring-modal').classList.remove('open');}
 
-// ========== RAPOR SİSTEMİ ==========
+// ========== AĞIRLIK PANELİ ==========
+function renderWeightsTab(){
+  const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};
+  const ids=['wt-1','wt-2','wt-3','wt-4','wt-5'];
+  const vals=[w.w1,w.w2,w.w3,w.w4,w.w5];
+  ids.forEach((id,i)=>{const el=$(id);if(el)el.value=vals[i]||0;});
+  // Metrik isimlerini güncelle
+  const labels=S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'];
+  const grid=$('weights-grid');
+  if(grid){
+    const labelEls=grid.querySelectorAll('.f-label');
+    labelEls.forEach((el,i)=>{if(labels[i])el.textContent=labels[i];});
+  }
+  updateWeights();
+}
+function updateWeights(){
+  const w1=+($('wt-1')?.value||0);
+  const w2=+($('wt-2')?.value||0);
+  const w3=+($('wt-3')?.value||0);
+  const w4=+($('wt-4')?.value||0);
+  const w5=+($('wt-5')?.value||0);
+  const total=w1+w2+w3+w4+w5;
+  const el=$('weights-total');
+  if(el){
+    el.textContent=`Toplam: ${total}/100`;
+    el.style.color=total===100?'#22c55e':'#ef4444';
+  }
+}
+function applyWeightsAndRecalc(){
+  const w1=+($('wt-1')?.value||0);
+  const w2=+($('wt-2')?.value||0);
+  const w3=+($('wt-3')?.value||0);
+  const w4=+($('wt-4')?.value||0);
+  const w5=+($('wt-5')?.value||0);
+  const total=w1+w2+w3+w4+w5;
+  if(total!==100){toast('Ağırlık toplamı 100 olmalı! Şu an: '+total,true);return;}
+  S.weights={w1,w2,w3,w4,w5};
+  // vocRawData varsa yeniden hesapla
+  if(S.vocRawData&&S.vocRawData.length){
+    const result=recalcFromRawData();
+    if(result){
+      S.excelData=result.periods;
+      applyViewMode();
+      renderAdmin();
+      toast('Ağırlıklar uygulandı, VOC yeniden hesaplandı ✓');
+    }
+  }else{
+    toast('Ağırlıklar kaydedildi (veri yüklenince uygulanacak)');
+  }
+  persist();
+}
+function recalcFromRawData(){
+  if(!S.vocRawData||!S.vocRawData.length)return null;
+  // rawRows'u tekrar parseVocDataSheet mantığıyla hesapla
+  // Ama rawRows zaten parse edilmiş, direkt dönem hesabı yap
+  const rawRows=S.vocRawData;
+  const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};
+  const colors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa','#22c55e','#ec4899','#06b6d4'];
+  const periods={};
+  const donemMap=[[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
+  const years=[...new Set(rawRows.map(r=>r.yil))].sort();
+  const ayNames=['OCAK','SUBAT','MART','NISAN','MAYIS','HAZIRAN','TEMMUZ','AGUSTOS','EYLUL','EKIM','KASIM','ARALIK'];
+  const ayDisplay=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  
+  for(const yr of years){
+    const yrRows=rawRows.filter(r=>r.yil===yr);
+    for(let di=0;di<4;di++){
+      const donemAylar=donemMap[di];
+      const donemRows=yrRows.filter(r=>donemAylar.includes(r.ay));
+      if(!donemRows.length)continue;
+      const pName=`${yr} ${di+1}. DÖNEM`;
+      const bayiCalc=calcVocScores(donemRows,w);
+      const danGroups=groupBy(donemRows,'danisman');
+      const danismanlar=[];
+      let ci=0;
+      for(const [name,dRows] of Object.entries(danGroups)){
+        const dc=calcVocScores(dRows,w);
+        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        danismanlar.push({name,voc:dc.vocEndeks,scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],anket:dRows.length,color:ex?.color||colors[ci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
+        ci++;
+      }
+      danismanlar.sort((a,b)=>b.voc-a.voc);
+      const months={};
+      for(const ayIdx of donemAylar){
+        const ayRows=donemRows.filter(r=>r.ay===ayIdx);
+        if(!ayRows.length)continue;
+        const ayCalc=calcVocScores(ayRows,w);
+        const mDanGroups=groupBy(ayRows,'danisman');
+        const mDan=[];let mci=0;
+        for(const [name,mdRows] of Object.entries(mDanGroups)){
+          const mdc=calcVocScores(mdRows,w);
+          const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+          mDan.push({name,voc:mdc.vocEndeks,scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],anket:mdRows.length,color:ex?.color||colors[mci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
+          mci++;
+        }
+        mDan.sort((a,b)=>b.voc-a.voc);
+        months[ayNames[ayIdx]]={label:ayDisplay[ayIdx],voc:ayCalc.vocEndeks,metrics:ayCalc.metrics,anket:ayRows.length,danismanlar:mDan};
+      }
+      periods[pName]={sheetName:pName,vocScore:bayiCalc.vocEndeks,totalAnket:donemRows.length,geriDonus:0,metrics:bayiCalc.metrics,danismanlar,months,thresholds:[80,80,80,80,80]};
+    }
+  }
+  return {periods};
+}
+
+// ========== RAPOR SİSTEMİ v2 ==========
 function openRaporModal(){
   const modal=$('k-rapor-modal'),content=$('k-rapor-content');
   if(!modal||!content)return;
@@ -3043,8 +3432,7 @@ function openRaporModal(){
   const vocScore=S.voc.score||0;
   const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
   const thresholds=S._thresholds||[80,80,80,80,80];
-  
-  // 1) HEADER - arka plan fotoğrafı tüm rapora (img ile - print uyumlu)
+  const anketCount=parseInt($('rapor-anket-count')?.value||10);
   const bgImg=(S.bg&&S.bg.images&&S.bg.images.length)?S.bg.images[0]:'';
   let html=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:visible;padding:24px">`;
   if(bgImg){
@@ -3052,96 +3440,63 @@ function openRaporModal(){
     html+=`<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,12,20,0.82);z-index:1;pointer-events:none"></div>`;
   }
   html+=`<div style="position:relative;z-index:2">`;
+  // HEADER
   html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:14px;margin-bottom:20px">`;
   html+=`<div><div style="font-size:24px;font-weight:900;color:#fff">${S.brand?.name||'ERNAZ SERVİS'}</div><div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">${S.brand?.sub||'VOC Raporu'}</div></div>`;
   html+=`<div style="text-align:right"><div style="font-size:11px;color:rgba(255,255,255,0.5)">RAPOR TARİHİ</div><div style="font-size:16px;font-weight:700;color:#fff">${tarih}</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${S.currentShowing||''}</div></div>`;
   html+=`</div>`;
-
-  // 2) VOC ENDEKS SKORU
+  // İKİ SÜTUN
+  html+=`<div class="rapor-v2-layout">`;
+  // SOL: Mevcut rapor
+  html+=`<div class="rapor-v2-left">`;
   const vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444');
-  html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44">`;
-  html+=`<div style="font-size:56px;font-weight:900;color:${vocColor}">%${displayVoc}</div>`;
-  html+=`<div style="font-size:14px;font-weight:700;color:var(--muted);margin-top:4px">VOC ENDEKS SKORU</div>`;
-  html+=`<div style="font-size:12px;color:var(--muted);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div>`;
+  html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:48px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:13px;font-weight:700;color:var(--muted);margin-top:4px">VOC ENDEKS SKORU</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div>`;
+  const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};
+  const mN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];
+  const wL=[w.w1,w.w2,w.w3,w.w4,w.w5].map((v,i)=>v>0?`${(mN[i]||'').split(' ')[0]}:${v}`:null).filter(Boolean).join(' · ');
+  if(wL)html+=`<div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:6px">Ağırlıklar: ${wL}</div>`;
   html+=`</div>`;
-
-  // 3) 5 SORU KIRILIMI
+  // Soru kırılımları
   html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;
-  (S.metrics||[]).forEach((m,i)=>{
-    const val=m.value||0;
-    const displayVal=Number.isInteger(val)?val:val.toFixed(1);
-    const thr=thresholds[i]||80;
-    const color=val>=thr?'#22c55e':'#ef4444';
-    html+=`<div class="rapor-metric-card" style="border-left:3px solid ${color}">
-      <div style="min-width:60px;text-align:center"><div style="font-size:22px;font-weight:800;color:${color}">%${displayVal}</div><div style="font-size:9px;color:var(--muted)">Hedef: %${thr}</div></div>
-      <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${color}"></div></div></div>
-    </div>`;
-  });
+  (S.metrics||[]).forEach((m,i)=>{const val=m.value||0;const dv=Number.isInteger(val)?val:val.toFixed(1);const thr=thresholds[i]||80;const cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div><div style="font-size:9px;color:var(--muted)">Hedef:%${thr}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});
   html+=`</div></div>`;
-
-  // 4) DANIŞMAN PERFORMANSI
-  html+=`<div class="rapor-section"><div class="rapor-section-title">Danışman Performansları</div><div class="rapor-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">`;
-  (S.danismanlar||[]).forEach(d=>{
-    const v=d.voc||0;
-    const displayV=Number.isInteger(v)?v:v.toFixed(1);
-    const danColor=v>=80?'#22c55e':'#ef4444';
-    html+=`<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid ${danColor}44;border-left:4px solid ${danColor};border-radius:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:14px;font-weight:700">${d.name}</span>
-        <span style="font-size:20px;font-weight:800;color:${danColor}">%${displayV}</span>
-      </div>
-      <div class="rapor-bar-bg"><div class="rapor-bar" style="width:${v}%;background:${danColor}"></div></div>
-      ${d.anket?`<div style="font-size:11px;color:var(--muted);margin-top:6px">${d.anket} anket</div>`:''}
-    </div>`;
-  });
+  // Danışmanlar
+  html+=`<div class="rapor-section"><div class="rapor-section-title">Danışman Performansları</div><div class="rapor-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">`;
+  (S.danismanlar||[]).forEach(d=>{const v=d.voc||0;const dv=Number.isInteger(v)?v:v.toFixed(1);const dc=v>=80?'#22c55e':'#ef4444';const ic=d.isAnonim?'🕵️':'';html+=`<div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid ${dc}44;border-left:4px solid ${dc};border-radius:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:700">${ic}${d.name}</span><span style="font-size:18px;font-weight:800;color:${dc}">%${dv}</span></div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${v}%;background:${dc}"></div></div>${d.anket?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${d.anket} anket</div>`:''}</div>`;});
   html+=`</div></div>`;
-
-  // 5) 48 SAAT ARAMALARI ÖZETİ — ekranda gösterilen günün verileri
-  const pick=pick48hForDisplay();
-  const displayItems=pick.items||[];
-  const olumlu=displayItems.filter(x=>x.mood==='yesil').length;
-  const olumsuz=displayItems.filter(x=>x.mood==='kirmizi').length;
-  const uyari=displayItems.filter(x=>x.mood==='turuncu').length;
-  const takipte=displayItems.filter(x=>x.mood==='mavi').length;
-  const toplam48h=displayItems.length;
-
-  html+=`<div class="rapor-section"><div class="rapor-section-title">48 Saat Aramaları — ${pick.dateStr||'Bugün'}</div>`;
-  html+=`<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">`;
-  html+=`<div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${olumlu} Olumlu</div>`;
-  html+=`<div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${olumsuz} Olumsuz</div>`;
-  if(uyari) html+=`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! ${uyari} Uyarı</div>`;
-  if(takipte) html+=`<div class="rapor-48h-badge" style="background:#3b82f622;color:#3b82f6">⏳ ${takipte} Takipte</div>`;
-  html+=`<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:var(--muted)">Toplam: ${toplam48h}</div>`;
-  html+=`</div>`;
-
-  // 6) SADECE O GÜNDEKİ OLUMSUZ YORUMLAR
-  const negItems=displayItems.filter(x=>x.mood==='kirmizi');
-  if(negItems.length){
-    html+=`<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:10px">⚠ Olumsuz Müşteri Yorumları (${negItems.length} adet)</div>`;
-    negItems.forEach(it=>{
-      html+=`<div class="rapor-neg-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:13px;font-weight:700;color:var(--text)">${it.danisman||'—'}</span>
-          <span style="font-size:11px;color:var(--muted)">${it.musteri||'—'} ${it.plaka?'· '+it.plaka:''}</span>
-        </div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.8);line-height:1.6">${it.aciklama||'(yorum yok)'}</div>
-      </div>`;
+  // 48 Saat
+  const pick=pick48hForDisplay();const dItems=pick.items||[];
+  const ol=dItems.filter(x=>x.mood==='yesil').length;const oln=dItems.filter(x=>x.mood==='kirmizi').length;const uy=dItems.filter(x=>x.mood==='turuncu').length;
+  html+=`<div class="rapor-section"><div class="rapor-section-title">48 Saat — ${pick.dateStr||'Bugün'}</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:var(--muted)">Toplam:${dItems.length}</div></div>`;
+  const neg=dItems.filter(x=>x.mood==='kirmizi');
+  if(neg.length){html+=`<div><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:var(--muted)">${it.musteri||''} ${it.plaka?'·'+it.plaka:''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}
+  html+=`</div></div>`; // sol kapanış
+  // SAĞ: Yeni Düşen Anketler
+  html+=`<div class="rapor-v2-right"><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;
+  if(S.vocRawData&&S.vocRawData.length){
+    const sorted=[...S.vocRawData].sort((a,b)=>b.tarih-a.tarih);
+    const show=sorted.slice(0,anketCount);
+    const qN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];
+    show.forEach(r=>{
+      const ts=r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
+      const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
+      const ic=r.danisman==='ANONİM'?'🕵️':'';
+      const sc=[{l:qN[0]?.split(' ')[0]||'G',v:r.q1},{l:qN[1]?.split(' ')[0]||'D',v:r.q2},{l:qN[2]?.split(' ')[0]||'M',v:r.q3},{l:qN[3]?.split(' ')[0]||'K',v:r.q4},{l:qN[4]?.split(' ')[0]||'P',v:r.q5}].filter(s=>s.v>=1&&s.v<=5);
+      html+=`<div class="rapor-new-card"><div class="rapor-new-card-head"><span style="font-size:13px;font-weight:700;color:var(--text)">${ic}${r.danisman}</span><span style="font-size:11px;color:var(--muted)">${ts}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}${r.sase?' · '+r.sase.slice(-6):''}</div><div class="rapor-new-card-scores">`;
+      sc.forEach(s=>{const bg=s.v===5?'rgba(34,197,94,0.2)':(s.v>=4?'rgba(245,158,11,0.2)':'rgba(239,68,68,0.2)');const clr=s.v===5?'#22c55e':(s.v>=4?'#f59e0b':'#ef4444');html+=`<span class="rapor-new-card-score" style="background:${bg};color:${clr}">${s.l}:${s.v}/5</span>`;});
+      html+=`</div>`;
+      if(r.yorum&&r.yorum.length>5)html+=`<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">💬 ${r.yorum.slice(0,200)}${r.yorum.length>200?'...':''}</div>`;
+      html+=`</div>`;
     });
-    html+=`</div>`;
   }else{
-    html+=`<div style="text-align:center;padding:16px;color:var(--muted);font-size:13px">🎉 Olumsuz yorum bulunmuyor</div>`;
+    html+=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">📭 Ham anket verisi yok.<br><span style="font-size:11px">Sheets'te "voc data" sayfası ekleyin.</span></div>`;
   }
-  html+=`</div>`;
-
-  // FOOTER
+  html+=`</div></div>`; // sağ kapanış
+  html+=`</div>`; // layout kapanış
   html+=`<div style="text-align:center;padding:16px;font-size:11px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.06)">Bu rapor ${tarih} tarihinde VOC Panel tarafından otomatik oluşturulmuştur.</div>`;
-  html+=`</div>`; // z-index:2 wrapper kapanışı
-  html+=`</div>`; // k-rapor-print kapanışı
-
-  content.innerHTML=html;
-  modal.classList.add('open');
+  html+=`</div></div>`; // z-index + print wrapper
+  content.innerHTML=html;modal.classList.add('open');
 }
-
 function closeRaporModal(){$('k-rapor-modal').classList.remove('open');}
 
 function printRapor(){
