@@ -287,38 +287,46 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 
 /* RAPOR PRINT STILI */
 @media print{
-  @page{margin:0;size:A4}
-  *{visibility:hidden!important;margin:0!important;padding:0!important}
-  body{background:#000!important;margin:0!important}
-  #k-rapor-print,#k-rapor-print *{visibility:visible!important}
-  #k-rapor-print{
-    position:fixed!important;top:0!important;left:0!important;
-    width:100vw!important;min-height:100vh!important;z-index:99999;
-    padding:0!important;margin:0!important;
-    overflow:visible!important;display:block!important;
-    border-radius:0!important;
-  }
-  #k-rapor-print>img{min-height:100vh!important}
-  #k-rapor-print>div:nth-child(2){min-height:100vh!important}
-  #k-rapor-print>div:last-child{min-height:100vh!important;padding:24px!important}
-  #k-rapor-modal,#k-rapor-content{
-    position:fixed!important;top:0!important;left:0!important;
-    width:100vw!important;height:100vh!important;
+  @page{margin:10mm;size:A4}
+  *{visibility:hidden!important}
+  body{background:#0a0c14!important;margin:0!important}
+  #k-rapor-modal,#k-rapor-content,#k-rapor-print,#k-rapor-print *{visibility:visible!important}
+  #k-rapor-modal{
+    position:absolute!important;top:0!important;left:0!important;
+    width:100%!important;height:auto!important;
     overflow:visible!important;display:block!important;
     background:transparent!important;padding:0!important;
     backdrop-filter:none!important;
   }
+  #k-rapor-content{
+    position:relative!important;
+    width:100%!important;height:auto!important;
+    overflow:visible!important;display:block!important;
+    max-width:100%!important;padding:0!important;
+  }
+  #k-rapor-print{
+    position:relative!important;
+    width:100%!important;height:auto!important;
+    overflow:visible!important;display:block!important;
+    padding:10px!important;margin:0!important;
+    border-radius:0!important;
+  }
+  /* İki sütunu print'te alt alta getir */
+  .rapor-v2-layout{display:block!important;grid-template-columns:1fr!important}
+  .rapor-v2-left,.rapor-v2-right{width:100%!important;display:block!important}
   .k-pdf-modal-head{display:none!important}
   #k-rapor-print *{color:#fff!important;border-color:rgba(255,255,255,0.15)!important}
   #k-rapor-print{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
-  .rapor-section{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;page-break-inside:avoid;background:rgba(0,0,0,0.4)!important;padding:14px!important;margin-bottom:10px!important}
+  .rapor-section{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;break-inside:avoid;page-break-inside:avoid;background:rgba(0,0,0,0.4)!important;padding:14px!important;margin-bottom:10px!important}
+  .rapor-new-card{break-inside:avoid;page-break-inside:avoid}
   .rapor-metric-card{border:1px solid rgba(255,255,255,0.15)!important;background:rgba(0,0,0,0.2)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;padding:8px 12px!important}
-  .rapor-neg-card{border:1px solid rgba(239,68,68,0.3)!important;background:rgba(239,68,68,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-neg-card{border:1px solid rgba(239,68,68,0.3)!important;background:rgba(239,68,68,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;break-inside:avoid}
   .rapor-bar-bg{background:rgba(255,255,255,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .rapor-bar{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .rapor-48h-badge{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  .rapor-new-card-score{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .k-controls,#k-back-admin,.k-bg-layer,#k-canvas,#s-login,#s-admin,.screen{display:none!important}
-  #s-kiosk{display:block!important;position:static!important;background:#000!important}
+  #s-kiosk{display:block!important;position:static!important;background:#0a0c14!important}
   .k-pdf-modal:not(#k-rapor-modal){display:none!important}
 }
 .rapor-section{margin-bottom:20px;padding:20px;border-radius:12px;background:rgba(0,0,0,0.35);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.12)}
@@ -832,13 +840,11 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     <div class="k-pdf-modal-head">
       <div class="k-pdf-modal-title">📊 VOC Raporu</div>
       <div style="display:flex;gap:8px;align-items:center">
-        <select id="rapor-anket-count" style="padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px" onchange="openRaporModal()">
-          <option value="5">Son 5 anket</option>
-          <option value="10" selected>Son 10 anket</option>
-          <option value="15">Son 15 anket</option>
-          <option value="20">Son 20 anket</option>
-          <option value="50">Son 50 anket</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:4px">
+          <label style="font-size:12px;color:rgba(255,255,255,0.6)">Son</label>
+          <input type="number" id="rapor-anket-count" value="10" min="1" max="999" style="width:50px;padding:4px 6px;border-radius:6px;background:#1a1d2e;color:#fff;border:1px solid rgba(255,255,255,0.15);font-size:12px;text-align:center" onchange="openRaporModal()">
+          <label style="font-size:12px;color:rgba(255,255,255,0.6)">anket</label>
+        </div>
         <button class="k-ctrl-btn" onclick="printRapor()" style="font-size:12px;padding:6px 14px">🖨 Yazdır / PDF</button>
         <button class="k-pdf-modal-close" onclick="closeRaporModal()">✕</button>
       </div>
@@ -1006,8 +1012,11 @@ async function loadVocFromSheets(){
       const newCount=result.rawRows.length;
       if(S._prevAnketCount>0 && newCount>S._prevAnketCount){
         S._newAnketDelta=newCount-S._prevAnketCount;
-      }else if(S._prevAnketCount===0){
-        S._newAnketDelta=0; // ilk yükleme, delta gösterme
+        // 60 saniye sonra delta'yı sıfırla
+        if(S._deltaTimer)clearTimeout(S._deltaTimer);
+        S._deltaTimer=setTimeout(()=>{S._newAnketDelta=0;if(document.getElementById('s-kiosk')?.classList.contains('active'))renderKiosk();},60000);
+      }else{
+        S._newAnketDelta=0; // azaldı veya aynı kaldı
       }
       S._prevAnketCount=newCount;
       console.log('[Sheets] VOC Data hazır:',result.rawRows.length,'anket,',Object.keys(result.periods).length,'dönem');
