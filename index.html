@@ -684,6 +684,14 @@ body.designer-fs .designer-fs-toolbar{display:flex}
             <button class="btn btn-accent btn-sm" onclick="applyWeightsAndRecalc()">🔄 Uygula & Yeniden Hesapla</button>
           </div>
         </div>
+        <div class="sec-title sec-gap">🎯 1. Seviye Hedef</div>
+        <div class="card">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Kart rengi (yeşil/kırmızı) bu hedefe göre belirlenir.</p>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label class="f-label" style="font-weight:700">Hedef (%)</label>
+            <input class="f-input" type="number" id="hedef-input" min="0" max="100" value="87" style="width:80px" onchange="S.hedef=+this.value;applyWeightsAndRecalc()">
+          </div>
+        </div>
       </div>
 
       <!-- GÖRÜNÜM -->
@@ -919,6 +927,8 @@ const DEF={
   canvas:{layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:8,gridRows:6},
   // VOC Data ağırlıkları (kriter puanları) — toplamları 100 olmalı
   weights:{w1:50,w2:0,w3:25,w4:25,w5:0},
+  // 1. Seviye Hedef — tüm sorular için aynı veya ayrı ayrı
+  hedef:87,
   // Ham anket verileri (voc data sayfasından)
   vocRawData:null,
   // Önceki anket sayısı (yeni anket sayacı için)
@@ -1212,7 +1222,7 @@ function parseVocDataSheet(rows){
         metrics:bayiCalc.metrics,
         danismanlar,
         months,
-        thresholds:[80,80,80,80,80]
+        thresholds:[(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87)]
       };
     }
   }
@@ -1225,27 +1235,26 @@ function calcVocScores(rows,w){
   const n=rows.length;
   if(!n)return {s1:0,s2:0,s3:0,s4:0,s5:0,vocEndeks:0,metrics:[]};
   
-  const count5=(arr)=>arr.filter(v=>v===5).length;
-  const countValid=(arr)=>arr.filter(v=>v>=1&&v<=5).length;
+  // Her soru için: 5 puan verenlerin sayısı / TOPLAM ANKET SAYISI × 100
+  // Payda her zaman toplam anket sayısı (n), soruyu boş bırakanlar da dahil
+  const count5q=(qKey)=>rows.filter(r=>r[qKey]===5).length;
   
-  const q1vals=rows.map(r=>r.q1).filter(v=>v>=1&&v<=5);
-  const q2vals=rows.map(r=>r.q2).filter(v=>v>=1&&v<=5);
-  const q3vals=rows.map(r=>r.q3).filter(v=>v>=1&&v<=5);
-  const q4vals=rows.map(r=>r.q4).filter(v=>v>=1&&v<=5);
-  const q5vals=rows.map(r=>r.q5).filter(v=>v>=1&&v<=5);
+  const s1=pctRound((count5q('q1')/n)*100);
+  const s2=pctRound((count5q('q2')/n)*100);
+  const s3=pctRound((count5q('q3')/n)*100);
+  const s4=pctRound((count5q('q4')/n)*100);
+  const s5=pctRound((count5q('q5')/n)*100);
   
-  const s1=q1vals.length?pctRound((count5(q1vals)/q1vals.length)*100):0;
-  const s2=q2vals.length?pctRound((count5(q2vals)/q2vals.length)*100):0;
-  const s3=q3vals.length?pctRound((count5(q3vals)/q3vals.length)*100):0;
-  const s4=q4vals.length?pctRound((count5(q4vals)/q4vals.length)*100):0;
-  const s5=q5vals.length?pctRound((count5(q5vals)/q5vals.length)*100):0;
+  console.log('[VOC Calc] n='+n+' 5-verenler: q1='+count5q('q1')+' q2='+count5q('q2')+' q3='+count5q('q3')+' q4='+count5q('q4')+' q5='+count5q('q5'));
+  console.log('[VOC Calc] Skorlar: s1='+s1+' s2='+s2+' s3='+s3+' s4='+s4+' s5='+s5);
   
-  // VOC ENDEKS = (S1×W1 + S2×W2 + S3×W3 + S4×W4 + S5×W5) / 100
+  // VOC ENDEKS = (S1×W1 + S2×W2 + S3×W3 + S4×W4 + S5×W5) / toplam ağırlık
   const wTotal=(w.w1||0)+(w.w2||0)+(w.w3||0)+(w.w4||0)+(w.w5||0);
   let vocEndeks=0;
   if(wTotal>0){
     vocEndeks=pctRound((s1*(w.w1||0)+s2*(w.w2||0)+s3*(w.w3||0)+s4*(w.w4||0)+s5*(w.w5||0))/wTotal);
   }
+  console.log('[VOC Calc] Ağırlıklar: w1='+w.w1+' w2='+w.w2+' w3='+w.w3+' w4='+w.w4+' w5='+w.w5+' → VOC='+vocEndeks);
   
   const mColors=['#f9c80e','#4ecdc4','#45b7d1','#ff6b35','#a78bfa'];
   const mNames=(S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı']);
@@ -2336,7 +2345,8 @@ function applyViewMode(){
   const pd=S.excelData[cp];if(!pd)return;
   const periodDan=(pd.danismanlar&&pd.danismanlar.length)?pd.danismanlar:S.danismanlar;
   S._noData=false; // reset no-data flag
-  S._thresholds=pd.thresholds||[80,80,80,80,80]; // default fallback
+  const hdef=S.hedef||87;
+  S._thresholds=pd.thresholds||[hdef,hdef,hdef,hdef,hdef]; // default fallback
   if(cm&&pd.months&&pd.months[cm]){
     const m=pd.months[cm];
     const hasData=m.metrics&&m.metrics.some(x=>x.value&&x.value>0);
@@ -3408,6 +3418,9 @@ function renderWeightsTab(){
     const labelEls=grid.querySelectorAll('.f-label');
     labelEls.forEach((el,i)=>{if(labels[i])el.textContent=labels[i];});
   }
+  // Hedef
+  const hInput=$('hedef-input');
+  if(hInput)hInput.value=S.hedef||87;
   updateWeights();
 }
 function updateWeights(){
@@ -3493,7 +3506,7 @@ function recalcFromRawData(){
         mDan.sort((a,b)=>b.voc-a.voc);
         months[ayNames[ayIdx]]={label:ayDisplay[ayIdx],voc:ayCalc.vocEndeks,metrics:ayCalc.metrics,anket:ayRows.length,danismanlar:mDan};
       }
-      periods[pName]={sheetName:pName,vocScore:bayiCalc.vocEndeks,totalAnket:donemRows.length,geriDonus:0,metrics:bayiCalc.metrics,danismanlar,months,thresholds:[80,80,80,80,80]};
+      periods[pName]={sheetName:pName,vocScore:bayiCalc.vocEndeks,totalAnket:donemRows.length,geriDonus:0,metrics:bayiCalc.metrics,danismanlar,months,thresholds:[(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87)]};
     }
   }
   return {periods};
