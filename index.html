@@ -287,7 +287,7 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 
 /* RAPOR PRINT STILI */
 @media print{
-  @page{margin:10mm;size:A4}
+  @page{margin:5mm;size:A4}
   *{visibility:hidden!important}
   body{background:#0a0c14!important;margin:0!important}
   #k-rapor-modal,#k-rapor-content,#k-rapor-print,#k-rapor-print *{visibility:visible!important}
@@ -308,19 +308,18 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
     position:relative!important;
     width:100%!important;height:auto!important;
     overflow:visible!important;display:block!important;
-    padding:10px!important;margin:0!important;
-    border-radius:0!important;
+    margin:0!important;border-radius:0!important;
+    page-break-after:avoid;page-break-inside:avoid;
   }
-  /* İki sütunu print'te alt alta getir */
-  .rapor-v2-layout{display:block!important;grid-template-columns:1fr!important}
+  .rapor-v2-layout{display:block!important}
   .rapor-v2-left,.rapor-v2-right{width:100%!important;display:block!important}
   .k-pdf-modal-head{display:none!important}
   #k-rapor-print *{color:#fff!important;border-color:rgba(255,255,255,0.15)!important}
   #k-rapor-print{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
-  .rapor-section{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;break-inside:avoid;page-break-inside:avoid;background:rgba(0,0,0,0.4)!important;padding:14px!important;margin-bottom:10px!important}
-  .rapor-new-card{break-inside:avoid;page-break-inside:avoid}
-  .rapor-metric-card{border:1px solid rgba(255,255,255,0.15)!important;background:rgba(0,0,0,0.2)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;padding:8px 12px!important}
-  .rapor-neg-card{border:1px solid rgba(239,68,68,0.3)!important;background:rgba(239,68,68,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;break-inside:avoid}
+  .rapor-section{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;background:rgba(0,0,0,0.4)!important;padding:10px!important;margin-bottom:8px!important}
+  .rapor-new-card{padding:8px!important;margin-bottom:6px!important}
+  .rapor-metric-card{border:1px solid rgba(255,255,255,0.15)!important;background:rgba(0,0,0,0.2)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important;padding:6px 10px!important}
+  .rapor-neg-card{border:1px solid rgba(239,68,68,0.3)!important;background:rgba(239,68,68,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .rapor-bar-bg{background:rgba(255,255,255,0.15)!important;print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .rapor-bar{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   .rapor-48h-badge{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
@@ -431,6 +430,8 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="f-row"><label class="f-label">E-posta</label><input class="f-input" type="email" id="login-email" autocomplete="username" onkeydown="if(event.key==='Enter')doFirebaseLogin()"></div>
       <div class="f-row"><label class="f-label">Şifre</label><input class="f-input" type="password" id="login-pw" autocomplete="current-password" onkeydown="if(event.key==='Enter')doFirebaseLogin()"></div>
       <button class="btn btn-accent" style="width:100%;margin-bottom:10px" id="btn-login" onclick="doFirebaseLogin()">Giriş Yap</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="flex:1;height:1px;background:rgba(255,255,255,0.1)"></div><span style="font-size:11px;color:var(--muted)">veya</span><div style="flex:1;height:1px;background:rgba(255,255,255,0.1)"></div></div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px" id="btn-google" onclick="doGoogleLogin()"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Google ile Giriş</button>
       <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="goKiosk()">Sadece Kiosk Ekranını Görüntüle →</button>
       <div style="display:flex;justify-content:space-between;margin-top:6px">
         <a href="#" onclick="showLoginForm('forgot');return false" style="font-size:12px;color:var(--accent);text-decoration:none">Şifremi Unuttum</a>
@@ -1872,7 +1873,29 @@ async function doFirebaseLogin(){
   btn.disabled=false;btn.textContent='Giriş Yap';
 }
 
-// Şifremi Unuttum
+// Google ile Giriş
+async function doGoogleLogin(){
+  const btn=$('btn-google');
+  btn.disabled=true;
+  try{
+    const provider=new firebase.auth.GoogleAuthProvider();
+    const cred=await fbAuth.signInWithPopup(provider);
+    $('login-err').classList.remove('show');
+    _currentUser=cred.user;
+    await logActivity('login','Google ile giriş yapıldı');
+    await loadUserRole(cred.user);
+  }catch(err){
+    console.error('Google login err:',err);
+    if(err.code==='auth/popup-closed-by-user'){
+      // Kullanıcı popup'ı kapattı, hata gösterme
+    }else if(err.code==='auth/cancelled-popup-request'){
+      // Birden fazla popup açıldı
+    }else{
+      showLoginErr(err.message||'Google ile giriş başarısız.');
+    }
+  }
+  btn.disabled=false;
+}
 async function doForgotPassword(){
   const em=$('forgot-email').value.trim();
   if(!em){showLoginErr('E-posta adresini gir.');return;}
@@ -2363,21 +2386,23 @@ function applyViewMode(){
   S._noData=false; // reset no-data flag
   const hdef=S.hedef||87;
   S._thresholds=pd.thresholds||[hdef,hdef,hdef,hdef,hdef]; // default fallback
+  S._monthVoc=null; // aylık VOC (büyük VOC'un altında gösterilecek)
   if(cm&&pd.months&&pd.months[cm]){
     const m=pd.months[cm];
     const hasData=m.metrics&&m.metrics.some(x=>x.value&&x.value>0);
     if(!hasData){
-      // Bu ayda veri yok
       S._noData=true;
       S.metrics=(pd.metrics||[]).map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name,_empty:true}));
-      S.voc.score=0;
-      S.anket.toplam=0;S.anket.ay=0;S.anket.geri=pd.geriDonus;
+      S.voc.score=pd.vocScore; // dönem geneli her zaman
+      S._monthVoc=null;
+      S.anket.toplam=pd.totalAnket;S.anket.ay=0;S.anket.geri=pd.geriDonus;
       S.danismanlar=periodDan.map(d=>({...d,voc:0,scores:[0,0,0,0,0],_empty:true}));
       S.currentShowing=`${cp} — ${m.label} (Veri yok)`;
     }else{
       S.metrics=m.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
-      S.voc.score=m.voc||pd.vocScore;
-      S.anket.toplam=m.anket||pd.totalAnket;S.anket.ay=m.anket||pd.totalAnket;S.anket.geri=pd.geriDonus;
+      S.voc.score=pd.vocScore; // büyük VOC = dönem geneli
+      S._monthVoc=m.voc; // küçük VOC = ay
+      S.anket.toplam=pd.totalAnket;S.anket.ay=m.anket||0;S.anket.geri=pd.geriDonus;
       S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
       S.currentShowing=`${cp} — ${m.label}`;
     }
@@ -3107,10 +3132,13 @@ function renderWidgetHtml(w,preview){
       const displayScore=Number.isInteger(score)?score:score.toFixed(1);
       const anketDelta=S._newAnketDelta||0;
       const deltaHtml=anketDelta>0?`<div class="w-voc-delta" style="font-size:clamp(10px,1.5cqw,14px);color:#22c55e;font-weight:700;margin-top:4px;animation:fadeInUp 0.6s ease">📊 +${anketDelta} yeni anket</div>`:'';
+      // Aylık VOC (dönem VOC'undan farklıysa göster)
+      const mVoc=S._monthVoc;
+      const mVocHtml=(mVoc!==null&&mVoc!==undefined)?`<div style="font-size:clamp(10px,1.5cqw,14px);color:var(--accent);font-weight:700;margin-top:3px;opacity:0.85">📅 Ay VOC: %${Number.isInteger(mVoc)?mVoc:mVoc.toFixed(1)}</div>`:'';
       if(S._noData){
         return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
       }
-      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div><div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket</div>${deltaHtml}</div>`;
+      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div>${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}</div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -3605,7 +3633,34 @@ function openRaporModal(){
 function closeRaporModal(){$('k-rapor-modal').classList.remove('open');}
 
 function printRapor(){
-  window.print();
+  const content=document.getElementById('k-rapor-print');
+  if(!content)return;
+  
+  // İçeriğin gerçek yüksekliğini ölç
+  // Önce layout'u print moduna çevir (tek sütun)
+  const layout=content.querySelector('.rapor-v2-layout');
+  let origDisplay='';
+  if(layout){origDisplay=layout.style.display;layout.style.display='block';}
+  
+  // Yüksekliği ölç
+  const realH=content.scrollHeight;
+  const realW=content.scrollWidth;
+  
+  // A4: ~794px × ~1123px (96dpi), margin çıkınca ~760×1050
+  const targetH=1050;
+  const scale=realH>targetH?Math.min(1,targetH/realH):1;
+  
+  // Zoom ile küçült (transform'dan daha güvenilir print'te)
+  content.style.zoom=scale;
+  
+  setTimeout(()=>{
+    window.print();
+    // Geri al
+    setTimeout(()=>{
+      content.style.zoom='1';
+      if(layout)layout.style.display=origDisplay;
+    },500);
+  },200);
 }
 
 // 48h scroll init
