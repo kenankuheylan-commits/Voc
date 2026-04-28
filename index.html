@@ -265,6 +265,8 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-pdf-title{font-size:clamp(9px,1cqw,12px);font-weight:600;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .w-pdf-badge{font-size:9px;color:var(--accent);padding:2px 6px;background:rgba(var(--accent-rgb),.15);border-radius:4px;font-weight:700;letter-spacing:.3px;flex-shrink:0}
 .w-pdf-content{flex:1;overflow:hidden;position:relative}
+.w-pdf-content:hover{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.2) transparent}
+.w-pdf-content:hover .w-pdf-inner{animation-play-state:paused!important}
 .w-pdf-inner{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:5px;padding:5px}
 .w-pdf-page{width:100%;border-radius:4px;background:#fff;display:block;box-shadow:0 2px 6px rgba(0,0,0,.3)}
 @keyframes pdfScroll{0%{transform:translateY(0)}100%{transform:translateY(var(--pdf-end,-50%))}}
@@ -275,6 +277,8 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-48h-title{font-size:clamp(9px,1cqw,12px);font-weight:700;letter-spacing:.05em;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .w-48h-date{font-size:clamp(8px,.85cqw,11px);color:var(--muted)}
 .w-48h-track{flex:1;overflow:hidden;position:relative;min-height:0}
+.w-48h-track:hover{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.2) transparent}
+.w-48h-track:hover .w-48h-inner{animation-play-state:paused!important}
 .w-48h-inner{position:absolute;top:0;left:0;right:0;display:flex;flex-direction:column;gap:5px}
 .w-48h-card{background:linear-gradient(90deg,var(--mood-bg,rgba(255,255,255,0.04)) 0%,var(--card) 60%);border:1px solid var(--border);border-left:4px solid var(--mood-color,var(--accent));border-radius:6px;padding:7px 10px;display:flex;flex-direction:column;gap:3px;flex-shrink:0;box-shadow:0 0 0 1px var(--mood-color,transparent),0 2px 8px rgba(0,0,0,0.15);position:relative;overflow:hidden}
 .w-48h-card::before{content:'';position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--mood-color,var(--accent));box-shadow:0 0 8px var(--mood-color,var(--accent))}
@@ -2424,6 +2428,8 @@ function applyViewMode(){
     S.danismanlar=periodDan;
     S.currentShowing=`${cp} (Özet)`;
   }
+  // Danışmanları VOC'a göre sırala (en yüksek başta)
+  if(S.danismanlar&&S.danismanlar.length)S.danismanlar.sort((a,b)=>(b.voc||0)-(a.voc||0));
   S.trend=[];
   Object.keys(S.excelData).forEach(pn=>{const pdd=S.excelData[pn];if(pdd.months)Object.keys(pdd.months).forEach(mk=>{S.trend.push({label:pdd.months[mk].label.slice(0,3).toUpperCase(),value:pdd.months[mk].voc||0,cur:cm&&mk===cm});});});
   const topD=[...(S.danismanlar||[])].sort((a,b)=>b.voc-a.voc)[0];
@@ -3501,7 +3507,11 @@ function openRingModal(metricIdx){
   if(!metric){toast('Metrik bulunamadı',true);return;}
   const thr=(S._thresholds||[])[metricIdx]||80;
   $('k-ring-modal-title').textContent=metric.name+' — Danışman Kırılımı';
-  const dans=(S.danismanlar||[]).map(d=>{
+  const dans=[...(S.danismanlar||[])].sort((a,b)=>{
+    const sa=a.scores&&a.scores[metricIdx]!==undefined?a.scores[metricIdx]:0;
+    const sb=b.scores&&b.scores[metricIdx]!==undefined?b.scores[metricIdx]:0;
+    return sb-sa;
+  }).map(d=>{
     const score=d.scores&&d.scores[metricIdx]!==undefined?d.scores[metricIdx]:0;
     const displayScore=Number.isInteger(score)?score:score.toFixed(1);
     const color=score>=thr?'#22c55e':'#ef4444';
