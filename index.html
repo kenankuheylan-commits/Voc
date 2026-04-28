@@ -886,6 +886,7 @@ const WIDGETS={
   clock:{name:'Saat & Tarih',icon:'🕐',w:2,h:1,props:['bg','border','opacity','fontScale']},
   logo:{name:'Logo & Bayi Adı',icon:'🏢',w:3,h:1,props:['bg','border','opacity']},
   ticker:{name:'Kayan Yazı (Ticker)',icon:'📢',w:8,h:1,props:['bg','border','opacity','speed']},
+  comments:{name:'Müşteri Yorumları',icon:'💬',w:3,h:4,props:['bg','border','opacity','speed','commentCount']},
 };
 
 // Default layout - varsayılan widget yerleşimi (8x6 grid)
@@ -1055,7 +1056,7 @@ async function loadVocFromSheets(){
 // BJ=61 Müşteri değeri (1-5)
 // BK=62 İş kalitesi (1-5)
 // BL=63 Paranın karşılığı (1-5)
-const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:69};
+const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:21};
 
 function parseVocDataSheet(rows){
   if(!rows||rows.length<2)return null;
@@ -3113,6 +3114,7 @@ function renderPropsPanel(){
   if(def&&def.props.includes('fontScale'))html+=`<div class="prop-row"><label>Font Ölçek: <span style="color:var(--accent)" id="pp-fs-lbl">${w.fontScale||1}</span>x</label><input type="range" id="pp-fs" min="0.5" max="2" step="0.1" value="${w.fontScale||1}"></div>`;
   if(def&&def.props.includes('minCard'))html+=`<div class="prop-row"><label>Kart Min Genişlik: <span style="color:var(--accent)" id="pp-mc-lbl">${w.minCard||180}</span>px</label><input type="range" id="pp-mc" min="120" max="300" step="10" value="${w.minCard||180}"></div>`;
   if(def&&def.props.includes('speed'))html+=`<div class="prop-row"><label>Kayma Hızı: <span style="color:var(--accent)" id="pp-sp-lbl">${w.speed||30}</span>s</label><input type="range" id="pp-sp" min="10" max="120" value="${w.speed||30}"></div>`;
+  if(def&&def.props.includes('commentCount'))html+=`<div class="prop-row"><label>Yorum Sayısı: <span style="color:var(--accent)" id="pp-cc-lbl">${w.commentCount||10}</span></label><input type="range" id="pp-cc" min="1" max="50" value="${w.commentCount||10}"></div>`;
   html+=`<div class="prop-row" style="margin-top:16px"><button class="btn btn-red btn-sm" style="width:100%" onclick="deleteWidget('${w.id}')">🗑 Bu Widget'ı Sil</button></div>`;
   c.innerHTML=html;
 
@@ -3126,6 +3128,7 @@ function renderPropsPanel(){
     if($('pp-fs')){w.fontScale=+$('pp-fs').value;$('pp-fs-lbl').textContent=w.fontScale;}
     if($('pp-mc')){w.minCard=+$('pp-mc').value;$('pp-mc-lbl').textContent=w.minCard;}
     if($('pp-sp')){w.speed=+$('pp-sp').value;$('pp-sp-lbl').textContent=w.speed;}
+    if($('pp-cc')){w.commentCount=+$('pp-cc').value;$('pp-cc-lbl').textContent=w.commentCount;}
     renderDesignerCanvas();
     // Anında localStorage'a yaz - Kiosk doğru veriyi alsın
     try{persist();}catch(e){}
@@ -3210,7 +3213,7 @@ function renderWidgetHtml(w,preview){
       const cards=pick.items.length?pick.items.map(it=>{
         const trimmed=smartTrim(it.aciklama,120);
         const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
-        const moodBadgeLabel=it.mood==='kirmizi'?'OLUMSUZ MÜŞTERİ':(it.mood==='yesil'?'OLUMLU MÜŞTERİ':(it.mood==='turuncu'?'TAKİPTE':it.moodLabel));
+        const moodBadgeLabel=it.mood==='kirmizi'?'NEGATİF YORUM':(it.mood==='yesil'?'POZİTİF YORUM':(it.mood==='turuncu'?'TAKİPTE':it.moodLabel));
         const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
         return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
@@ -3226,6 +3229,37 @@ function renderWidgetHtml(w,preview){
       const html=items.map(t=>`<span style="color:var(--text);font-weight:600;font-size:clamp(12px,1.4cqw,16px);white-space:nowrap">${t}</span>`).join(sep);
       const dur=Math.round(65-(w.speed||30));
       return `<div class="w-ticker"><div class="w-ticker-badge"><span class="w-ticker-dot"></span>CANLI</div><div class="w-ticker-track"><div class="w-ticker-inner" style="animation-duration:${dur}s">${html}${sep}${html}</div></div></div>`;
+    }
+    case 'comments':{
+      const count=w.commentCount||10;
+      const rawData=S.vocRawData||[];
+      // Yorumu dolu olanları tarihe göre sırala
+      const withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
+      if(!withComments.length){
+        return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div></div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
+      }
+      const cards=withComments.map(r=>{
+        // Çoğunluk puana göre renk: 5→yeşil, 4→turuncu, 1-3→kırmızı
+        const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
+        const c5=puanlar.filter(v=>v===5).length;
+        const cNeg=puanlar.filter(v=>v<=3).length;
+        const c4=puanlar.filter(v=>v===4).length;
+        let moodColor='#4ecdc4'; // default nötr
+        if(c5>c4&&c5>cNeg)moodColor='#22c55e'; // yeşil
+        else if(cNeg>c5)moodColor='#ef4444'; // kırmızı
+        else if(c4>=c5)moodColor='#f59e0b'; // turuncu
+        const trimmed=smartTrim(r.yorum,120);
+        const icon=r.danisman==='ANONİM'?'🕵️ ':'';
+        // Küçük puan gösterimi — sadece dolu puanları göster
+        const puanHtml=puanlar.map((v,i)=>{
+          const clr=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
+          return `<span style="color:${clr};font-weight:700;font-size:10px">${v}</span>`;
+        }).join('<span style="color:rgba(255,255,255,0.2);margin:0 2px">·</span>');
+        const musteriData=JSON.stringify({danisman:r.danisman,musteriAd:r.musteriAd,musteriSoyad:r.musteriSoyad,aracModel:r.aracModel,sase:r.sase,q1:r.q1,q2:r.q2,q3:r.q3,q4:r.q4,q5:r.q5,yorum:r.yorum,tarih:r.tarih}).replace(/"/g,'&quot;');
+        return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted)">${puanHtml}</span></div><div class="w-48h-txt">${trimmed}</div></div>`;
+      }).join('');
+      const inner=preview?cards:cards+cards;
+      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div><div class="w-48h-date">Son ${withComments.length}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
   }
@@ -3413,6 +3447,51 @@ function open48hModal(cardEl){
   modal.classList.add('open');
 }
 function close48hModal(){$('k-48h-modal').classList.remove('open');}
+
+// Yorum kartına tıklayınca tam detay modal
+function openCommentModal(cardEl){
+  const modal=$('k-48h-modal'),content=$('k-48h-modal-content');
+  if(!modal||!content)return;
+  let data;
+  try{data=JSON.parse(cardEl.dataset.comment);}catch(e){return;}
+  const d=data;
+  const tarihStr=d.tarih?new Date(d.tarih).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'—';
+  const musteri=[d.musteriAd,d.musteriSoyad].filter(Boolean).join(' ')||'—';
+  const icon=d.danisman==='ANONİM'?'🕵️ ':'';
+  // Puanlar
+  const qNames=S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'];
+  const puanlar=[d.q1,d.q2,d.q3,d.q4,d.q5];
+  const puanHtml=puanlar.map((v,i)=>{
+    if(!v||v<1||v>5)return '';
+    const clr=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06)"><span style="font-size:12px;color:rgba(255,255,255,0.6)">${qNames[i]||''}</span><span style="font-size:16px;font-weight:800;color:${clr}">${v}</span></div>`;
+  }).filter(Boolean).join('');
+  // Çoğunluk rengi
+  const vals=puanlar.filter(v=>v>=1&&v<=5);
+  const c5=vals.filter(v=>v===5).length;
+  const cNeg=vals.filter(v=>v<=3).length;
+  let moodColor=c5>cNeg?'#22c55e':(cNeg>c5?'#ef4444':'#f59e0b');
+  
+  $('k-48h-modal-title').textContent=`${icon}${d.danisman} — Yorum Detayı`;
+  content.innerHTML=`
+    <div style="background:rgba(255,255,255,0.05);border:2px solid ${moodColor};border-radius:16px;padding:28px 32px;color:#fff;max-width:800px;width:100%">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Danışman</div><div style="font-size:16px;font-weight:700">${icon}${d.danisman}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Müşteri</div><div style="font-size:16px;font-weight:700">${musteri}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Araç</div><div style="font-size:16px;font-weight:700">${d.aracModel||'—'}</div></div>
+        <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Tarih</div><div style="font-size:16px;font-weight:700">${tarihStr}</div></div>
+      </div>
+      <div style="background:rgba(0,0,0,0.2);border-radius:10px;padding:14px;margin-bottom:20px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Puanlar</div>
+        ${puanHtml}
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:20px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Yorum</div>
+        <div style="font-size:15px;line-height:1.7;color:rgba(255,255,255,0.9);white-space:pre-wrap;max-height:50vh;overflow-y:auto">${d.yorum||'(yorum yok)'}</div>
+      </div>
+    </div>`;
+  modal.classList.add('open');
+}
 
 // Feature 6: Ring click → danışman kırılımı modal
 function openRingModal(metricIdx){
