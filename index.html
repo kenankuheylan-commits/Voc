@@ -2148,8 +2148,19 @@ function doLogin(){
   // Artık Firebase Auth kullanılıyor
   doFirebaseLogin();
 }
-function goAdmin(){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-admin').classList.add('active');document.body.classList.remove('designer-fs');stopKioskTimers();renderAdmin();}
-function goKiosk(){try{document.body.classList.remove('designer-fs');collectAdmin();if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();persist();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-kiosk').classList.add('active');renderKiosk();const bk=document.getElementById('k-back-admin');if(bk)bk.style.display='block';}catch(err){alert('Kiosk hata: '+err.message+'\n\n'+err.stack);console.error(err);}}
+function goAdmin(){
+  // Rol kontrolü — sadece admin, editör, viewer geçebilir
+  if(!_currentRole||_currentRole==='pending'){
+    toast('Hesabın henüz onaylanmadı. Admin paneline erişemezsin.',true);
+    return;
+  }
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('s-admin').classList.add('active');
+  document.body.classList.remove('designer-fs');
+  stopKioskTimers();
+  renderAdmin();
+}
+function goKiosk(){try{document.body.classList.remove('designer-fs');collectAdmin();if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();persist();document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('s-kiosk').classList.add('active');renderKiosk();const bk=document.getElementById('k-back-admin');if(bk){if(_currentRole&&_currentRole!=='pending'){bk.style.display='block';}else{bk.style.display='none';}}}catch(err){alert('Kiosk hata: '+err.message+'\n\n'+err.stack);console.error(err);}}
 function saveAndKiosk(){goKiosk();}
 // ESC tuşu ile admin'den önizleme yapılan kiosk'tan geri dön
 document.addEventListener('keydown',e=>{
