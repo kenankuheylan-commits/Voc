@@ -1060,7 +1060,7 @@ async function loadVocFromSheets(){
 // BJ=61 Müşteri değeri (1-5)
 // BK=62 İş kalitesi (1-5)
 // BL=63 Paranın karşılığı (1-5)
-const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:21};
+const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:21,geriDonus:65};
 
 function parseVocDataSheet(rows){
   if(!rows||rows.length<2)return null;
@@ -1137,6 +1137,8 @@ function parseVocDataSheet(rows){
       q1,q2,q3,q4,q5,
       // BR kolonu (index 69) = yorum
       yorum:cleanYorum(String(row[VOC_COL.yorum]||'').trim()),
+      // BN kolonu: YES=geri dönmedi, NO=geri döndü
+      geriDonus:String(row[VOC_COL.geriDonus]||'').trim().toUpperCase()==='NO',
       rowIndex:r
     });
   }
@@ -1184,6 +1186,8 @@ function parseVocDataSheet(rows){
           voc:dc.vocEndeks,
           scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],
           anket:dRows.length,
+          geriDonus:dc.geriDonusCount||0,
+          geriDonusOran:dc.geriDonusOran||0,
           color:ex?.color||colors[ci%colors.length],
           photo:ex?.photo||'',
           isAnonim:name==='ANONİM'
@@ -1212,6 +1216,8 @@ function parseVocDataSheet(rows){
             name,voc:mdc.vocEndeks,
             scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],
             anket:mdRows.length,
+            geriDonus:mdc.geriDonusCount||0,
+            geriDonusOran:mdc.geriDonusOran||0,
             color:ex?.color||colors[mci%colors.length],
             photo:ex?.photo||'',
             isAnonim:name==='ANONİM'
@@ -1233,7 +1239,8 @@ function parseVocDataSheet(rows){
         sheetName:pName,
         vocScore:bayiCalc.vocEndeks,
         totalAnket:donemRows.length,
-        geriDonus:0,
+        geriDonus:bayiCalc.geriDonusCount||0,
+        geriDonusOran:bayiCalc.geriDonusOran||0,
         metrics:bayiCalc.metrics,
         danismanlar,
         months,
@@ -1282,7 +1289,11 @@ function calcVocScores(rows,w){
   const mNames=(S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı']);
   const metrics=[s1,s2,s3,s4,s5].map((v,i)=>({name:mNames[i],value:v,color:mColors[i]}));
   
-  return {s1,s2,s3,s4,s5,vocEndeks,metrics};
+  // Geri dönüş: NO yazan (geriDonus=true) sayısı / toplam × 100
+  const geriDonusCount=rows.filter(r=>r.geriDonus===true).length;
+  const geriDonusOran=n>0?pctRound((geriDonusCount/n)*100):0;
+  
+  return {s1,s2,s3,s4,s5,vocEndeks,metrics,geriDonusCount,geriDonusOran};
 }
 
 function excelDateToJS(serial){
@@ -3195,7 +3206,7 @@ function renderWidgetHtml(w,preview){
       }
       const minC=w.minCard||180;
       const danThr=(S._thresholds||[])[0]||80; // Genel eşik
-      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}${d.geriDonus?`<span style="color:#ef4444;font-size:10px;font-weight:700"> · ↩${d.geriDonus}</span>`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
@@ -3262,7 +3273,8 @@ function renderWidgetHtml(w,preview){
           return `<span style="color:${clr};font-weight:700;font-size:10px">${v}</span>`;
         }).join('<span style="color:rgba(255,255,255,0.2);margin:0 2px">·</span>');
         const musteriData=JSON.stringify({danisman:r.danisman,musteriAd:r.musteriAd,musteriSoyad:r.musteriSoyad,aracModel:r.aracModel,sase:r.sase,q1:r.q1,q2:r.q2,q3:r.q3,q4:r.q4,q5:r.q5,yorum:r.yorum,tarih:r.tarih}).replace(/"/g,'&quot;');
-        return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted)">${puanHtml}</span></div><div class="w-48h-txt">${trimmed}</div></div>`;
+        const tarihKisa=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}):'';
+        return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">${puanHtml}<span style="color:rgba(255,255,255,0.3)">·</span><span style="font-size:9px;opacity:0.6">${tarihKisa}</span></span></div><div class="w-48h-txt">${trimmed}</div></div>`;
       }).join('');
       const inner=preview?cards:cards+cards;
       return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div><div class="w-48h-date">Son ${withComments.length}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
@@ -3630,7 +3642,7 @@ function recalcFromRawData(){
       for(const [name,dRows] of Object.entries(danGroups)){
         const dc=calcVocScores(dRows,w);
         const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
-        danismanlar.push({name,voc:dc.vocEndeks,scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],anket:dRows.length,color:ex?.color||colors[ci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
+        danismanlar.push({name,voc:dc.vocEndeks,scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],anket:dRows.length,geriDonus:dc.geriDonusCount||0,geriDonusOran:dc.geriDonusOran||0,color:ex?.color||colors[ci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
         ci++;
       }
       danismanlar.sort((a,b)=>b.voc-a.voc);
@@ -3644,13 +3656,13 @@ function recalcFromRawData(){
         for(const [name,mdRows] of Object.entries(mDanGroups)){
           const mdc=calcVocScores(mdRows,w);
           const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
-          mDan.push({name,voc:mdc.vocEndeks,scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],anket:mdRows.length,color:ex?.color||colors[mci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
+          mDan.push({name,voc:mdc.vocEndeks,scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],anket:mdRows.length,geriDonus:mdc.geriDonusCount||0,geriDonusOran:mdc.geriDonusOran||0,color:ex?.color||colors[mci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
           mci++;
         }
         mDan.sort((a,b)=>b.voc-a.voc);
         months[ayNames[ayIdx]]={label:ayDisplay[ayIdx],voc:ayCalc.vocEndeks,metrics:ayCalc.metrics,anket:ayRows.length,danismanlar:mDan};
       }
-      periods[pName]={sheetName:pName,vocScore:bayiCalc.vocEndeks,totalAnket:donemRows.length,geriDonus:0,metrics:bayiCalc.metrics,danismanlar,months,thresholds:[(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87)]};
+      periods[pName]={sheetName:pName,vocScore:bayiCalc.vocEndeks,totalAnket:donemRows.length,geriDonus:bayiCalc.geriDonusCount||0,geriDonusOran:bayiCalc.geriDonusOran||0,metrics:bayiCalc.metrics,danismanlar,months,thresholds:[(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87),(S.hedef||87)]};
     }
   }
   return {periods};
