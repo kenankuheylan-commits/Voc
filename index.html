@@ -356,7 +356,7 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .k-pdf-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0}
 .k-pdf-modal-title{color:#fff;font-size:18px;font-weight:600}
 .k-pdf-modal-close{background:rgba(255,255,255,0.1);color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer}
-.k-pdf-modal-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);padding:20px;border-radius:12px}
+.k-pdf-modal-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);padding:20px;border-radius:12px;min-height:0}
 .k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
 
 .k-controls{position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:999}
@@ -418,8 +418,6 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 .rapor-new-card-scores{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .rapor-new-card-score{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700}
 @media (max-width:800px){.rapor-v2-layout{grid-template-columns:1fr}}
-
-/* Rapor v3 */
 .rapor-type-select{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:60px 20px;min-height:400px}
 .rapor-type-select h2{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:800;color:#fff;text-align:center}
 .rapor-type-cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
@@ -3731,8 +3729,7 @@ function openRaporModal(){
 
 function selectRaporType(type){
   _currentRaporType=type;
-  const toolbar=$('rapor-toolbar');
-  toolbar.style.display='flex';
+  $('rapor-toolbar').style.display='flex';
   const dayPicker=$('rapor-day-picker');
   const anketWrap=$('rapor-anket-wrap');
   if(type==='48h'){
@@ -3771,14 +3768,8 @@ function populateRaporDaySelect(){
   });
 }
 
-function getSelectedRaporDay(){
-  const sel=$('rapor-day-select');
-  return(sel&&sel.value)?+sel.value:null;
-}
-
-function getRaporTarih(){
-  return new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
-}
+function getSelectedRaporDay(){const sel=$('rapor-day-select');return(sel&&sel.value)?+sel.value:null;}
+function getRaporTarih(){return new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
 function getRaporHeader(title){
   const tarih=getRaporTarih();
@@ -3805,6 +3796,8 @@ function renderCurrentRapor(){
   if(_currentRaporType==='48h')render48hRapor();
   else if(_currentRaporType==='voc')renderVocRapor();
   else renderGenelRapor();
+  // Scroll'u başa al
+  const c=$('k-rapor-content');if(c)c.scrollTop=0;
 }
 
 // ---- A) 48 SAAT RAPORU ----
@@ -3820,46 +3813,28 @@ function render48hRapor(){
     html+=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5);font-size:14px">📭 Seçilen güne ait 48 saat verisi bulunamadı.</div>`;
     html+=getRaporFooter();content.innerHTML=html;return;
   }
-  const ol=allItems.filter(x=>x.mood==='yesil').length;
-  const oln=allItems.filter(x=>x.mood==='kirmizi').length;
-  const uy=allItems.filter(x=>x.mood==='turuncu').length;
-  html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">`;
-  html+=`<div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div>`;
-  html+=`<div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>`;
-  if(uy)html+=`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`;
-  html+=`<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;
-  const byDan={};
-  allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});
+  const ol=allItems.filter(x=>x.mood==='yesil').length;const oln=allItems.filter(x=>x.mood==='kirmizi').length;const uy=allItems.filter(x=>x.mood==='turuncu').length;
+  html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;
+  const byDan={};allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});
   Object.keys(byDan).sort().forEach(dan=>{
-    const items=byDan[dan];
-    const danOl=items.filter(x=>x.mood==='yesil').length;const danNeg=items.filter(x=>x.mood==='kirmizi').length;const danUy=items.filter(x=>x.mood==='turuncu').length;
-    html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span>`;
-    if(danOl)html+=`<span style="font-size:10px;color:#22c55e">✓${danOl}</span>`;
-    if(danNeg)html+=`<span style="font-size:10px;color:#ef4444">⚠${danNeg}</span>`;
-    if(danUy)html+=`<span style="font-size:10px;color:#f59e0b">!${danUy}</span>`;
-    html+=`</div>`;
-    items.forEach(it=>{
-      const mc=it.moodColor||'#666';
-      html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is+' ':''}${it.skfNo?'📋 '+it.skfNo+' ':''}${it.operator?'👤 '+it.operator:''}</div>${it.aciklama?'<div class="rapor-48h-fullcard-txt">💬 '+it.aciklama+'</div>':''}</div>`;
-    });
+    const items=byDan[dan];const danOl=items.filter(x=>x.mood==='yesil').length;const danNeg=items.filter(x=>x.mood==='kirmizi').length;const danUy=items.filter(x=>x.mood==='turuncu').length;
+    html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span>${danOl?`<span style="font-size:10px;color:#22c55e">✓${danOl}</span>`:''}${danNeg?`<span style="font-size:10px;color:#ef4444">⚠${danNeg}</span>`:''}${danUy?`<span style="font-size:10px;color:#f59e0b">!${danUy}</span>`:''}</div>`;
+    items.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is+' ':''}${it.skfNo?'📋 '+it.skfNo+' ':''}${it.operator?'👤 '+it.operator:''}</div>${it.aciklama?'<div class="rapor-48h-fullcard-txt">💬 '+it.aciklama+'</div>':''}</div>`;});
     html+=`</div>`;
   });
-  html+=`</div>`;
-  html+=getRaporFooter();content.innerHTML=html;
+  html+=`</div>`;html+=getRaporFooter();content.innerHTML=html;
 }
 
 // ---- B) VOC RAPORU ----
 function renderVocRapor(){
   const content=$('k-rapor-content');if(!content)return;
   const anketCount=parseInt($('rapor-anket-count')?.value||10);
-  const vocScore=S.voc.score||0;
-  const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
+  const vocScore=S.voc.score||0;const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
   const vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444');
   const thresholds=S._thresholds||[80,80,80,80,80];
   let html=getRaporHeader('VOC Raporu');
   html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:48px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.5);margin-top:4px">VOC ENDEKS SKORU</div><div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div>`;
-  const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};
-  const mN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];
+  const w=S.weights||{w1:50,w2:0,w3:25,w4:25,w5:0};const mN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];
   const wL=[w.w1,w.w2,w.w3,w.w4,w.w5].map((v,i)=>v>0?`${(mN[i]||'').split(' ')[0]}:${v}`:null).filter(Boolean).join(' · ');
   if(wL)html+=`<div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:6px">Ağırlıklar: ${wL}</div>`;
   html+=`</div>`;
@@ -3880,13 +3855,10 @@ function renderVocRapor(){
 function renderGenelRapor(){
   const content=$('k-rapor-content');if(!content)return;
   const anketCount=parseInt($('rapor-anket-count')?.value||10);
-  const vocScore=S.voc.score||0;
-  const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
+  const vocScore=S.voc.score||0;const displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1);
   const vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444');
   const thresholds=S._thresholds||[80,80,80,80,80];
-  const day=getSelectedRaporDay();
-  const month=S.calls48h?.selectedMonth||new Date().getMonth()+1;
-  const year=S.calls48h?.selectedYear||new Date().getFullYear();
+  const day=getSelectedRaporDay();const month=S.calls48h?.selectedMonth||new Date().getMonth()+1;const year=S.calls48h?.selectedYear||new Date().getFullYear();
   const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'—';
   const allItems=(day&&S.calls48h?.data?.[day])||[];
   let html=getRaporHeader('Genel Rapor');
@@ -3907,24 +3879,19 @@ function renderGenelRapor(){
     html+=`<div class="rapor-section"><div class="rapor-section-title">📞 48 Saat — ${dateStr}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;
     const neg=allItems.filter(x=>x.mood==='kirmizi');
     if(neg.length){html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''} ${it.plaka?'· '+it.plaka:''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}
-    allItems.forEach(it=>{
-      const mc=it.moodColor||'#666';
-      html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${(it.plaka||it.is)?'<div class="rapor-48h-fullcard-meta">'+(it.plaka?'🚗 '+it.plaka+' ':'')+(it.is?'🔧 '+it.is:'')+'</div>':''}${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;
-    });
+    allItems.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${(it.plaka||it.is)?'<div class="rapor-48h-fullcard-meta">'+(it.plaka?'🚗 '+it.plaka+' ':'')+(it.is?'🔧 '+it.is:'')+'</div>':''}${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;});
     html+=`</div>`;
   }else{
     html+=`<div class="rapor-section"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">📭 48 Saat verisi yok</div></div>`;
   }
-  html+=`</div></div>`;
-  html+=getRaporFooter();content.innerHTML=html;
+  html+=`</div></div>`;html+=getRaporFooter();content.innerHTML=html;
 }
 
 // ---- ORTAK: Anket Kartları ----
 function renderAnketCards(count){
   let html='';
   if(S.vocRawData&&S.vocRawData.length){
-    const sorted=[...S.vocRawData].sort((a,b)=>b.tarih-a.tarih);
-    const show=sorted.slice(0,count);
+    const sorted=[...S.vocRawData].sort((a,b)=>b.tarih-a.tarih);const show=sorted.slice(0,count);
     const qN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];
     show.forEach(r=>{
       const ts=r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'});
@@ -3952,21 +3919,23 @@ async function saveRaporAsImage(){
   const overlay=$('rapor-save-overlay');
   if(overlay)overlay.classList.add('show');
   try{
-    // Modal ve content container'ı geçici olarak tam boyuta aç
-    // böylece html2canvas scroll'un arkasını da görsün
     const modal=$('k-rapor-modal');
     const contentEl=$('k-rapor-content');
-    
-    // Orijinal stilleri kaydet
-    const origModalStyle=modal.style.cssText;
-    const origContentStyle=contentEl.style.cssText;
-    
-    // Geçici: scroll'u kaldır, tam yükseklik
-    modal.style.cssText+=';overflow:visible!important;height:auto!important;position:absolute!important;';
-    contentEl.style.cssText+=';overflow:visible!important;height:auto!important;max-height:none!important;flex:none!important;';
-    
-    await new Promise(r=>setTimeout(r,200));
-    
+    // Orijinal stilleri sakla
+    const origModalOverflow=modal.style.overflow;
+    const origModalHeight=modal.style.height;
+    const origModalPosition=modal.style.position;
+    const origContentOverflow=contentEl.style.overflowY;
+    const origContentMaxH=contentEl.style.maxHeight;
+    const origContentFlex=contentEl.style.flex;
+    // Geçici: scroll'u kaldır, her şey görünür olsun
+    modal.style.overflow='visible';
+    modal.style.height='auto';
+    modal.style.position='absolute';
+    contentEl.style.overflowY='visible';
+    contentEl.style.maxHeight='none';
+    contentEl.style.flex='none';
+    await new Promise(r=>setTimeout(r,300));
     const canvas=await html2canvas(printEl,{
       backgroundColor:'#0a0e1a',
       scale:2,
@@ -3976,12 +3945,14 @@ async function saveRaporAsImage(){
       width:printEl.scrollWidth,
       height:printEl.scrollHeight
     });
-    
-    // Stilleri geri al
-    modal.style.cssText=origModalStyle;
-    contentEl.style.cssText=origContentStyle;
-    
-    // JPEG olarak indir
+    // Geri al
+    modal.style.overflow=origModalOverflow;
+    modal.style.height=origModalHeight;
+    modal.style.position=origModalPosition;
+    contentEl.style.overflowY=origContentOverflow;
+    contentEl.style.maxHeight=origContentMaxH;
+    contentEl.style.flex=origContentFlex;
+    // JPEG indir
     const link=document.createElement('a');
     const typeLabel=_currentRaporType==='48h'?'48Saat':(_currentRaporType==='voc'?'VOC':'Genel');
     const dateStr=new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\./g,'-');
