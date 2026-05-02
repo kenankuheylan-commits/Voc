@@ -357,6 +357,8 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .k-pdf-modal-title{color:#fff;font-size:18px;font-weight:600}
 .k-pdf-modal-close{background:rgba(255,255,255,0.1);color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer}
 .k-pdf-modal-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);padding:20px;border-radius:12px;min-height:0}
+#k-rapor-content{overflow-y:auto!important}
+#k-rapor-content #k-rapor-print{overflow:visible!important}
 .k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
 
 .k-controls{position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:999}
@@ -1270,8 +1272,10 @@ function parseVocDataSheet(rows){
           anket:ayRows.length,
           danismanlar:mDan
         };
+        console.log('[VOC Parse] Ay oluşturuldu: '+ayNames[ayIdx]+' ('+ayDisplay[ayIdx]+') → voc='+ayCalc.vocEndeks+' anket='+ayRows.length+' metrics=['+ayCalc.metrics.map(x=>x.value).join(',')+'] danismanlar=['+mDan.map(d=>d.name+':'+d.voc).join(',')+']');
       }
       
+      console.log('[VOC Parse] Dönem: '+pName+' → vocScore='+bayiCalc.vocEndeks+' anket='+donemRows.length+' months=['+Object.keys(months).join(',')+']');
       periods[pName]={
         sheetName:pName,
         vocScore:bayiCalc.vocEndeks,
@@ -2464,11 +2468,13 @@ function applyViewMode(){
     const now=new Date();const mi=now.getMonth();const wantDno=Math.floor(mi/3)+1;
     const periods=Object.keys(S.excelData).map(k=>({name:k,no:extractDonemNo(k)}));
     const match=periods.find(p=>p.no===wantDno);
-    if(match){cp=match.name;const mn=XL.monthKWNorm[mi];if(S.excelData[cp].months&&S.excelData[cp].months[mn])cm=mn;}
+    console.log('[ViewMode] auto: ay='+mi+' wantDno='+wantDno+' periods='+JSON.stringify(periods)+' match='+JSON.stringify(match));
+    if(match){cp=match.name;const mn=XL.monthKWNorm[mi];console.log('[ViewMode] monthKey='+mn+' months='+JSON.stringify(Object.keys(S.excelData[cp]?.months||{})));if(S.excelData[cp].months&&S.excelData[cp].months[mn])cm=mn;}
     if(!cp){periods.sort((a,b)=>b.no-a.no);cp=periods[0]?.name||Object.keys(S.excelData)[0];}
   }else if(mode==='period'){cp=S.viewMode.period||Object.keys(S.excelData)[0];}
   else{cp=S.viewMode.period||Object.keys(S.excelData)[0];cm=S.viewMode.month||null;}
   S.viewMode.period=cp;S.viewMode.month=cm;
+  console.log('[ViewMode] Seçilen: dönem='+cp+' ay='+cm+' mode='+mode);
   const pd=S.excelData[cp];if(!pd)return;
   const periodDan=(pd.danismanlar&&pd.danismanlar.length)?pd.danismanlar:S.danismanlar;
   S._noData=false; // reset no-data flag
@@ -2477,6 +2483,7 @@ function applyViewMode(){
   S._monthVoc=null; // aylık VOC (büyük VOC'un altında gösterilecek)
   if(cm&&pd.months&&pd.months[cm]){
     const m=pd.months[cm];
+    console.log('[ViewMode] Ay verisi bulundu: voc='+m.voc+' anket='+m.anket+' metrics='+JSON.stringify(m.metrics?.map(x=>x.value))+' danismanlar='+JSON.stringify(m.danismanlar?.map(d=>d.name+':'+d.voc)));
     const hasData=m.metrics&&m.metrics.some(x=>x.value&&x.value>0);
     if(!hasData){
       S._noData=true;
@@ -2493,8 +2500,10 @@ function applyViewMode(){
       S.anket.toplam=pd.totalAnket;S.anket.ay=m.anket||0;S.anket.geri=pd.geriDonus;
       S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
       S.currentShowing=`${cp} — ${m.label}`;
+      console.log('[ViewMode] AY VERİSİ UYGULANDI: metrics='+JSON.stringify(S.metrics.map(x=>x.name+':'+x.value))+' danismanlar='+JSON.stringify(S.danismanlar.map(d=>d.name+':'+d.voc)));
     }
   }else{
+    console.log('[ViewMode] Ay yok, DÖNEM GENELİ: vocScore='+pd.vocScore+' metrics='+JSON.stringify(pd.metrics?.map(x=>x.value))+' danismanlar='+JSON.stringify(pd.danismanlar?.map(d=>d.name+':'+d.voc)));
     S.metrics=pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
     S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonus;
     S.danismanlar=periodDan;
@@ -3763,7 +3772,7 @@ function getSelectedRaporDay(){const sel=$('rapor-day-select');return(sel&&sel.v
 function getRaporTarih(){return new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 function getRaporHeader(title){
   const tarih=getRaporTarih(),bgImg=(S.bg&&S.bg.images&&S.bg.images.length)?S.bg.images[0]:'';
-  let h=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:hidden;padding:24px;background:#0a0e1a">`;
+  let h=`<div id="k-rapor-print" style="color:#fff;width:100%;position:relative;border-radius:16px;overflow:visible;padding:24px;background:#0a0e1a">`;
   if(bgImg){h+=`<img src="${bgImg}" crossorigin="anonymous" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none" /><div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,12,20,0.82);z-index:1;pointer-events:none"></div>`;}
   h+=`<div style="position:relative;z-index:2"><div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:14px;margin-bottom:20px"><div><div style="font-size:24px;font-weight:900;color:#fff">${S.brand?.name||'ERNAZ SERVİS'}</div><div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px">${title||''}</div></div><div style="text-align:right"><div style="font-size:11px;color:rgba(255,255,255,0.5)">RAPOR TARİHİ</div><div style="font-size:16px;font-weight:700;color:#fff">${tarih}</div><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">${S.currentShowing||''}</div></div></div>`;
   return h;
