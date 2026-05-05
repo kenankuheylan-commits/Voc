@@ -968,7 +968,7 @@ const DEF={
   ],
   pdfs:[],
   pdfScrollDur:25,pdfPageLimit:3,
-  calls48h:{data:{},selectedDay:'auto',selectedMonth:4,selectedYear:2026,manualMode:false,scrollSpeed:35},
+  calls48h:{data:{},selectedDay:'auto',selectedMonth:new Date().getMonth()+1,selectedYear:new Date().getFullYear(),manualMode:false,scrollSpeed:35},
   egitim:{title:'🎓 Eğitim',items:[]},
   ticker:{items:['VOC %93.6','Toplam 63 Anket'],speed:25},
   trend:[{label:'OCA',value:0,cur:false},{label:'ŞUB',value:89},{label:'MAR',value:86},{label:'NİS',value:94,cur:true}],
@@ -1157,6 +1157,11 @@ function parseVocDataSheet(rows){
     const q3=safeNum(row[VOC_COL.q3]);
     const q4=safeNum(row[VOC_COL.q4]);
     const q5=safeNum(row[VOC_COL.q5]);
+    
+    // Mayıs verileri için debug (ay=4)
+    if(tarih.getMonth()===4){
+      console.log('[VOC Debug MAYIS] Satır '+r+' Danışman='+String(row[VOC_COL.danisman]||'')+' Tarih='+tarih.toLocaleDateString('tr-TR')+' q1_raw='+JSON.stringify(row[VOC_COL.q1])+' (tip:'+typeof row[VOC_COL.q1]+') q2_raw='+JSON.stringify(row[VOC_COL.q2])+' q3_raw='+JSON.stringify(row[VOC_COL.q3])+' q4_raw='+JSON.stringify(row[VOC_COL.q4])+' q5_raw='+JSON.stringify(row[VOC_COL.q5])+' → parsed: ['+q1+','+q2+','+q3+','+q4+','+q5+']');
+    }
     
     // En az bir sorusu dolu olmalı
     if(!q1&&!q2&&!q3&&!q4&&!q5){_noScoreCount++;continue;}
@@ -2711,11 +2716,17 @@ function bulk48hMood(moodKey){const day=S.calls48h.selectedDay==='auto'?+Object.
 function pick48hForDisplay(){
   if(!S.calls48h||!S.calls48h.data)return{items:[],dateStr:''};
   const data=S.calls48h.data;
-  const month=S.calls48h.selectedMonth||new Date().getMonth()+1;
-  const year=S.calls48h.selectedYear||new Date().getFullYear();
+  const now=new Date();
+  // Otomatik modda her zaman bugünün ay/yılını kullan
+  if(S.calls48h.selectedDay==='auto'){
+    S.calls48h.selectedMonth=now.getMonth()+1;
+    S.calls48h.selectedYear=now.getFullYear();
+  }
+  const month=S.calls48h.selectedMonth||now.getMonth()+1;
+  const year=S.calls48h.selectedYear||now.getFullYear();
   let day=null;
   // Hangi gün gösterilecek?
-  if(S.calls48h.selectedDay==='auto'){const today=new Date().getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
+  if(S.calls48h.selectedDay==='auto'){const today=now.getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
   else day=+S.calls48h.selectedDay;
   if(!day||!data[day])return{items:[],dateStr:''};
   const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
