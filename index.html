@@ -871,6 +871,14 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     </div>
     <div class="k-pdf-modal-content" id="k-ring-modal-content" style="align-items:stretch;max-width:900px;margin:0 auto;width:100%"></div>
   </div>
+  <!-- Danışman Yıldız Kırılımı Modal -->
+  <div class="k-pdf-modal" id="k-dan-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title" id="k-dan-modal-title">Danışman Kırılımı</div>
+      <button class="k-pdf-modal-close" onclick="closeDanModal()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" id="k-dan-modal-content" style="align-items:stretch;max-width:860px;margin:0 auto;width:100%"></div>
+  </div>
   <!-- RAPOR MODAL v3 -->
   <div class="k-pdf-modal" id="k-rapor-modal">
     <div class="k-pdf-modal-head">
@@ -3288,7 +3296,7 @@ function renderWidgetHtml(w,preview){
       }
       const minC=w.minCard||180;
       const danThr=(S._thresholds||[])[0]||80; // Genel eşik
-      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}${d.geriDonus?`<span style="color:#ef4444;font-size:10px;font-weight:700"> · ↩${d.geriDonus}</span>`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));const safeName=d.name.replace(/'/g,"\\'");return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33;cursor:pointer" onclick="openDanModal('${safeName}')"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}${d.geriDonus?`<span style="color:#ef4444;font-size:10px;font-weight:700"> · ↩${d.geriDonus}</span>`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
@@ -3642,6 +3650,114 @@ function openRingModal(metricIdx){
   modal.classList.add('open');
 }
 function closeRingModal(){$('k-ring-modal').classList.remove('open');}
+
+// ========== DANIŞMAN YILDIZ KIRILIM MODALı ==========
+function openDanModal(danName){
+  const modal=$('k-dan-modal'),content=$('k-dan-modal-content');
+  if(!modal||!content)return;
+  const raw=(S.vocRawData||[]).filter(r=>r.danisman===danName);
+  const d=(S.danismanlar||[]).find(x=>x.name===danName)||{};
+  const qLabels=S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'];
+  const weights=S.weights?[S.weights.w1,S.weights.w2,S.weights.w3,S.weights.w4,S.weights.w5]:[50,0,25,25,0];
+  const qKeys=['q1','q2','q3','q4','q5'];
+  const av=d.photo?`<img src="${d.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:(d.isAnonim?'🕵️':inits(danName));
+  const displayV=d.voc!==undefined?(Number.isInteger(d.voc)?d.voc:d.voc.toFixed(1)):0;
+  const thr=(S._thresholds||[])[0]||80;
+  const scoreColor=d.voc>=thr?'#22c55e':'#ef4444';
+
+  $('k-dan-modal-title').textContent=danName+' — Soru Kırılımı';
+
+  if(!raw.length){
+    content.innerHTML=`<div style="color:rgba(255,255,255,0.5);text-align:center;padding:40px;font-size:14px">📭 Bu danışman için ham anket verisi bulunamadı.<br><span style="font-size:12px;opacity:0.6">Veriler Sheets bağlantısından gelmektedir.</span></div>`;
+    modal.classList.add('open');
+    return;
+  }
+
+  // Soru bazlı yıldız dağılımı
+  const qBlocks=qKeys.map((key,qi)=>{
+    const vals=raw.map(r=>r[key]).filter(v=>v>=1&&v<=5);
+    if(!vals.length)return '';
+    const total=vals.length;
+    const dist=[1,2,3,4,5].map(star=>({star,count:vals.filter(v=>v===star).length}));
+    const pct5=Math.round(dist[4].count/total*100);
+    const pctNeg=Math.round((dist[0].count+dist[1].count+dist[2].count)/total*100);
+    const npsScore=Math.round((dist[4].count-(dist[0].count+dist[1].count+dist[2].count))/total*100);
+    const npsColor=npsScore>=0?'#22c55e':'#ef4444';
+    const wt=weights[qi];
+    const barRows=dist.map(({star,count})=>{
+      const pct=total?Math.round(count/total*100):0;
+      const starColor=star===5?'#22c55e':(star===4?'#f59e0b':'#ef4444');
+      const stars='★'.repeat(star)+'☆'.repeat(5-star);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="color:${starColor};font-size:13px;width:70px;flex-shrink:0">${stars}</span>
+        <div style="flex:1;height:10px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${starColor};border-radius:5px;transition:width 0.7s"></div>
+        </div>
+        <span style="font-size:12px;color:rgba(255,255,255,0.7);width:28px;text-align:right">${count}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.4);width:32px;text-align:right">%${pct}</span>
+      </div>`;
+    }).reverse().join('');
+    return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:16px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <span style="font-size:13px;font-weight:700;color:#fff">S${qi+1}: ${qLabels[qi]||('Soru '+(qi+1))}</span>
+          ${wt?`<span style="font-size:10px;background:rgba(249,200,14,0.12);color:var(--accent);border:1px solid rgba(249,200,14,0.25);border-radius:4px;padding:1px 7px;margin-left:8px">Ağırlık %${wt}</span>`:'<span style="font-size:10px;color:rgba(255,255,255,0.3);margin-left:8px">Hesaba katılmıyor</span>'}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:${npsColor}">${npsScore>0?'+':''}${npsScore}</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35)">NPS SKOR</div>
+        </div>
+      </div>
+      ${barRows}
+      <div style="display:flex;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px">
+        <span style="color:rgba(255,255,255,0.45)">${total} anket</span>
+        <span style="color:#22c55e">●  5★: %${pct5}</span>
+        <span style="color:#ef4444">● ≤3★: %${pctNeg}</span>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  // Son anketler (son 5)
+  const lastAnkets=[...raw].sort((a,b)=>b.tarih-a.tarih).slice(0,5).map(r=>{
+    const ts=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'';
+    const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
+    const scHtml=qKeys.map((k,i)=>{
+      const v=r[k];if(v<1||v>5)return '';
+      const c=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
+      return `<span style="background:${c}22;color:${c};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">S${i+1}:${v}</span>`;
+    }).join('');
+    const yorumHtml=r.yorum&&r.yorum.length>3?`<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px">💬 ${r.yorum.slice(0,180)}${r.yorum.length>180?'...':''}</div>`:'';
+    return `<div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.4)">${ts}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${scHtml}</div>
+      ${yorumHtml}
+    </div>`;
+  }).join('');
+
+  content.innerHTML=`<div style="color:#fff;width:100%">
+    <!-- Üst başlık kartı -->
+    <div style="display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;margin-bottom:20px">
+      <div style="width:52px;height:52px;border-radius:50%;border:2px solid ${d.color||'var(--accent)'};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:${d.color||'var(--accent)'};background:rgba(255,255,255,0.05);overflow:hidden;flex-shrink:0">${av}</div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:800">${danName}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:2px">${raw.length} anket · VOC <strong style="color:${scoreColor}">%${displayV}</strong></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:28px;font-weight:800;color:${scoreColor}">%${displayV}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.35)">VOC ENDEKSİ</div>
+      </div>
+    </div>
+    <!-- Soru kırılımları -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">SORU BAZLI YILDIZ DAĞILIMI</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">${qBlocks||'<div style="color:rgba(255,255,255,0.4);font-size:13px">Soru verisi bulunamadı</div>'}</div>
+    ${lastAnkets?`<div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">SON ANKETLER</div><div style="display:flex;flex-direction:column;gap:8px">${lastAnkets}</div>`:''}
+  </div>`;
+  modal.classList.add('open');
+}
+function closeDanModal(){$('k-dan-modal').classList.remove('open');}
 
 // ========== AĞIRLIK PANELİ ==========
 function renderWeightsTab(){
