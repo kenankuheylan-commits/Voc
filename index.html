@@ -374,7 +374,7 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-ticker-dot{width:7px;height:7px;border-radius:50%;background:#ff3b3b;animation:tickerPulse 1.4s ease-in-out infinite}
 @keyframes tickerPulse{0%,100%{opacity:1}50%{opacity:.4}}
 .w-ticker-track{flex:1;overflow:hidden;display:flex;align-items:center;min-width:0}
-.w-ticker-inner{display:flex;white-space:nowrap;animation:tickerScroll 30s linear infinite;will-change:transform}
+.w-ticker-inner{display:flex;white-space:nowrap;animation:tickerScroll 30s linear infinite}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
 /* DESIGNER FULLSCREEN MODE */
@@ -916,6 +916,16 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── PRODUCTION: console.log'ları kapat (bellek + gizlilik) ──────────
+(function(){const noop=()=>{};const _c=window.console;window._devLog=_c.log.bind(_c);window.console={...console,log:noop,debug:noop,info:noop,warn:noop,error:noop,group:noop,groupEnd:noop,groupCollapsed:noop,table:noop};})();
+// ── GPU katman optimizasyonu: will-change aşırı bellek tüketir ──────
+document.addEventListener('DOMContentLoaded',()=>{
+  // will-change'i yalnızca animasyon sırasında ekle, bittikten sonra kaldır
+  document.querySelectorAll('[style*="will-change"],[class*="ticker"]').forEach(el=>{
+    el.addEventListener('animationstart',()=>el.style.willChange='transform',{passive:true});
+    el.addEventListener('animationend',()=>el.style.willChange='auto',{passive:true});
+  });
+});
 console.log('%c VOC KIOSK v27-20260426_bugfix7 ','background:#22c55e;color:#000;font-size:16px;font-weight:bold;padding:4px 8px');
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -1090,6 +1100,8 @@ async function loadVocFromSheets(){
     if(pd)periods[sn]=pd;
   });
   S.excelData=periods;
+  // Workbook parse sonrası bellekten serbest bırak
+  try{wb.Sheets=null;wb.SheetNames=null;}catch(e){}
   console.log('[Sheets] VOC hazır (eski mod):',Object.keys(periods).length,'dönem');
   return Object.keys(periods).length;
 }
@@ -1849,7 +1861,16 @@ function safeNum(v){if(v===null||v===undefined)return 0;if(typeof v==='string'&&
 function normTR(s){return String(s||'').toUpperCase().replace(/Ğ/g,'G').replace(/Ü/g,'U').replace(/Ş/g,'S').replace(/İ/g,'I').replace(/Ö/g,'O').replace(/Ç/g,'C').trim();}
 function smartTrim(txt,max){if(!txt)return '';const t=String(txt).trim();if(t.length<=max)return t;const slice=t.substring(0,max);const lastPunc=Math.max(slice.lastIndexOf('.'),slice.lastIndexOf('!'),slice.lastIndexOf('?'),slice.lastIndexOf(','));if(lastPunc>max*0.6)return slice.substring(0,lastPunc+1).trim()+' ...';const lastSpace=slice.lastIndexOf(' ');return (lastSpace>0?slice.substring(0,lastSpace):slice).trim()+' ...';}
 
+// persist throttle: 1 saniye içinde kaç çağrı olursa olsun 1 kez çalışır
+let _persistTimer=null;
 function persist(){
+  if(_persistTimer)return; // zaten bekliyor
+  _persistTimer=setTimeout(()=>{
+    _persistTimer=null;
+    _persistNow();
+  },800);
+}
+function _persistNow(){
   try{
     persistBigToIdb();
     const slim=JSON.parse(JSON.stringify(S));
@@ -1862,7 +1883,7 @@ function persist(){
     if(slim.excelData)slim.excelData='__IDB__';
     if(slim.calls48h&&slim.calls48h.data)slim.calls48h.data='__IDB__';
     localStorage.setItem(STORAGE_KEY,JSON.stringify(slim));
-  }catch(err){console.warn('quota:',err.message);toast('Veri çok büyük',true);}
+  }catch(err){toast('Veri çok büyük',true);}
 }
 async function persistBigToIdb(){
   try{
@@ -2363,7 +2384,8 @@ function findNameCols(data,nameRow){const cols=[];if(!data[nameRow])return cols;
 function handleExcelSelect(inp){const f=inp.files[0];if(f)readExcelFile(f);}
 function handleExcelDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')))readExcelFile(f);}
 function readExcelFile(file){const reader=new FileReader();reader.onload=e=>{try{const data=new Uint8Array(e.target.result);_excelWorkbook=XLSX.read(data,{type:'array'});showExcelStatus(`✓ <strong>${file.name}</strong> — ${_excelWorkbook.SheetNames.length} sayfa`,false);$('parse-excel-btn').disabled=false;toast('Excel yüklendi');}catch(err){showExcelStatus('Hata: '+err.message,true);}};reader.readAsArrayBuffer(file);}
-function parseExcelFile(){if(!_excelWorkbook){toast('Excel yükle',true);return;}const periods={};_excelWorkbook.SheetNames.forEach(sn=>{if(!sn.toUpperCase().includes('DÖNEM'))return;const sheet=_excelWorkbook.Sheets[sn];const data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:true,raw:true});const pd=parseSinglePeriod(data,sn);if(pd)periods[sn]=pd;});if(!Object.keys(periods).length){showExcelStatus('Dönem bulunamadı',true);return;}S.excelData=periods;S.viewMode.period='';S.viewMode.month='';applyViewMode();persist();renderAdmin();const c=Object.keys(periods).length;showExcelStatus(`✓ ${c} dönem yüklendi`,false);toast(`${c} dönem ✓`);}
+function parseExcelFile(){if(!_excelWorkbook){toast('Excel yükle',true);return;}const periods={};_excelWorkbook.SheetNames.forEach(sn=>{if(!sn.toUpperCase().includes('DÖNEM'))return;const sheet=_excelWorkbook.Sheets[sn];const data=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null,blankrows:true,raw:true});const pd=parseSinglePeriod(data,sn);if(pd)periods[sn]=pd;});if(!Object.keys(periods).length){showExcelStatus('Dönem bulunamadı',true);return;}S.excelData=periods;S.viewMode.period='';S.viewMode.month='';applyViewMode();persist();renderAdmin();const c=Object.keys(periods).length;showExcelStatus(`✓ ${c} dönem yüklendi`,false);toast(`${c} dönem ✓`);// Workbook parse sonrası bellekten serbest bırak
+_excelWorkbook=null;}
 function showExcelStatus(html,isErr){const el=$('excel-status');el.innerHTML=html;el.className='excel-status show'+(isErr?' err':'');}
 
 function parseSinglePeriod(data,sheetName){
@@ -2660,6 +2682,8 @@ async function readCall48hFile(file){
       const kirmizi=Object.values(parsed).flat().filter(x=>x.mood==='kirmizi').length;
       const yesil=Object.values(parsed).flat().filter(x=>x.mood==='yesil').length;
       showCall48hStatus(`✓ <strong>${file.name}</strong> - ${Object.keys(parsed).length} gün, ${total} kayıt (${kirmizi} kırmızı, ${yesil} yeşil)`,false);
+      // Workbook + zip parse sonrası bellekten serbest bırak
+      wb.Sheets=null; wb.SheetNames=null;
       persist();render48hAdmin();toast('48 Saat ✓');
     }catch(err){showCall48hStatus('Hata: '+err.message,true);console.error(err);}
   };
