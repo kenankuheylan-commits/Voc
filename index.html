@@ -3300,8 +3300,13 @@ function renderWidgetHtml(w,preview){
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
-      const stats=[{l:'Toplam Anket',v:S.anket.toplam||0},{l:'TR Ortalama',v:'%'+(S.voc.tr||0)},{l:'1. Hedef',v:'%'+(S.voc.target1||0)},{l:'Geri Dönüş',v:'%'+Math.round(S.anket.geri||0)}];
-      const cards=stats.map(st=>`<div class="w-stat"><div class="w-stat-val">${st.v}</div><div class="w-stat-lbl">${st.l}</div></div>`).join('');
+      const stats=[
+        {l:'Toplam Anket',v:S.anket.toplam||0,onclick:"openAnketListModal()",style:"cursor:pointer"},
+        {l:'TR Ortalama',v:'%'+(S.voc.tr||0),onclick:"",style:""},
+        {l:'1. Hedef',v:'%'+(S.voc.target1||0),onclick:"",style:""},
+        {l:'Geri Dönüş',v:'%'+Math.round(S.anket.geri||0),onclick:"openGeriDonusModal()",style:"cursor:pointer"}
+      ];
+      const cards=stats.map(st=>`<div class="w-stat" style="${st.style}" onclick="${st.onclick}"><div class="w-stat-val">${st.v}</div><div class="w-stat-lbl">${st.l}${st.onclick?' 🔍':''}</div></div>`).join('');
       return `<div class="w-stats"><div class="w-stats-title">Özet</div><div class="w-stats-grid">${cards}</div></div>`;
     }
     case 'trend':{
@@ -3665,7 +3670,10 @@ function openDanModal(danName){
   const thr=(S._thresholds||[])[0]||80;
   const scoreColor=d.voc>=thr?'#22c55e':'#ef4444';
 
-  $('k-dan-modal-title').textContent=danName+' — Soru Kırılımı';
+  $('k-dan-modal-title').textContent=danName+' — Kırılım';
+
+  // Scroll'u her açılışta sıfırla
+  content.scrollTop=0;
 
   if(!raw.length){
     content.innerHTML=`<div style="color:rgba(255,255,255,0.5);text-align:center;padding:40px;font-size:14px">📭 Bu danışman için ham anket verisi bulunamadı.<br><span style="font-size:12px;opacity:0.6">Veriler Sheets bağlantısından gelmektedir.</span></div>`;
@@ -3673,7 +3681,7 @@ function openDanModal(danName){
     return;
   }
 
-  // Soru bazlı yıldız dağılımı
+  // --- YILDIZ DAĞILIMI ---
   const qBlocks=qKeys.map((key,qi)=>{
     const vals=raw.map(r=>r[key]).filter(v=>v>=1&&v<=5);
     if(!vals.length)return '';
@@ -3711,14 +3719,14 @@ function openDanModal(danName){
       ${barRows}
       <div style="display:flex;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px">
         <span style="color:rgba(255,255,255,0.45)">${total} anket</span>
-        <span style="color:#22c55e">●  5★: %${pct5}</span>
+        <span style="color:#22c55e">● 5★: %${pct5}</span>
         <span style="color:#ef4444">● ≤3★: %${pctNeg}</span>
       </div>
     </div>`;
   }).filter(Boolean).join('');
 
-  // Son anketler (son 5)
-  const lastAnkets=[...raw].sort((a,b)=>b.tarih-a.tarih).slice(0,5).map(r=>{
+  // --- TÜM ANKETLER (tarihe göre yeniden eskiye) ---
+  const tumAnketler=[...raw].sort((a,b)=>b.tarih-a.tarih).map((r,idx)=>{
     const ts=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'';
     const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
     const scHtml=qKeys.map((k,i)=>{
@@ -3726,16 +3734,60 @@ function openDanModal(danName){
       const c=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
       return `<span style="background:${c}22;color:${c};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">S${i+1}:${v}</span>`;
     }).join('');
-    const yorumHtml=r.yorum&&r.yorum.length>3?`<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px">💬 ${r.yorum.slice(0,180)}${r.yorum.length>180?'...':''}</div>`:'';
+    const geriHtml=r.geriDonus?`<span style="background:rgba(239,68,68,0.15);color:#ef4444;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">↩ GERİ DÖNÜŞ</span>`:'';
+    const yorumHtml=r.yorum&&r.yorum.length>3?`<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px">💬 ${r.yorum}</div>`:'';
     return `<div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.85)">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</span>
         <span style="font-size:11px;color:rgba(255,255,255,0.4)">${ts}</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${scHtml}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${scHtml}${geriHtml}</div>
       ${yorumHtml}
     </div>`;
   }).join('');
+
+  // --- DANIŞMANIN 48 SAAT ARAMALARI ---
+  let calls48Html='';
+  if(S.calls48h&&S.calls48h.data){
+    const allDays=Object.keys(S.calls48h.data).map(Number).sort((a,b)=>b-a);
+    const danCalls=[];
+    allDays.forEach(day=>{
+      const items=S.calls48h.data[day]||[];
+      items.forEach(it=>{
+        if((it.danisman||'').trim()===danName.trim()) danCalls.push({...it,_gun:day});
+      });
+    });
+    if(danCalls.length){
+      const month=S.calls48h.selectedMonth||new Date().getMonth()+1;
+      const year=S.calls48h.selectedYear||new Date().getFullYear();
+      const callCards=danCalls.map(it=>{
+        const mc=it.moodColor||'#888';
+        const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':'!');
+        const moodLabel=it.mood==='kirmizi'?'NEGATİF':(it.mood==='yesil'?'POZİTİF':'TAKİPTE');
+        const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+        const plakaHtml=it.plaka?`<span style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">${it.plaka}</span>`:'';
+        const musteriHtml=it.musteri?`<span style="font-size:11px;color:rgba(255,255,255,0.5)">👤 ${it.musteri}</span>`:'';
+        return `<div style="padding:12px 14px;background:${mc}11;border:1px solid ${mc}44;border-left:3px solid ${mc};border-radius:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:4px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="color:${mc};font-size:13px">${moodIcon}</span>
+              ${plakaHtml}${musteriHtml}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="background:${mc};color:#fff;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700">${moodLabel}</span>
+              <span style="font-size:11px;color:rgba(255,255,255,0.35)">${gunStr}</span>
+            </div>
+          </div>
+          ${it.aciklama?`<div style="font-size:12px;color:rgba(255,255,255,0.7);line-height:1.5">${it.aciklama}</div>`:''}
+        </div>`;
+      }).join('');
+      calls48Html=`
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">
+          📞 48 SAAT ARAMALARI <span style="color:rgba(255,255,255,0.2);font-weight:400">(${danCalls.length} kayıt)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px">${callCards}</div>`;
+    }
+  }
 
   content.innerHTML=`<div style="color:#fff;width:100%">
     <!-- Üst başlık kartı -->
@@ -3753,11 +3805,126 @@ function openDanModal(danName){
     <!-- Soru kırılımları -->
     <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">SORU BAZLI YILDIZ DAĞILIMI</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">${qBlocks||'<div style="color:rgba(255,255,255,0.4);font-size:13px">Soru verisi bulunamadı</div>'}</div>
-    ${lastAnkets?`<div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">SON ANKETLER</div><div style="display:flex;flex-direction:column;gap:8px">${lastAnkets}</div>`:''}
+    <!-- 48 Saat Aramaları -->
+    ${calls48Html}
+    <!-- Tüm anketler -->
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">
+      TÜM ANKETLER <span style="color:rgba(255,255,255,0.2);font-weight:400">(${raw.length} adet)</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${tumAnketler}</div>
   </div>`;
+
+  // Modal açıldıktan sonra scroll'u tekrar sıfırla (render sonrası için)
   modal.classList.add('open');
+  requestAnimationFrame(()=>{ content.scrollTop=0; });
 }
 function closeDanModal(){$('k-dan-modal').classList.remove('open');}
+
+// ========== TÜM ANKET LİSTESİ MODALı ==========
+function openAnketListModal(){
+  const modal=$('k-dan-modal'),content=$('k-dan-modal-content');
+  if(!modal||!content)return;
+  const raw=[...(S.vocRawData||[])].sort((a,b)=>b.tarih-a.tarih);
+  const qLabels=S.metricLabels||['Genel Memnuniyet','Deneyimi Kolaylaştırdı','Müşteri Değeri','İş Kalitesi','Paranın Karşılığı'];
+  const qKeys=['q1','q2','q3','q4','q5'];
+  $('k-dan-modal-title').textContent='Tüm Anketler ('+raw.length+')';
+  content.scrollTop=0;
+  if(!raw.length){
+    content.innerHTML=`<div style="color:rgba(255,255,255,0.5);text-align:center;padding:40px;font-size:14px">📭 Anket verisi bulunamadı.</div>`;
+    modal.classList.add('open');return;
+  }
+  const danRenkleri={};
+  (S.danismanlar||[]).forEach(d=>{danRenkleri[d.name]=d.color||'var(--accent)';});
+  const cards=raw.map(r=>{
+    const ts=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'';
+    const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
+    const danColor=danRenkleri[r.danisman]||'rgba(255,255,255,0.5)';
+    const scHtml=qKeys.map((k,i)=>{
+      const v=r[k];if(!v||v<1||v>5)return '';
+      const c=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
+      return `<span style="background:${c}22;color:${c};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">S${i+1}:${v}</span>`;
+    }).join('');
+    const geriHtml=r.geriDonus?`<span style="background:rgba(239,68,68,0.15);color:#ef4444;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">↩ GERİ DÖNÜŞ</span>`:'';
+    const yorumHtml=r.yorum&&r.yorum.length>3?`<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px">💬 ${r.yorum}</div>`:'';
+    return `<div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-left:3px solid ${danColor};border-radius:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:12px;font-weight:700;color:${danColor}">${r.danisman||'—'}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.4)">${ts}</span>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:5px">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${scHtml}${geriHtml}</div>
+      ${yorumHtml}
+    </div>`;
+  }).join('');
+  content.innerHTML=`<div style="color:#fff;width:100%">
+    <div style="display:flex;gap:16px;padding:14px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;margin-bottom:18px;flex-wrap:wrap">
+      <div><span style="font-size:28px;font-weight:800;color:var(--accent)">${raw.length}</span><div style="font-size:10px;color:rgba(255,255,255,0.4)">TOPLAM ANKET</div></div>
+      <div style="width:1px;background:rgba(255,255,255,0.08)"></div>
+      <div><span style="font-size:28px;font-weight:800;color:#22c55e">${raw.filter(r=>r.q1===5).length}</span><div style="font-size:10px;color:rgba(255,255,255,0.4)">5★ GENEL MEM.</div></div>
+      <div style="width:1px;background:rgba(255,255,255,0.08)"></div>
+      <div><span style="font-size:28px;font-weight:800;color:#ef4444">${raw.filter(r=>r.geriDonus).length}</span><div style="font-size:10px;color:rgba(255,255,255,0.4)">GERİ DÖNÜŞ</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
+  </div>`;
+  modal.classList.add('open');
+  requestAnimationFrame(()=>{ content.scrollTop=0; });
+}
+
+// ========== GERİ DÖNÜŞ MODALı ==========
+function openGeriDonusModal(){
+  const modal=$('k-dan-modal'),content=$('k-dan-modal-content');
+  if(!modal||!content)return;
+  const raw=(S.vocRawData||[]).filter(r=>r.geriDonus===true).sort((a,b)=>b.tarih-a.tarih);
+  const qKeys=['q1','q2','q3','q4','q5'];
+  $('k-dan-modal-title').textContent='Geri Dönüşler ('+raw.length+')';
+  content.scrollTop=0;
+  if(!raw.length){
+    content.innerHTML=`<div style="color:rgba(255,255,255,0.5);text-align:center;padding:40px;font-size:14px">✅ Geri dönüş bulunmuyor.</div>`;
+    modal.classList.add('open');return;
+  }
+  const danRenkleri={};
+  (S.danismanlar||[]).forEach(d=>{danRenkleri[d.name]=d.color||'var(--accent)';});
+  const cards=raw.map(r=>{
+    const ts=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'';
+    const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
+    const danColor=danRenkleri[r.danisman]||'rgba(255,255,255,0.5)';
+    const scHtml=qKeys.map((k,i)=>{
+      const v=r[k];if(!v||v<1||v>5)return '';
+      const c=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');
+      return `<span style="background:${c}22;color:${c};border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700">S${i+1}:${v}</span>`;
+    }).join('');
+    const yorumHtml=r.yorum&&r.yorum.length>3?`<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:6px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.05);padding-top:6px">💬 ${r.yorum}</div>`:'';
+    return `<div style="padding:14px 16px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-left:4px solid #ef4444;border-radius:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-size:13px;font-weight:700;color:${danColor}">${r.danisman||'—'}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.4)">${ts}</span>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:6px">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${scHtml}</div>
+      ${yorumHtml}
+    </div>`;
+  }).join('');
+  // Danışman bazlı özet
+  const danOzet={};
+  raw.forEach(r=>{if(!danOzet[r.danisman])danOzet[r.danisman]=0;danOzet[r.danisman]++;});
+  const ozOzet=Object.entries(danOzet).sort((a,b)=>b[1]-a[1]).map(([n,c])=>{
+    const col=danRenkleri[n]||'rgba(255,255,255,0.5)';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px">
+      <span style="font-size:13px;font-weight:600;color:${col}">${n}</span>
+      <span style="font-size:16px;font-weight:800;color:#ef4444">${c}</span>
+    </div>`;
+  }).join('');
+  content.innerHTML=`<div style="color:#fff;width:100%">
+    <div style="display:flex;gap:16px;padding:14px 18px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:12px;margin-bottom:18px;align-items:center">
+      <div><span style="font-size:32px;font-weight:800;color:#ef4444">${raw.length}</span><div style="font-size:10px;color:rgba(255,255,255,0.4)">TOPLAM GERİ DÖNÜŞ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">${ozOzet}</div>
+    </div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">GERİ DÖNÜŞ DETAYLARI</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${cards}</div>
+  </div>`;
+  modal.classList.add('open');
+  requestAnimationFrame(()=>{ content.scrollTop=0; });
+}
 
 // ========== AĞIRLIK PANELİ ==========
 function renderWeightsTab(){
