@@ -2526,14 +2526,14 @@ function applyViewMode(){
       S.metrics=(pd.metrics||[]).map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name,_empty:true}));
       S.voc.score=pd.vocScore; // dönem geneli her zaman
       S._monthVoc=null;
-      S.anket.toplam=pd.totalAnket;S.anket.ay=0;S.anket.geri=pd.geriDonus;
+      S.anket.toplam=pd.totalAnket;S.anket.ay=0;S.anket.geri=pd.geriDonusOran||0;
       S.danismanlar=periodDan.map(d=>({...d,voc:0,scores:[0,0,0,0,0],_empty:true}));
       S.currentShowing=`${cp} — ${m.label} (Veri yok)`;
     }else{
       S.metrics=m.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
       S.voc.score=pd.vocScore; // büyük VOC = dönem geneli
       S._monthVoc=m.voc; // küçük VOC = ay
-      S.anket.toplam=pd.totalAnket;S.anket.ay=m.anket||0;S.anket.geri=pd.geriDonus;
+      S.anket.toplam=pd.totalAnket;S.anket.ay=m.anket||0;S.anket.geri=pd.geriDonusOran||0;
       S.danismanlar=(m.danismanlar&&m.danismanlar.length)?m.danismanlar:periodDan;
       S.currentShowing=`${cp} — ${m.label}`;
       console.log('[ViewMode] AY VERİSİ UYGULANDI: metrics='+JSON.stringify(S.metrics.map(x=>x.name+':'+x.value))+' danismanlar='+JSON.stringify(S.danismanlar.map(d=>d.name+':'+d.voc)));
@@ -2541,7 +2541,7 @@ function applyViewMode(){
   }else{
     console.log('[ViewMode] Ay yok, DÖNEM GENELİ: vocScore='+pd.vocScore+' metrics='+JSON.stringify(pd.metrics?.map(x=>x.value))+' danismanlar='+JSON.stringify(pd.danismanlar?.map(d=>d.name+':'+d.voc)));
     S.metrics=pd.metrics.map((x,i)=>({...x,name:(S.metricLabels&&S.metricLabels[i])||x.name}));
-    S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonus;
+    S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonusOran||0;
     S.danismanlar=periodDan;
     S.currentShowing=`${cp} (Özet)`;
   }
@@ -2552,7 +2552,7 @@ function applyViewMode(){
   const topD=[...(S.danismanlar||[])].sort((a,b)=>b.voc-a.voc)[0];
   // Ticker: sadece otomatik modda güncelle, kullanıcı elle değiştirdiyse dokunma
   if(!S.ticker._manual){
-    S.ticker.items=[`VOC %${Math.round(S.voc.score)}`,`Toplam ${S.anket.toplam} Anket`,topD?`En Yüksek: ${topD.name} %${topD.voc}`:'',`Gösterilen: ${S.currentShowing}`].filter(Boolean);
+    S.ticker.items=[`VOC %${Math.round(S.voc.score*10)/10}`,`Toplam ${S.anket.toplam} Anket`,topD?`En Yüksek: ${topD.name} %${Math.round((topD.voc||0)*10)/10}`:'',`Gösterilen: ${S.currentShowing}`].filter(Boolean);
   }
 }
 
@@ -2833,7 +2833,37 @@ function clearBgVideo(){S.bg.video='';idbDel('bg_video');$('bg-video-status').st
 function renderBgOptions(){setBgType(S.bg.type||'solid');$('kiosk-bg-pick').value=S.bg.color;$('kiosk-bg-hex').textContent=S.bg.color;$('bg-opacity-range').value=S.bg.opacity;$('bg-opacity-lbl').textContent=S.bg.opacity;$('bg-slide-dur-range').value=S.bg.slideDur;$('bg-slide-dur-lbl').textContent=S.bg.slideDur;renderBgImageList();if(S.bg.video){$('bg-video-status').style.display='block';$('bg-video-status').innerHTML=`<div style="padding:10px;background:rgba(78,205,196,0.1);border-radius:8px;color:#4ecdc4;font-size:12px">✓ Video yüklü</div>`;}}
 
 function renderDan(){const tb=$('dan-tbody');tb.innerHTML='';S.danismanlar.forEach((d,i)=>{const tr=document.createElement('tr');const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:${d.color}">${inits(d.name)}</span>`;const sc=d.scores||[0,0,0,0,0];tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('avf${i}').click()">${av}</div><input type="file" id="avf${i}" accept="image/*" style="display:none" onchange="loadAv(this,${i})"></td><td><input class="f-input" type="text" value="${d.name}" onchange="S.danismanlar[${i}].name=this.value"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="S.danismanlar[${i}].voc=+this.value"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="S.danismanlar[${i}].scores[${j}]=+this.value"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="S.danismanlar[${i}].anket=+this.value"></td><td><input type="color" value="${d.color}" onchange="S.danismanlar[${i}].color=this.value"></td><td><button class="btn btn-red btn-xs" onclick="S.danismanlar.splice(${i},1);renderDan()">✕</button></td>`;tb.appendChild(tr);});}
-function loadAv(inp,i){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{S.danismanlar[i].photo=e.target.result;renderDan();};r.readAsDataURL(f);}
+function loadAv(inp,i){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async e=>{
+    const dataUrl=e.target.result;
+    // GitHub token varsa hemen yükle ve URL olarak sakla
+    if(_ghKey()){
+      try{
+        toast('Fotoğraf yükleniyor...');
+        let img=dataUrl;
+        if(img.length>500000)img=await compressImage(img,300,0.82);
+        const b64=dataUrlToBase64(img);
+        const path='assets/danisman_'+i+'.jpg';
+        await ghPutFile(path,b64,'Update danisman '+i);
+        const rawBase='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/';
+        S.danismanlar[i].photo=rawBase+path+'?t='+Date.now();
+        S.danismanlar[i].photoPath=path;
+        toast('✓ Fotoğraf yüklendi');
+      }catch(err){
+        // GitHub başarısız — geçici olarak base64 kullan
+        S.danismanlar[i].photo=dataUrl;
+        toast('GitHub yükleme başarısız, geçici kaydedildi',true);
+      }
+    }else{
+      // Token yok — base64 olarak sakla (yayına alırken yüklenir)
+      S.danismanlar[i].photo=dataUrl;
+    }
+    renderDan();
+  };
+  r.readAsDataURL(f);
+}
 
 function renderPdfs(){const c=$('pdf-list');c.innerHTML='';S.pdfs.forEach((p,i)=>{const d=document.createElement('div');d.className='pdf-row pdf-admin-row';d.dataset.pdfdata=p.data||'';d.dataset.idx=i;const hasF=!!p.data;d.innerHTML=`<div class="pdf-row-head"><div class="pdf-num">${i+1}</div><input class="f-input pdf-t" type="text" value="${p.title}" style="flex:1"><button class="btn btn-red btn-xs" onclick="removePdfRow(${i})">✕</button></div><input class="f-input pdf-u" type="url" value="${p.url||''}" placeholder="https://..." style="margin-bottom:8px"><div class="pdf-drop-zone ${hasF?'has-file':''}" onclick="document.getElementById('pdff${i}').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropPdf(event,${i})">${hasF?'✓ Yüklendi (kalıcı)':'PDF sürükle / tıkla'}</div><input type="file" id="pdff${i}" accept="application/pdf" style="display:none" onchange="loadPdfFile(this,${i})">`;c.appendChild(d);});}
 async function removePdfRow(idx){
@@ -3328,7 +3358,7 @@ function renderWidgetHtml(w,preview){
         {l:'Toplam Anket',v:S.anket.toplam||0,onclick:"openAnketListModal()",style:"cursor:pointer"},
         {l:'TR Ortalama',v:'%'+(S.voc.tr||0),onclick:"",style:""},
         {l:'1. Hedef',v:'%'+(S.voc.target1||0),onclick:"",style:""},
-        {l:'Geri Dönüş',v:'%'+Math.round(S.anket.geri||0),onclick:"openGeriDonusModal()",style:"cursor:pointer"}
+        {l:'Geri Dönüş',v:'%'+(S.anket.geri||0),onclick:"openGeriDonusModal()",style:"cursor:pointer"}
       ];
       const cards=stats.map(st=>`<div class="w-stat" style="${st.style}" onclick="${st.onclick}"><div class="w-stat-val">${st.v}</div><div class="w-stat-lbl">${st.l}${st.onclick?' 🔍':''}</div></div>`).join('');
       return `<div class="w-stats"><div class="w-stats-title">Özet</div><div class="w-stats-grid">${cards}</div></div>`;
