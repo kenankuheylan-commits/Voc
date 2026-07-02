@@ -360,6 +360,16 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 #k-rapor-content{overflow-y:auto!important}
 #k-rapor-content #k-rapor-print{overflow:visible!important}
 .k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
+/* Widget üzerine tıklayınca açılan yerel (bu cihaza özel) seçim penceresi */
+.inline-picker-pop{position:fixed;z-index:2000;background:#12182a;border:1px solid rgba(255,255,255,0.15);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.55);padding:8px;min-width:200px;max-width:280px;max-height:340px;overflow-y:auto;display:none}
+.inline-picker-pop.open{display:block}
+.inline-picker-label{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px 4px}
+.inline-picker-item{padding:8px 10px;border-radius:7px;font-size:12.5px;color:#fff;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inline-picker-item:hover{background:rgba(255,255,255,0.09)}
+.inline-picker-item.active{background:rgba(249,200,14,0.16);color:#f9c80e;font-weight:700}
+.inline-picker-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px}
+.picker-trigger{cursor:pointer}
+.picker-trigger:hover{color:var(--accent)!important;text-decoration:underline}
 
 .k-controls{position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:999}
 .k-ctrl-btn{background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:7px 12px;border-radius:7px;cursor:pointer;font-family:inherit;opacity:0.35;transition:.2s}
@@ -903,6 +913,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     <div class="k-pdf-modal-content" id="k-rapor-content" style="align-items:stretch;max-width:1400px;margin:0 auto;width:100%;overflow-y:auto"></div>
   </div>
   <div class="rapor-save-overlay" id="rapor-save-overlay"><div class="rapor-save-box"><div class="rapor-save-spinner"></div>Görüntü hazırlanıyor...</div></div>
+
 </div>
 
 <div id="s-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 50% 40%,rgba(249,200,14,0.06),#06080f 70%);color:#fff">
@@ -1006,6 +1017,108 @@ const DEF={
 };
 
 const STORAGE_KEY='kiosk_v28-20260427_vocdata';
+
+// =================================================================
+// YEREL GÖRÜNÜM (LV) — sadece BU cihazda/tarayıcıda geçerli.
+// S'in bir parçası DEĞİLDİR: persist()/publish()/cloud senkronuna dahil olmaz,
+// bu yüzden başka kiosk ekranlarını veya yayını hiç etkilemez.
+// Widget'ların üzerine (tarih/etiket alanına) tıklayınca açılan küçük bir
+// seçim penceresi (popover) ile doğrudan o widget'ın üstünden değiştirilir.
+// =================================================================
+const LOCAL_VIEW_KEY='ernaz_local_view_override_v1';
+let LV={voc:{active:false,period:'',month:''},calls48h:{active:false,day:''},comments:{active:false,date:''}};
+function loadLocalView(){try{const raw=localStorage.getItem(LOCAL_VIEW_KEY);if(raw){const parsed=JSON.parse(raw);if(parsed.voc)LV.voc=Object.assign(LV.voc,parsed.voc);if(parsed.calls48h)LV.calls48h=Object.assign(LV.calls48h,parsed.calls48h);if(parsed.comments)LV.comments=Object.assign(LV.comments,parsed.comments);}}catch(e){}}
+function saveLocalView(){try{localStorage.setItem(LOCAL_VIEW_KEY,JSON.stringify(LV));}catch(e){}}
+loadLocalView();
+// Bu cihazın yerel VOC tercihini (varsa) mevcut S üzerine, S.viewMode'a DOKUNMADAN uygular.
+function applyLocalVocOverride(){
+  if(!LV.voc||!LV.voc.active||!S.excelData)return false;
+  const cp=(LV.voc.period&&S.excelData[LV.voc.period])?LV.voc.period:null;
+  if(!cp)return false;
+  const cm=(LV.voc.month&&S.excelData[cp].months&&S.excelData[cp].months[LV.voc.month])?LV.voc.month:null;
+  applyViewModeFor(cp,cm);
+  S.currentShowing=(S.currentShowing||'')+' 📍';
+  return true;
+}
+
+// ---- Inline popover: widget'ın üzerindeki tarih/etiket alanına tıklayınca açılır ----
+let _pickerOpenFor=null;
+function ensurePickerEl(){
+  let p=$('inline-picker-pop');
+  if(!p){p=document.createElement('div');p.id='inline-picker-pop';p.className='inline-picker-pop';document.body.appendChild(p);}
+  return p;
+}
+function closeInlinePicker(){const p=$('inline-picker-pop');if(p)p.classList.remove('open');_pickerOpenFor=null;}
+document.addEventListener('click',e=>{
+  const p=$('inline-picker-pop');
+  if(p&&p.classList.contains('open')&&!p.contains(e.target))closeInlinePicker();
+});
+window.addEventListener('resize',closeInlinePicker);
+function positionPicker(p,anchor){
+  const r=anchor.getBoundingClientRect();
+  p.style.top=(r.bottom+6)+'px';p.style.left=r.left+'px';
+  requestAnimationFrame(()=>{
+    const pw=p.offsetWidth,vw=window.innerWidth,ph=p.offsetHeight,vh=window.innerHeight;
+    if(r.left+pw>vw-10)p.style.left=Math.max(10,vw-pw-10)+'px';
+    if(r.bottom+6+ph>vh-10)p.style.top=Math.max(10,r.top-ph-6)+'px';
+  });
+}
+function toggleInlinePicker(type,anchor){
+  if(_pickerOpenFor===type){closeInlinePicker();return;}
+  _pickerOpenFor=type;
+  const p=ensurePickerEl();
+  p.innerHTML=type==='48h'?build48hPickerHtml():(type==='voc'?buildVocPickerHtml():buildCommentsPickerHtml());
+  p.classList.add('open');
+  positionPicker(p,anchor);
+}
+function build48hPickerHtml(){
+  const days=Object.keys((S.calls48h&&S.calls48h.data)||{}).map(x=>+x).sort((a,b)=>a-b);
+  const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
+  let html='<div class="inline-picker-label">📞 48 Saat — Gün Seç</div>';
+  html+=`<div class="inline-picker-item${!cur?' active':''}" onclick="pick48hDay(null)">🔄 Yayındaki (otomatik)</div><div class="inline-picker-sep"></div>`;
+  if(!days.length)html+='<div class="inline-picker-item" style="opacity:.5;cursor:default">Veri yok</div>';
+  days.forEach(d=>{const cnt=(S.calls48h.data[d]||[]).length;html+=`<div class="inline-picker-item${cur===d?' active':''}" onclick="pick48hDay(${d})">${d}. gün <span style="opacity:.5">(${cnt})</span></div>`;});
+  return html;
+}
+function pick48hDay(day){
+  LV.calls48h=(day===null)?{active:false,day:''}:{active:true,day:String(day)};
+  saveLocalView();closeInlinePicker();renderKiosk();
+}
+function buildVocPickerHtml(){
+  if(!S.excelData||!Object.keys(S.excelData).length)return '<div class="inline-picker-item" style="opacity:.5;cursor:default">Veri yok</div>';
+  const curActive=LV.voc&&LV.voc.active;
+  let html='<div class="inline-picker-label">💯 VOC — Dönem / Ay Seç</div>';
+  html+=`<div class="inline-picker-item${!curActive?' active':''}" onclick="pickVoc('','')">🔄 Yayındaki (otomatik)</div>`;
+  Object.keys(S.excelData).forEach(pn=>{
+    html+=`<div class="inline-picker-sep"></div><div class="inline-picker-label" style="color:#f9c80e;opacity:.85">${pn}</div>`;
+    html+=`<div class="inline-picker-item${curActive&&LV.voc.period===pn&&!LV.voc.month?' active':''}" onclick="pickVoc('${pn}','')">— Tüm Dönem (Genel) —</div>`;
+    const months=S.excelData[pn].months||{};
+    Object.keys(months).forEach(mk=>{const lbl=(months[mk].label||mk).replace(/'/g,"\\'");html+=`<div class="inline-picker-item${curActive&&LV.voc.period===pn&&LV.voc.month===mk?' active':''}" onclick="pickVoc('${pn}','${mk}')">${lbl}</div>`;});
+  });
+  return html;
+}
+function pickVoc(period,month){
+  LV.voc=(!period)?{active:false,period:'',month:''}:{active:true,period,month};
+  saveLocalView();closeInlinePicker();renderKiosk();
+}
+function buildCommentsPickerHtml(){
+  const rawData=S.vocRawData||[];
+  const withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih);
+  const datesMap={};
+  withComments.forEach(r=>{const key=r.tarih.toISOString().slice(0,10);datesMap[key]=(datesMap[key]||0)+1;});
+  const dates=Object.keys(datesMap).sort((a,b)=>b.localeCompare(a));
+  const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
+  let html='<div class="inline-picker-label">💬 Yorumlar — Tarih Seç</div>';
+  html+=`<div class="inline-picker-item${!cur?' active':''}" onclick="pickCommentsDate('')">🔄 Yayındaki (son yorumlar)</div><div class="inline-picker-sep"></div>`;
+  if(!dates.length)html+='<div class="inline-picker-item" style="opacity:.5;cursor:default">Yorum bulunamadı</div>';
+  dates.forEach(d=>{const disp=new Date(d+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'});html+=`<div class="inline-picker-item${cur===d?' active':''}" onclick="pickCommentsDate('${d}')">${disp} <span style="opacity:.5">(${datesMap[d]})</span></div>`;});
+  return html;
+}
+function pickCommentsDate(date){
+  LV.comments=(!date)?{active:false,date:''}:{active:true,date};
+  saveLocalView();closeInlinePicker();renderKiosk();
+}
+
 
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
@@ -2510,7 +2623,12 @@ function applyViewMode(){
   }else if(mode==='period'){cp=S.viewMode.period||Object.keys(S.excelData)[0];}
   else{cp=S.viewMode.period||Object.keys(S.excelData)[0];cm=S.viewMode.month||null;}
   S.viewMode.period=cp;S.viewMode.month=cm;
-  console.log('[ViewMode] Seçilen: dönem='+cp+' ay='+cm+' mode='+mode);
+  applyViewModeFor(cp,cm);
+}
+// cp/cm verilen dönem+ay için ekran verisini hesaplar (S.viewMode'a DOKUNMAZ).
+// Böylece kiosk-yerel geçersiz kılma (LV) yayındaki (published) ayarı bozmadan kullanılabilir.
+function applyViewModeFor(cp,cm){
+  console.log('[ViewMode] Seçilen: dönem='+cp+' ay='+cm);
   const pd=S.excelData[cp];if(!pd)return;
   const periodDan=(pd.danismanlar&&pd.danismanlar.length)?pd.danismanlar:S.danismanlar;
   S._noData=false; // reset no-data flag
@@ -2749,6 +2867,11 @@ function pick48hForDisplay(){
   if(!S.calls48h||!S.calls48h.data)return{items:[],dateStr:''};
   const data=S.calls48h.data;
   const now=new Date();
+  let isLocal=false,day=null;
+  // Bu cihaza özel yerel gün seçimi varsa (yayını etkilemez), onu kullan
+  if(LV.calls48h&&LV.calls48h.active&&LV.calls48h.day&&data[+LV.calls48h.day]){
+    day=+LV.calls48h.day;isLocal=true;
+  }
   // Otomatik modda her zaman bugünün ay/yılını kullan
   if(S.calls48h.selectedDay==='auto'){
     S.calls48h.selectedMonth=now.getMonth()+1;
@@ -2756,12 +2879,13 @@ function pick48hForDisplay(){
   }
   const month=S.calls48h.selectedMonth||now.getMonth()+1;
   const year=S.calls48h.selectedYear||now.getFullYear();
-  let day=null;
   // Hangi gün gösterilecek?
-  if(S.calls48h.selectedDay==='auto'){const today=now.getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
-  else day=+S.calls48h.selectedDay;
+  if(!isLocal){
+    if(S.calls48h.selectedDay==='auto'){const today=now.getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
+    else day=+S.calls48h.selectedDay;
+  }
   if(!day||!data[day])return{items:[],dateStr:''};
-  const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+  const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`+(isLocal?' 📍 Yerel':'');
   const allItems=data[day];
   // Manuel seçim varsa SADECE işaretli olanlar gösterilir
   const manualPicks=allItems.filter(x=>x.show);
@@ -3310,10 +3434,13 @@ function renderWidgetHtml(w,preview){
       // Aylık VOC (dönem VOC'undan farklıysa göster)
       const mVoc=S._monthVoc;
       const mVocHtml=(mVoc!==null&&mVoc!==undefined)?`<div style="font-size:clamp(10px,1.5cqw,14px);color:var(--accent);font-weight:700;margin-top:3px;opacity:0.85">📅 Ay VOC: %${Number.isInteger(mVoc)?mVoc:mVoc.toFixed(1)}</div>`:'';
+      const vocSubHtml=preview
+        ?`<div class="w-voc-sub">${S.currentShowing||''}</div>`
+        :`<div class="w-voc-sub picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('voc',this)" title="Bu cihaza özel: dönem/ay değiştir">${S.currentShowing||''} ▾</div>`;
       if(S._noData){
-        return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div><div class="w-voc-sub">${S.currentShowing||''}</div></div>`;
+        return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div>${vocSubHtml}</div>`;
       }
-      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div><div class="w-voc-sub">${S.currentShowing||''}</div>${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}</div>`;
+      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div>${vocSubHtml}${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}</div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -3384,7 +3511,10 @@ function renderWidgetHtml(w,preview){
         return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
       const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
-      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div><div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
+      const dateHtml48=preview
+        ?`<div class="w-48h-date">${pick.dateStr||''}</div>`
+        :`<div class="w-48h-date picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('48h',this)" title="Bu cihaza özel: gün değiştir">${pick.dateStr||''} ▾</div>`;
+      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${dateHtml48}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     case 'pdf':{
       return `<div class="w-pdf" onclick="${preview?'':'openPdfFullscreen()'}"><div class="w-pdf-head"><div class="w-pdf-title" id="pdf-title-${w.id}">PDF</div><div class="w-pdf-badge">📄 TIKLA</div></div><div class="w-pdf-content"><div class="w-pdf-inner" id="pdf-inner-${w.id}" data-speed="${w.speed||25}"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${preview?'PDF önizleme':'Yükleniyor...'}</div></div></div></div>`;
@@ -3399,10 +3529,23 @@ function renderWidgetHtml(w,preview){
     case 'comments':{
       const count=w.commentCount||10;
       const rawData=S.vocRawData||[];
-      // Yorumu dolu olanları tarihe göre sırala
-      const withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
+      const commentsLocal=!preview&&LV.comments&&LV.comments.active&&LV.comments.date;
+      let withComments;
+      let commentsLabel;
+      if(commentsLocal){
+        // Bu cihaza özel: seçilen güne ait TÜM yorumlar
+        withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
+        commentsLabel=new Date(LV.comments.date+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})+' 📍';
+      }else{
+        // Yayındaki: yorumu dolu olanları tarihe göre sırala, son N tanesi
+        withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
+        commentsLabel='Son '+withComments.length;
+      }
+      const dateHtmlComments=preview
+        ?`<div class="w-48h-date">${commentsLabel}</div>`
+        :`<div class="w-48h-date picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('comments',this)" title="Bu cihaza özel: tarih seç">${commentsLabel} ▾</div>`;
       if(!withComments.length){
-        return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div></div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
+        return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
       }
       const cards=withComments.map(r=>{
         // Çoğunluk puana göre renk: 5→yeşil, 4→turuncu, 1-3→kırmızı
@@ -3426,7 +3569,7 @@ function renderWidgetHtml(w,preview){
         return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">${puanHtml}<span style="color:rgba(255,255,255,0.3)">·</span><span style="font-size:9px;opacity:0.6">${tarihKisa}</span></span></div><div class="w-48h-txt">${trimmed}</div></div>`;
       }).join('');
       const inner=preview?cards:cards+cards;
-      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div><div class="w-48h-date">Son ${withComments.length}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
+      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${dateHtmlComments}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
   }
@@ -3454,6 +3597,9 @@ function renderKiosk(){
   document.documentElement.style.setProperty('--accent',S.accent);
   document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
   applyKioskBg();
+  // Bu cihaza özel yerel görünüm varsa (yayını etkilemeden), en son burada uygula
+  applyLocalVocOverride();
+  closeInlinePicker();
 
   const canvas=$('k-canvas');canvas.innerHTML='';
   // Desktop: 1920x1080 scale modu
