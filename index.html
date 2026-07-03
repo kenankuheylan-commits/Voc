@@ -368,8 +368,6 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .inline-picker-item:hover{background:rgba(255,255,255,0.09)}
 .inline-picker-item.active{background:rgba(249,200,14,0.16);color:#f9c80e;font-weight:700}
 .inline-picker-sep{height:1px;background:rgba(255,255,255,0.08);margin:6px 4px}
-.picker-trigger{cursor:pointer}
-.picker-trigger:hover{color:var(--accent)!important;text-decoration:underline}
 
 .k-controls{position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:999}
 .k-ctrl-btn{background:rgba(0,0,0,0.6);backdrop-filter:blur(10px);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:7px 12px;border-radius:7px;cursor:pointer;font-family:inherit;opacity:0.35;transition:.2s}
@@ -3434,13 +3432,13 @@ function renderWidgetHtml(w,preview){
       // Aylık VOC (dönem VOC'undan farklıysa göster)
       const mVoc=S._monthVoc;
       const mVocHtml=(mVoc!==null&&mVoc!==undefined)?`<div style="font-size:clamp(10px,1.5cqw,14px);color:var(--accent);font-weight:700;margin-top:3px;opacity:0.85">📅 Ay VOC: %${Number.isInteger(mVoc)?mVoc:mVoc.toFixed(1)}</div>`:'';
-      const vocSubHtml=preview
-        ?`<div class="w-voc-sub">${S.currentShowing||''}</div>`
-        :`<div class="w-voc-sub picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('voc',this)" title="Bu cihaza özel: dönem/ay değiştir">${S.currentShowing||''} ▾</div>`;
+      const vocWrapAttrs=preview?'':` style="cursor:pointer" onclick="toggleInlinePicker('voc',this)" title="Tıkla: dönem/ay değiştir (sadece bu cihaz)"`;
+      const vocBadge=preview?'':`<div class="w-pdf-badge" style="margin-top:2px">🔀 TIKLA</div>`;
+      const vocSubHtml=`<div class="w-voc-sub">${S.currentShowing||''}</div>`;
       if(S._noData){
-        return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div>${vocSubHtml}</div>`;
+        return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div>${vocSubHtml}${vocBadge}</div>`;
       }
-      return `<div class="w-voc"><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div>${vocSubHtml}${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}</div>`;
+      return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div>${vocSubHtml}${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}${vocBadge}</div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -3511,10 +3509,9 @@ function renderWidgetHtml(w,preview){
         return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
       const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
-      const dateHtml48=preview
-        ?`<div class="w-48h-date">${pick.dateStr||''}</div>`
-        :`<div class="w-48h-date picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('48h',this)" title="Bu cihaza özel: gün değiştir">${pick.dateStr||''} ▾</div>`;
-      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${dateHtml48}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
+      const headAttrs48=preview?'':` style="cursor:pointer" onclick="event.stopPropagation();toggleInlinePicker('48h',this)" title="Tıkla: gün değiştir (sadece bu cihaz)"`;
+      const badge48=preview?'':`<div class="w-pdf-badge">📅 TIKLA</div>`;
+      return `<div class="w-48h"><div class="w-48h-head"${headAttrs48}><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${badge48}<div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     case 'pdf':{
       return `<div class="w-pdf" onclick="${preview?'':'openPdfFullscreen()'}"><div class="w-pdf-head"><div class="w-pdf-title" id="pdf-title-${w.id}">PDF</div><div class="w-pdf-badge">📄 TIKLA</div></div><div class="w-pdf-content"><div class="w-pdf-inner" id="pdf-inner-${w.id}" data-speed="${w.speed||25}"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${preview?'PDF önizleme':'Yükleniyor...'}</div></div></div></div>`;
@@ -3541,11 +3538,11 @@ function renderWidgetHtml(w,preview){
         withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
         commentsLabel='Son '+withComments.length;
       }
-      const dateHtmlComments=preview
-        ?`<div class="w-48h-date">${commentsLabel}</div>`
-        :`<div class="w-48h-date picker-trigger" onclick="event.stopPropagation();toggleInlinePicker('comments',this)" title="Bu cihaza özel: tarih seç">${commentsLabel} ▾</div>`;
+      const headAttrsC=preview?'':` style="cursor:pointer" onclick="event.stopPropagation();toggleInlinePicker('comments',this)" title="Tıkla: tarih seç (sadece bu cihaz)"`;
+      const badgeC=preview?'':`<div class="w-pdf-badge">📅 TIKLA</div>`;
+      const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
       if(!withComments.length){
-        return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
+        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
       }
       const cards=withComments.map(r=>{
         // Çoğunluk puana göre renk: 5→yeşil, 4→turuncu, 1-3→kırmızı
@@ -3569,7 +3566,7 @@ function renderWidgetHtml(w,preview){
         return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">${puanHtml}<span style="color:rgba(255,255,255,0.3)">·</span><span style="font-size:9px;opacity:0.6">${tarihKisa}</span></span></div><div class="w-48h-txt">${trimmed}</div></div>`;
       }).join('');
       const inner=preview?cards:cards+cards;
-      return `<div class="w-48h"><div class="w-48h-head"><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${dateHtmlComments}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
+      return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
   }
