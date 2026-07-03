@@ -360,6 +360,18 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 #k-rapor-content{overflow-y:auto!important}
 #k-rapor-content #k-rapor-print{overflow:visible!important}
 .k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
+/* Widget tam ekran okuma modalı (48 Saat / Yorumlar) */
+.wf-pill-row{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 16px;flex-shrink:0;max-height:90px;overflow-y:auto}
+.wf-pill{padding:7px 14px;border-radius:20px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.8);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.08)}
+.wf-pill:hover{background:rgba(255,255,255,0.12)}
+.wf-pill.active{background:var(--accent);color:#111;font-weight:800;border-color:var(--accent)}
+.wf-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:900px}
+.wf-card{background:linear-gradient(90deg,var(--mood-bg,rgba(255,255,255,0.04)) 0%,var(--card) 60%);border:1px solid var(--border);border-left:4px solid var(--mood-color,var(--accent));border-radius:8px;padding:12px 16px;box-shadow:0 0 0 1px var(--mood-color,transparent)}
+.wf-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.wf-who{font-size:14px;font-weight:700;color:#fff}
+.wf-mood{font-size:10px;font-weight:800;padding:3px 10px;border-radius:999px;color:#000;letter-spacing:.4px}
+.wf-txt{font-size:13.5px;line-height:1.5;color:rgba(255,255,255,0.85)}
+.wf-meta{font-size:11px;color:rgba(255,255,255,0.45);margin-top:6px}
 /* Widget üzerine tıklayınca açılan yerel (bu cihaza özel) seçim penceresi */
 .inline-picker-pop{position:fixed;z-index:2000;background:#12182a;border:1px solid rgba(255,255,255,0.15);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.55);padding:8px;min-width:200px;max-width:280px;max-height:340px;overflow-y:auto;display:none}
 .inline-picker-pop.open{display:block}
@@ -912,6 +924,18 @@ body.designer-fs .designer-fs-toolbar{display:flex}
   </div>
   <div class="rapor-save-overlay" id="rapor-save-overlay"><div class="rapor-save-box"><div class="rapor-save-spinner"></div>Görüntü hazırlanıyor...</div></div>
 
+  <!-- Tam ekran okuma modalı: 48 Saat Aramaları / Müşteri Yorumları (sadece bu cihaz) -->
+  <div class="k-pdf-modal" id="k-widget-fs-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title" id="k-widget-fs-title">—</div>
+      <button class="k-pdf-modal-close" onclick="closeWidgetFullscreen()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" style="align-items:center">
+      <div class="wf-pill-row" id="k-widget-fs-pills"></div>
+      <div class="wf-list" id="k-widget-fs-list"></div>
+    </div>
+  </div>
+
 </div>
 
 <div id="s-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;background:radial-gradient(ellipse at 50% 40%,rgba(249,200,14,0.06),#06080f 70%);color:#fff">
@@ -1065,18 +1089,9 @@ function toggleInlinePicker(type,anchor){
   if(_pickerOpenFor===type){closeInlinePicker();return;}
   _pickerOpenFor=type;
   const p=ensurePickerEl();
-  p.innerHTML=type==='48h'?build48hPickerHtml():(type==='voc'?buildVocPickerHtml():buildCommentsPickerHtml());
+  p.innerHTML=buildVocPickerHtml();
   p.classList.add('open');
   positionPicker(p,anchor);
-}
-function build48hPickerHtml(){
-  const days=Object.keys((S.calls48h&&S.calls48h.data)||{}).map(x=>+x).sort((a,b)=>a-b);
-  const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
-  let html='<div class="inline-picker-label">📞 48 Saat — Gün Seç</div>';
-  html+=`<div class="inline-picker-item${!cur?' active':''}" onclick="pick48hDay(null)">🔄 Yayındaki (otomatik)</div><div class="inline-picker-sep"></div>`;
-  if(!days.length)html+='<div class="inline-picker-item" style="opacity:.5;cursor:default">Veri yok</div>';
-  days.forEach(d=>{const cnt=(S.calls48h.data[d]||[]).length;html+=`<div class="inline-picker-item${cur===d?' active':''}" onclick="pick48hDay(${d})">${d}. gün <span style="opacity:.5">(${cnt})</span></div>`;});
-  return html;
 }
 function pick48hDay(day){
   LV.calls48h=(day===null)?{active:false,day:''}:{active:true,day:String(day)};
@@ -1099,23 +1114,81 @@ function pickVoc(period,month){
   LV.voc=(!period)?{active:false,period:'',month:''}:{active:true,period,month};
   saveLocalView();closeInlinePicker();renderKiosk();
 }
-function buildCommentsPickerHtml(){
-  const rawData=S.vocRawData||[];
-  const withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih);
-  const datesMap={};
-  withComments.forEach(r=>{const key=r.tarih.toISOString().slice(0,10);datesMap[key]=(datesMap[key]||0)+1;});
-  const dates=Object.keys(datesMap).sort((a,b)=>b.localeCompare(a));
-  const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
-  let html='<div class="inline-picker-label">💬 Yorumlar — Tarih Seç</div>';
-  html+=`<div class="inline-picker-item${!cur?' active':''}" onclick="pickCommentsDate('')">🔄 Yayındaki (son yorumlar)</div><div class="inline-picker-sep"></div>`;
-  if(!dates.length)html+='<div class="inline-picker-item" style="opacity:.5;cursor:default">Yorum bulunamadı</div>';
-  dates.forEach(d=>{const disp=new Date(d+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'});html+=`<div class="inline-picker-item${cur===d?' active':''}" onclick="pickCommentsDate('${d}')">${disp} <span style="opacity:.5">(${datesMap[d]})</span></div>`;});
-  return html;
-}
 function pickCommentsDate(date){
   LV.comments=(!date)?{active:false,date:''}:{active:true,date};
   saveLocalView();closeInlinePicker();renderKiosk();
 }
+
+// ---- Tam ekran okuma modalı: 48 Saat Aramaları / Müşteri Yorumları (sadece bu cihaz) ----
+function calls48hResolveDay(overrideDay){
+  if(!S.calls48h||!S.calls48h.data)return null;
+  const data=S.calls48h.data;
+  if(overrideDay!==null&&overrideDay!==undefined&&data[overrideDay])return overrideDay;
+  const now=new Date();
+  if(S.calls48h.selectedDay==='auto'){
+    const today=now.getDate();
+    const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);
+    return avail.find(d=>d<=today)||avail[0]||null;
+  }
+  return +S.calls48h.selectedDay;
+}
+function openWidgetFullscreen(type){
+  $('k-widget-fs-modal').classList.add('open');
+  renderWidgetFullscreen(type);
+}
+function closeWidgetFullscreen(){
+  $('k-widget-fs-modal').classList.remove('open');
+}
+function renderWidgetFullscreen(type){
+  const titleEl=$('k-widget-fs-title'),pillsEl=$('k-widget-fs-pills'),listEl=$('k-widget-fs-list');
+  $('k-widget-fs-modal').setAttribute('data-type',type);
+  if(type==='48h'){
+    const days=Object.keys((S.calls48h&&S.calls48h.data)||{}).map(x=>+x).sort((a,b)=>a-b);
+    const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
+    let pillsHtml=`<div class="wf-pill${!cur?' active':''}" onclick="fsPick48hDay(null)">🔄 Otomatik</div>`;
+    days.forEach(d=>{const cnt=(S.calls48h.data[d]||[]).length;pillsHtml+=`<div class="wf-pill${cur===d?' active':''}" onclick="fsPick48hDay(${d})">${d}. gün (${cnt})</div>`;});
+    pillsEl.innerHTML=pillsHtml;
+    const day=calls48hResolveDay(cur);
+    const now=new Date();
+    const month=S.calls48h.selectedMonth||now.getMonth()+1,year=S.calls48h.selectedYear||now.getFullYear();
+    const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'';
+    const items=(day&&S.calls48h.data[day])?S.calls48h.data[day]:[];
+    titleEl.textContent='📞 48 Saat Aramaları — '+(dateStr||'—')+(items.length?' ('+items.length+' kayıt)':'');
+    listEl.innerHTML=items.length?items.map(it=>{
+      const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
+      const moodLbl=it.mood==='kirmizi'?'NEGATİF YORUM':(it.mood==='yesil'?'POZİTİF YORUM':(it.mood==='turuncu'?'TAKİPTE':(it.moodLabel||'')));
+      const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
+      return `<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22"><div class="wf-card-head"><span class="wf-who">${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}<span class="wf-mood" style="background:${it.moodColor}">${moodLbl}</span></div><div class="wf-txt">${it.aciklama||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="wf-meta">${it.musteri}</div>`:''}</div>`;
+    }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu günde kayıt yok</div>';
+  }else{
+    const rawData=S.vocRawData||[];
+    const withCmt=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih);
+    const datesMap={};
+    withCmt.forEach(r=>{const key=r.tarih.toISOString().slice(0,10);datesMap[key]=(datesMap[key]||0)+1;});
+    const dates=Object.keys(datesMap).sort((a,b)=>b.localeCompare(a));
+    const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
+    let pillsHtml=`<div class="wf-pill${!cur?' active':''}" onclick="fsPickCommentsDate('')">🔄 Tümü (${withCmt.length})</div>`;
+    dates.forEach(d=>{const disp=new Date(d+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'});pillsHtml+=`<div class="wf-pill${cur===d?' active':''}" onclick="fsPickCommentsDate('${d}')">${disp} (${datesMap[d]})</div>`;});
+    pillsEl.innerHTML=pillsHtml;
+    let list=cur?withCmt.filter(r=>r.tarih.toISOString().slice(0,10)===cur):withCmt.slice();
+    list=list.sort((a,b)=>b.tarih-a.tarih);
+    const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü';
+    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+')';
+    listEl.innerHTML=list.length?list.map(r=>{
+      const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
+      const c5=puanlar.filter(v=>v===5).length,cNeg=puanlar.filter(v=>v<=3).length,c4=puanlar.filter(v=>v===4).length;
+      let moodColor='#4ecdc4';
+      if(c5>c4&&c5>cNeg)moodColor='#22c55e';else if(cNeg>c5)moodColor='#ef4444';else if(c4>=c5)moodColor='#f59e0b';
+      const puanHtml=puanlar.map(v=>{const clr=v===5?'#22c55e':(v===4?'#f59e0b':'#ef4444');return `<span style="color:${clr};font-weight:700">${v}</span>`;}).join(' · ');
+      const icon=r.danisman==='ANONİM'?'🕵️ ':'';
+      const tarihStr=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'';
+      return `<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22"><div class="wf-card-head"><span class="wf-who">${icon}${r.danisman}</span><span style="font-size:11px;color:rgba(255,255,255,0.55)">${puanHtml}</span></div><div class="wf-txt">${r.yorum}</div><div class="wf-meta">${tarihStr}</div></div>`;
+    }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte yorum yok</div>';
+  }
+}
+function fsPick48hDay(day){pick48hDay(day);renderWidgetFullscreen('48h');}
+function fsPickCommentsDate(date){pickCommentsDate(date);renderWidgetFullscreen('comments');}
+
 
 
 // =================================================================
@@ -3509,8 +3582,8 @@ function renderWidgetHtml(w,preview){
         return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
       const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
-      const headAttrs48=preview?'':` style="cursor:pointer" onclick="event.stopPropagation();toggleInlinePicker('48h',this)" title="Tıkla: gün değiştir (sadece bu cihaz)"`;
-      const badge48=preview?'':`<div class="w-pdf-badge">📅 TIKLA</div>`;
+      const headAttrs48=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('48h')" title="Tıkla: tümünü aç ve gün seç"`;
+      const badge48=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
       return `<div class="w-48h"><div class="w-48h-head"${headAttrs48}><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${badge48}<div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     case 'pdf':{
@@ -3538,8 +3611,8 @@ function renderWidgetHtml(w,preview){
         withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
         commentsLabel='Son '+withComments.length;
       }
-      const headAttrsC=preview?'':` style="cursor:pointer" onclick="event.stopPropagation();toggleInlinePicker('comments',this)" title="Tıkla: tarih seç (sadece bu cihaz)"`;
-      const badgeC=preview?'':`<div class="w-pdf-badge">📅 TIKLA</div>`;
+      const headAttrsC=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('comments')" title="Tıkla: tümünü aç ve tarih seç"`;
+      const badgeC=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
       const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
       if(!withComments.length){
         return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
