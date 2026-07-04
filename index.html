@@ -3585,7 +3585,7 @@ function renderWidgetHtml(w,preview){
       if(S._noData){
         return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div>${vocSubHtml}${vocBadge}</div>`;
       }
-      return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div>${vocSubHtml}${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${S.anket.toplam||0} anket${S.anket.ay&&S.anket.ay!==S.anket.toplam?' (ay: '+S.anket.ay+')':''}</div>${deltaHtml}${vocBadge}</div>`;
+      return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(28px,7cqw,80px)*${w.fontScale||1})">%${displayScore}</div>${vocSubHtml}${mVocHtml}<div class="w-voc-anket" style="font-size:clamp(10px,1.3cqw,13px);color:var(--muted);margin-top:2px">📋 ${(S.vocRawData||[]).length} anket (tüm zamanlar)</div>${deltaHtml}${vocBadge}</div>`;
     }
     case 'logo':{
       const hasLogo=!!S.brand.logo;
@@ -3627,7 +3627,7 @@ function renderWidgetHtml(w,preview){
     }
     case 'stats':{
       const stats=[
-        {l:'Toplam Anket',v:S.anket.toplam||0,onclick:"openAnketListModal()",style:"cursor:pointer"},
+        {l:'Toplam Anket (tüm zamanlar)',v:(S.vocRawData||[]).length,onclick:"openAnketListModal()",style:"cursor:pointer"},
         {l:'TR Ortalama',v:'%'+(S.voc.tr||0),onclick:"",style:""},
         {l:'1. Hedef',v:'%'+(S.voc.target1||0),onclick:"",style:""},
         {l:'Geri Dönüş',v:'%'+(S.anket.geri||0),onclick:"openGeriDonusModal()",style:"cursor:pointer"}
