@@ -361,10 +361,22 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 #k-rapor-content #k-rapor-print{overflow:visible!important}
 .k-pdf-modal-page{max-width:100%;height:auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,0.5);border-radius:6px}
 /* Widget tam ekran okuma modalı (48 Saat / Yorumlar) */
-.wf-pill-row{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 16px;flex-shrink:0;max-height:90px;overflow-y:auto}
-.wf-pill{padding:7px 14px;border-radius:20px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.8);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,0.08)}
-.wf-pill:hover{background:rgba(255,255,255,0.12)}
-.wf-pill.active{background:var(--accent);color:#111;font-weight:800;border-color:var(--accent)}
+.wf-pill-row{display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 0 20px;flex-shrink:0;width:100%;max-width:340px}
+.wf-cal-head{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:6px}
+.wf-cal-title{font-size:14px;font-weight:700;color:#fff}
+.wf-cal-nav{background:rgba(255,255,255,0.08);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0}
+.wf-cal-nav:hover{background:rgba(255,255,255,0.18)}
+.wf-cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;color:rgba(255,255,255,0.4);text-align:center;width:100%;margin-bottom:4px}
+.wf-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:100%}
+.wf-cal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;color:rgba(255,255,255,0.28);position:relative;cursor:default}
+.wf-cal-cell.has-data{background:rgba(255,255,255,0.09);color:#fff;cursor:pointer;font-weight:700}
+.wf-cal-cell.has-data:hover{background:rgba(255,255,255,0.18)}
+.wf-cal-cell.selected{background:var(--accent)!important;color:#111!important}
+.wf-cal-cell.today{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.4)}
+.wf-cal-cnt{position:absolute;bottom:1px;font-size:7px;opacity:.75;font-weight:600}
+.wf-cal-reset{margin-top:4px;font-size:12px;color:rgba(255,255,255,0.65);cursor:pointer;padding:6px 14px;border-radius:20px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)}
+.wf-cal-reset:hover{background:rgba(255,255,255,0.1)}
+.wf-cal-reset.active{background:var(--accent);color:#111;font-weight:700;border-color:var(--accent)}
 .wf-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:900px}
 .wf-card{background:linear-gradient(90deg,var(--mood-bg,rgba(255,255,255,0.04)) 0%,var(--card) 60%);border:1px solid var(--border);border-left:4px solid var(--mood-color,var(--accent));border-radius:8px;padding:12px 16px;box-shadow:0 0 0 1px var(--mood-color,transparent)}
 .wf-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
@@ -1134,20 +1146,65 @@ function calls48hResolveDay(overrideDay){
 }
 function openWidgetFullscreen(type){
   $('k-widget-fs-modal').classList.add('open');
+  if(type==='comments'){
+    let y,m;
+    if(LV.comments&&LV.comments.active&&LV.comments.date){const d=new Date(LV.comments.date+'T00:00:00');y=d.getFullYear();m=d.getMonth();}
+    else{
+      const withCmt=(S.vocRawData||[]).filter(r=>r.yorum&&r.yorum.length>3&&r.tarih);
+      if(withCmt.length){const latest=withCmt.reduce((a,b)=>a.tarih>b.tarih?a:b);y=latest.tarih.getFullYear();m=latest.tarih.getMonth();}
+      else{const n=new Date();y=n.getFullYear();m=n.getMonth();}
+    }
+    _fsCal.comments={y,m};
+  }else if(type==='48h'){
+    _fsCal['48h']={y:S.calls48h.selectedYear||new Date().getFullYear(),m:(S.calls48h.selectedMonth||new Date().getMonth()+1)-1};
+  }
   renderWidgetFullscreen(type);
 }
 function closeWidgetFullscreen(){
   $('k-widget-fs-modal').classList.remove('open');
 }
+const _fsCal={comments:null,'48h':null};
+const _TR_AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+function fsCalNav(type,dir){
+  const c=_fsCal[type];if(!c)return;
+  c.m+=dir;
+  if(c.m<0){c.m=11;c.y--;}else if(c.m>11){c.m=0;c.y++;}
+  renderWidgetFullscreen(type);
+}
+// Ay ızgarası HTML'i üretir: dataCountMap = {'YYYY-MM-DD': adet}
+function buildCalendarHtml(type,year,month,dataCountMap,selectedISO){
+  const first=new Date(year,month,1);
+  const startWeekday=(first.getDay()+6)%7; // Pazartesi=0
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const todayISO=new Date().toISOString().slice(0,10);
+  let html=`<div class="wf-cal-head"><button class="wf-cal-nav" onclick="fsCalNav('${type}',-1)">‹</button><div class="wf-cal-title">${_TR_AYLAR[month]} ${year}</div><button class="wf-cal-nav" onclick="fsCalNav('${type}',1)">›</button></div>`;
+  html+=`<div class="wf-cal-week">${['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<div>${d}</div>`).join('')}</div><div class="wf-cal-grid">`;
+  for(let i=0;i<startWeekday;i++)html+='<div class="wf-cal-cell empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const iso=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cnt=dataCountMap[iso]||0;
+    const isSel=selectedISO===iso;
+    const isToday=todayISO===iso;
+    const clickAttr=cnt?(type==='48h'?`onclick="calPick48h(${d})"`:`onclick="calPickComments('${iso}')"`):'';
+    html+=`<div class="wf-cal-cell${cnt?' has-data':''}${isSel?' selected':''}${isToday?' today':''}" ${clickAttr}>${d}${cnt?`<span class="wf-cal-cnt">${cnt}</span>`:''}</div>`;
+  }
+  html+='</div>';
+  return html;
+}
 function renderWidgetFullscreen(type){
   const titleEl=$('k-widget-fs-title'),pillsEl=$('k-widget-fs-pills'),listEl=$('k-widget-fs-list');
   $('k-widget-fs-modal').setAttribute('data-type',type);
   if(type==='48h'){
-    const days=Object.keys((S.calls48h&&S.calls48h.data)||{}).map(x=>+x).sort((a,b)=>a-b);
     const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
-    let pillsHtml=`<div class="wf-pill${!cur?' active':''}" onclick="fsPick48hDay(null)">🔄 Otomatik</div>`;
-    days.forEach(d=>{const cnt=(S.calls48h.data[d]||[]).length;pillsHtml+=`<div class="wf-pill${cur===d?' active':''}" onclick="fsPick48hDay(${d})">${d}. gün (${cnt})</div>`;});
-    pillsEl.innerHTML=pillsHtml;
+    const c=_fsCal['48h']||{y:new Date().getFullYear(),m:new Date().getMonth()};
+    const dataCountMap={};
+    Object.keys((S.calls48h&&S.calls48h.data)||{}).forEach(d=>{
+      const iso=`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(+d).padStart(2,'0')}`;
+      dataCountMap[iso]=(S.calls48h.data[d]||[]).length;
+    });
+    const selISO=cur?`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(cur).padStart(2,'0')}`:null;
+    pillsEl.innerHTML=buildCalendarHtml('48h',c.y,c.m,dataCountMap,selISO)+
+      `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPick48h(null)">🔄 Yayındaki (otomatik) güne dön</div>`;
     const day=calls48hResolveDay(cur);
     const now=new Date();
     const month=S.calls48h.selectedMonth||now.getMonth()+1,year=S.calls48h.selectedYear||now.getFullYear();
@@ -1161,19 +1218,25 @@ function renderWidgetFullscreen(type){
       return `<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22"><div class="wf-card-head"><span class="wf-who">${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}<span class="wf-mood" style="background:${it.moodColor}">${moodLbl}</span></div><div class="wf-txt">${it.aciklama||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="wf-meta">${it.musteri}</div>`:''}</div>`;
     }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu günde kayıt yok</div>';
   }else{
-    const rawData=S.vocRawData||[];
-    const withCmt=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih);
-    const datesMap={};
-    withCmt.forEach(r=>{const key=r.tarih.toISOString().slice(0,10);datesMap[key]=(datesMap[key]||0)+1;});
-    const dates=Object.keys(datesMap).sort((a,b)=>b.localeCompare(a));
+    const rawData=(S.vocRawData||[]).filter(r=>r.tarih);
+    const withCmt=rawData.filter(r=>r.yorum&&r.yorum.length>3);
+    const c=_fsCal.comments||{y:new Date().getFullYear(),m:new Date().getMonth()};
+    // Takvimdeki gün sayaçları TOPLAM anket sayısını gösterir (yorumu olsun olmasın)
+    const dataCountMap={};
+    rawData.forEach(r=>{
+      if(r.tarih.getFullYear()===c.y&&r.tarih.getMonth()===c.m){
+        const iso=r.tarih.toISOString().slice(0,10);
+        dataCountMap[iso]=(dataCountMap[iso]||0)+1;
+      }
+    });
     const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
-    let pillsHtml=`<div class="wf-pill${!cur?' active':''}" onclick="fsPickCommentsDate('')">🔄 Tümü (${withCmt.length})</div>`;
-    dates.forEach(d=>{const disp=new Date(d+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'});pillsHtml+=`<div class="wf-pill${cur===d?' active':''}" onclick="fsPickCommentsDate('${d}')">${disp} (${datesMap[d]})</div>`;});
-    pillsEl.innerHTML=pillsHtml;
+    pillsEl.innerHTML=buildCalendarHtml('comments',c.y,c.m,dataCountMap,cur)+
+      `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPickComments('')">🔄 Tümünü göster (${withCmt.length} yorum)</div>`;
+    const dayAnketTotal=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur).length:rawData.length;
     let list=cur?withCmt.filter(r=>r.tarih.toISOString().slice(0,10)===cur):withCmt.slice();
     list=list.sort((a,b)=>b.tarih-a.tarih);
-    const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü';
-    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+')';
+    const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü (tüm zamanlar)';
+    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+dayAnketTotal+' anket, '+list.length+' yorum)';
     listEl.innerHTML=list.length?list.map(r=>{
       const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
       const c5=puanlar.filter(v=>v===5).length,cNeg=puanlar.filter(v=>v<=3).length,c4=puanlar.filter(v=>v===4).length;
@@ -1183,11 +1246,14 @@ function renderWidgetFullscreen(type){
       const icon=r.danisman==='ANONİM'?'🕵️ ':'';
       const tarihStr=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'';
       return `<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22"><div class="wf-card-head"><span class="wf-who">${icon}${r.danisman}</span><span style="font-size:11px;color:rgba(255,255,255,0.55)">${puanHtml}</span></div><div class="wf-txt">${r.yorum}</div><div class="wf-meta">${tarihStr}</div></div>`;
-    }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte yorum yok</div>';
+    }).join(''):(dayAnketTotal>0
+      ?`<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">📋 Bu tarihte ${dayAnketTotal} anket var, ama yazılı yorum bırakılmamış</div>`
+      :'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte anket yok</div>');
   }
 }
-function fsPick48hDay(day){pick48hDay(day);renderWidgetFullscreen('48h');}
-function fsPickCommentsDate(date){pickCommentsDate(date);renderWidgetFullscreen('comments');}
+function calPick48h(day){pick48hDay(day);renderWidgetFullscreen('48h');}
+function calPickComments(date){pickCommentsDate(date);renderWidgetFullscreen('comments');}
+
 
 
 
@@ -3615,7 +3681,9 @@ function renderWidgetHtml(w,preview){
       const badgeC=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
       const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
       if(!withComments.length){
-        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Yorum bulunamadı</div></div></div>`;
+        const dayTotal=commentsLocal?rawData.filter(r=>r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).length:0;
+        const emptyMsg=dayTotal>0?`📋 Bu tarihte ${dayTotal} anket var, yazılı yorum yok`:'Yorum bulunamadı';
+        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${emptyMsg}</div></div></div>`;
       }
       const cards=withComments.map(r=>{
         // Çoğunluk puana göre renk: 5→yeşil, 4→turuncu, 1-3→kırmızı
