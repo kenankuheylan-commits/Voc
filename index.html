@@ -1220,7 +1220,6 @@ function renderWidgetFullscreen(type){
     }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu günde kayıt yok</div>';
   }else{
     const rawData=(S.vocRawData||[]).filter(r=>r.tarih);
-    const withCmt=rawData.filter(r=>r.yorum&&r.yorum.length>3);
     const c=_fsCal.comments||{y:new Date().getFullYear(),m:new Date().getMonth()};
     // Takvimdeki gün sayaçları TOPLAM anket sayısını gösterir (yorumu olsun olmasın)
     const dataCountMap={};
@@ -1232,13 +1231,12 @@ function renderWidgetFullscreen(type){
     });
     const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
     pillsEl.innerHTML=buildCalendarHtml('comments',c.y,c.m,dataCountMap,cur)+
-      `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPickComments('')">🔄 Tümünü göster (${withCmt.length} yorum)</div>`;
-    // Bir tarih seçiliyken: o günün TÜM anketleri (yorumlu + sadece puanlamalı) gösterilir — nihai sonuç.
-    // Tarih seçili değilken: yayındaki gibi sadece yazılı yorumu olanlar (okunabilir akış) gösterilir.
-    let list=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur):withCmt.slice();
+      `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPickComments('')">🔄 Tümünü göster (${rawData.length} anket)</div>`;
+    // HER ZAMAN: yorumlu + sadece puanlamalı TÜM anketler gösterilir (gerçek toplam, filtre yok).
+    let list=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur):rawData.slice();
     list=list.sort((a,b)=>b.tarih-a.tarih);
     const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü (tüm zamanlar)';
-    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+(cur?' anket':' yorum')+')';
+    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+' anket)';
     listEl.innerHTML=list.length?list.map(r=>{
       const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
       const c5=puanlar.filter(v=>v===5).length,cNeg=puanlar.filter(v=>v<=3).length,c4=puanlar.filter(v=>v===4).length;
@@ -1257,7 +1255,7 @@ function renderWidgetFullscreen(type){
       const yorumHtml=hasYorum?r.yorum:'<i style="opacity:.55">Yazılı yorum yok — sadece puanlama</i>';
       const musteriData=JSON.stringify({danisman:r.danisman,musteriAd:r.musteriAd,musteriSoyad:r.musteriSoyad,aracModel:r.aracModel,sase:r.sase,q1:r.q1,q2:r.q2,q3:r.q3,q4:r.q4,q5:r.q5,yorum:r.yorum,tarih:r.tarih}).replace(/"/g,'&quot;');
       return `<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}' title="Tıkla: soru bazlı puan detayını gör"><div class="wf-card-head"><span class="wf-who">${icon}${r.danisman}</span></div><div style="font-size:11px;margin-bottom:6px">${puanHtml}</div><div class="wf-txt">${yorumHtml}</div><div class="wf-meta">${tarihStr} · <span style="text-decoration:underline dotted">detay için tıkla</span></div></div>`;
-    }).join(''):(cur?'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte anket yok</div>':'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Yorum bulunamadı</div>');
+    }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte anket yok</div>';
   }
 }
 function calPick48h(day){pick48hDay(day);renderWidgetFullscreen('48h');}
@@ -3682,8 +3680,8 @@ function renderWidgetHtml(w,preview){
         withComments=rawData.filter(r=>r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
         commentsLabel=new Date(LV.comments.date+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})+' 📍';
       }else{
-        // Yayındaki: yorumu dolu olanları tarihe göre sırala, son N tanesi
-        withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
+        // Yayındaki: TÜM anketler (yorumlu + sadece puanlamalı) tarihe göre sırala, son N tanesi
+        withComments=rawData.filter(r=>r.tarih).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
         commentsLabel='Son '+withComments.length;
       }
       const headAttrsC=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('comments')" title="Tıkla: tümünü aç ve tarih seç"`;
