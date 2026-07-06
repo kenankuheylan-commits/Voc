@@ -1060,6 +1060,10 @@ const STORAGE_KEY='kiosk_v28-20260427_vocdata';
 // Widget'ların üzerine (tarih/etiket alanına) tıklayınca açılan küçük bir
 // seçim penceresi (popover) ile doğrudan o widget'ın üstünden değiştirilir.
 // =================================================================
+// Bir Date'in YEREL (tarayıcı saat dilimine göre) yyyy-mm-dd anahtarını üretir.
+// toISOString() KULLANMIYORUZ çünkü o UTC'ye çevirir ve Türkiye gibi +saat dilimlerinde
+// gece yarısı yerel tarihler bir gün geriye kayar (örn. 30 Haziran → 29 Haziran).
+function localISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 const LOCAL_VIEW_KEY='ernaz_local_view_override_v1';
 let LV={voc:{active:false,period:'',month:''},calls48h:{active:false,day:''},comments:{active:false,date:''}};
 function loadLocalView(){try{const raw=localStorage.getItem(LOCAL_VIEW_KEY);if(raw){const parsed=JSON.parse(raw);if(parsed.voc)LV.voc=Object.assign(LV.voc,parsed.voc);if(parsed.calls48h)LV.calls48h=Object.assign(LV.calls48h,parsed.calls48h);if(parsed.comments)LV.comments=Object.assign(LV.comments,parsed.comments);}}catch(e){}}
@@ -1177,7 +1181,7 @@ function buildCalendarHtml(type,year,month,dataCountMap,selectedISO){
   const first=new Date(year,month,1);
   const startWeekday=(first.getDay()+6)%7; // Pazartesi=0
   const daysInMonth=new Date(year,month+1,0).getDate();
-  const todayISO=new Date().toISOString().slice(0,10);
+  const todayISO=localISO(new Date());
   let html=`<div class="wf-cal-head"><button class="wf-cal-nav" onclick="fsCalNav('${type}',-1)">‹</button><div class="wf-cal-title">${_TR_AYLAR[month]} ${year}</div><button class="wf-cal-nav" onclick="fsCalNav('${type}',1)">›</button></div>`;
   html+=`<div class="wf-cal-week">${['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(d=>`<div>${d}</div>`).join('')}</div><div class="wf-cal-grid">`;
   for(let i=0;i<startWeekday;i++)html+='<div class="wf-cal-cell empty"></div>';
@@ -1225,7 +1229,7 @@ function renderWidgetFullscreen(type){
     const dataCountMap={};
     rawData.forEach(r=>{
       if(r.tarih.getFullYear()===c.y&&r.tarih.getMonth()===c.m){
-        const iso=r.tarih.toISOString().slice(0,10);
+        const iso=localISO(r.tarih);
         dataCountMap[iso]=(dataCountMap[iso]||0)+1;
       }
     });
@@ -1233,7 +1237,7 @@ function renderWidgetFullscreen(type){
     pillsEl.innerHTML=buildCalendarHtml('comments',c.y,c.m,dataCountMap,cur)+
       `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPickComments('')">🔄 Tümünü göster (${rawData.length} anket)</div>`;
     // HER ZAMAN: yorumlu + sadece puanlamalı TÜM anketler gösterilir (gerçek toplam, filtre yok).
-    let list=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur):rawData.slice();
+    let list=cur?rawData.filter(r=>localISO(r.tarih)===cur):rawData.slice();
     list=list.sort((a,b)=>b.tarih-a.tarih);
     const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü (tüm zamanlar)';
     titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+' anket)';
@@ -3677,7 +3681,7 @@ function renderWidgetHtml(w,preview){
       let commentsLabel;
       if(commentsLocal){
         // Bu cihaza özel: seçilen güne ait TÜM anketler (yorumlu + sadece puanlamalı) — nihai sonuç
-        withComments=rawData.filter(r=>r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
+        withComments=rawData.filter(r=>r.tarih&&localISO(r.tarih)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
         commentsLabel=new Date(LV.comments.date+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})+' 📍';
       }else{
         // Yayındaki: TÜM anketler (yorumlu + sadece puanlamalı) tarihe göre sırala, son N tanesi
