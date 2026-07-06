@@ -1233,11 +1233,12 @@ function renderWidgetFullscreen(type){
     const cur=(LV.comments&&LV.comments.active)?LV.comments.date:null;
     pillsEl.innerHTML=buildCalendarHtml('comments',c.y,c.m,dataCountMap,cur)+
       `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPickComments('')">🔄 Tümünü göster (${withCmt.length} yorum)</div>`;
-    const dayAnketTotal=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur).length:rawData.length;
-    let list=cur?withCmt.filter(r=>r.tarih.toISOString().slice(0,10)===cur):withCmt.slice();
+    // Bir tarih seçiliyken: o günün TÜM anketleri (yorumlu + sadece puanlamalı) gösterilir — nihai sonuç.
+    // Tarih seçili değilken: yayındaki gibi sadece yazılı yorumu olanlar (okunabilir akış) gösterilir.
+    let list=cur?rawData.filter(r=>r.tarih.toISOString().slice(0,10)===cur):withCmt.slice();
     list=list.sort((a,b)=>b.tarih-a.tarih);
     const titleDate=cur?new Date(cur+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}):'Tümü (tüm zamanlar)';
-    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+dayAnketTotal+' anket, '+list.length+' yorum)';
+    titleEl.textContent='💬 Müşteri Yorumları — '+titleDate+' ('+list.length+(cur?' anket':' yorum')+')';
     listEl.innerHTML=list.length?list.map(r=>{
       const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
       const c5=puanlar.filter(v=>v===5).length,cNeg=puanlar.filter(v=>v<=3).length,c4=puanlar.filter(v=>v===4).length;
@@ -1252,11 +1253,11 @@ function renderWidgetFullscreen(type){
       }).filter(Boolean).join(' <span style="color:rgba(255,255,255,0.2)">·</span> ');
       const icon=r.danisman==='ANONİM'?'🕵️ ':'';
       const tarihStr=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'';
+      const hasYorum=r.yorum&&r.yorum.length>3;
+      const yorumHtml=hasYorum?r.yorum:'<i style="opacity:.55">Yazılı yorum yok — sadece puanlama</i>';
       const musteriData=JSON.stringify({danisman:r.danisman,musteriAd:r.musteriAd,musteriSoyad:r.musteriSoyad,aracModel:r.aracModel,sase:r.sase,q1:r.q1,q2:r.q2,q3:r.q3,q4:r.q4,q5:r.q5,yorum:r.yorum,tarih:r.tarih}).replace(/"/g,'&quot;');
-      return `<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}' title="Tıkla: soru bazlı puan detayını gör"><div class="wf-card-head"><span class="wf-who">${icon}${r.danisman}</span></div><div style="font-size:11px;margin-bottom:6px">${puanHtml}</div><div class="wf-txt">${r.yorum}</div><div class="wf-meta">${tarihStr} · <span style="text-decoration:underline dotted">detay için tıkla</span></div></div>`;
-    }).join(''):(dayAnketTotal>0
-      ?`<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">📋 Bu tarihte ${dayAnketTotal} anket var, ama yazılı yorum bırakılmamış</div>`
-      :'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte anket yok</div>');
+      return `<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}' title="Tıkla: soru bazlı puan detayını gör"><div class="wf-card-head"><span class="wf-who">${icon}${r.danisman}</span></div><div style="font-size:11px;margin-bottom:6px">${puanHtml}</div><div class="wf-txt">${yorumHtml}</div><div class="wf-meta">${tarihStr} · <span style="text-decoration:underline dotted">detay için tıkla</span></div></div>`;
+    }).join(''):(cur?'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu tarihte anket yok</div>':'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Yorum bulunamadı</div>');
   }
 }
 function calPick48h(day){pick48hDay(day);renderWidgetFullscreen('48h');}
@@ -3677,8 +3678,8 @@ function renderWidgetHtml(w,preview){
       let withComments;
       let commentsLabel;
       if(commentsLocal){
-        // Bu cihaza özel: seçilen güne ait TÜM yorumlar
-        withComments=rawData.filter(r=>r.yorum&&r.yorum.length>3&&r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
+        // Bu cihaza özel: seçilen güne ait TÜM anketler (yorumlu + sadece puanlamalı) — nihai sonuç
+        withComments=rawData.filter(r=>r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).sort((a,b)=>b.tarih-a.tarih);
         commentsLabel=new Date(LV.comments.date+'T00:00:00').toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})+' 📍';
       }else{
         // Yayındaki: yorumu dolu olanları tarihe göre sırala, son N tanesi
@@ -3689,9 +3690,7 @@ function renderWidgetHtml(w,preview){
       const badgeC=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
       const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
       if(!withComments.length){
-        const dayTotal=commentsLocal?rawData.filter(r=>r.tarih&&r.tarih.toISOString().slice(0,10)===LV.comments.date).length:0;
-        const emptyMsg=dayTotal>0?`📋 Bu tarihte ${dayTotal} anket var, yazılı yorum yok`:'Yorum bulunamadı';
-        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${emptyMsg}</div></div></div>`;
+        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${commentsLocal?'Bu tarihte anket yok':'Yorum bulunamadı'}</div></div></div>`;
       }
       const cards=withComments.map(r=>{
         // Çoğunluk puana göre renk: 5→yeşil, 4→turuncu, 1-3→kırmızı
@@ -3703,7 +3702,7 @@ function renderWidgetHtml(w,preview){
         if(c5>c4&&c5>cNeg)moodColor='#22c55e'; // yeşil
         else if(cNeg>c5)moodColor='#ef4444'; // kırmızı
         else if(c4>=c5)moodColor='#f59e0b'; // turuncu
-        const trimmed=smartTrim(r.yorum,120);
+        const trimmed=(r.yorum&&r.yorum.length>3)?smartTrim(r.yorum,120):'<i style="opacity:.55">Yazılı yorum yok — sadece puanlama</i>';
         const icon=r.danisman==='ANONİM'?'🕵️ ':'';
         // Küçük puan gösterimi — sadece dolu puanları göster
         const puanHtml=puanlar.map((v,i)=>{
