@@ -878,6 +878,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
   <div class="k-canvas" id="k-canvas"></div>
   <button id="k-back-admin" onclick="goAdmin()" title="Admin'e dön (ESC)" style="position:fixed;top:8px;left:8px;z-index:999;background:rgba(0,0,0,0.4);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.5);font-size:11px;padding:6px 10px;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;opacity:0.15;transition:opacity .2s;display:none" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.15'">← Admin</button>
   <div class="k-controls">
+    <button class="k-ctrl-btn" onclick="openSearchModal()">🔍 Ara</button>
     <button class="k-ctrl-btn" onclick="openRaporModal()">📊 Rapor Al</button>
     <button class="k-ctrl-btn" onclick="toggleFullscreen()" id="fs-btn">⛶ Tam Ekran</button>
   </div>
@@ -946,6 +947,19 @@ body.designer-fs .designer-fs-toolbar{display:flex}
     <div class="k-pdf-modal-content" style="align-items:center">
       <div class="wf-pill-row" id="k-widget-fs-pills"></div>
       <div class="wf-list" id="k-widget-fs-list"></div>
+    </div>
+  </div>
+
+  <!-- Evrensel Arama Modalı: isim / plaka ile anket + 48 saat aramalarında tara -->
+  <div class="k-pdf-modal" id="k-search-modal">
+    <div class="k-pdf-modal-head">
+      <div class="k-pdf-modal-title">🔍 Ara — İsim / Danışman / Plaka</div>
+      <button class="k-pdf-modal-close" onclick="closeSearchModal()">✕</button>
+    </div>
+    <div class="k-pdf-modal-content" style="align-items:center">
+      <input id="k-search-input" type="text" placeholder="İsim, danışman veya plaka yazın..." oninput="runSearchQuery()" autocomplete="off" style="width:100%;max-width:640px;padding:16px 20px;font-size:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);background:#12182a;color:#fff;margin-bottom:10px;outline:none">
+      <div id="k-search-info" style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px;min-height:16px"></div>
+      <div id="k-search-results" class="wf-list"></div>
     </div>
   </div>
 
@@ -1264,6 +1278,87 @@ function renderWidgetFullscreen(type){
 }
 function calPick48h(day){pick48hDay(day);renderWidgetFullscreen('48h');}
 function calPickComments(date){pickCommentsDate(date);renderWidgetFullscreen('comments');}
+
+// ================================================================
+// EVRENSEL ARAMA — isim / danışman / plaka ile anket ve 48 saat
+// aramalarında tarama yapar. Kiosk ekranında herkes kullanabilir.
+// ================================================================
+function openSearchModal(){
+  $('k-search-modal').classList.add('open');
+  const inp=$('k-search-input');
+  if(inp){inp.value='';setTimeout(()=>inp.focus(),150);}
+  renderSearchResults('');
+}
+function closeSearchModal(){$('k-search-modal').classList.remove('open');}
+let _searchDebounce=null;
+function runSearchQuery(){
+  if(_searchDebounce)clearTimeout(_searchDebounce);
+  const inp=$('k-search-input');
+  _searchDebounce=setTimeout(()=>renderSearchResults(inp?inp.value:''),150);
+}
+function renderSearchResults(query){
+  const listEl=$('k-search-results'),infoEl=$('k-search-info');
+  if(!listEl)return;
+  const q=normTR(query||'').trim();
+  if(!q||q.length<2){
+    listEl.innerHTML='<div style="color:rgba(255,255,255,0.4);text-align:center;padding:40px;font-size:13px">İsim, danışman veya plaka yazmaya başlayın (en az 2 karakter)</div>';
+    if(infoEl)infoEl.textContent='';
+    return;
+  }
+  // 1) Anketlerde ara — TÜM ZAMANLAR (vocRawData sheetteki tüm geçmişi tutar)
+  const anketMatches=(S.vocRawData||[]).filter(r=>{
+    const hay=normTR([r.danisman,r.musteriAd,r.musteriSoyad,r.aracModel,r.sase].filter(Boolean).join(' '));
+    return hay.includes(q);
+  }).sort((a,b)=>b.tarih-a.tarih);
+  // 2) 48 Saat aramalarında ara — şu an cihazda yüklü olan günler
+  const callMatches=[];
+  if(S.calls48h&&S.calls48h.data){
+    Object.keys(S.calls48h.data).forEach(day=>{
+      (S.calls48h.data[day]||[]).forEach(it=>{
+        const hay=normTR([it.danisman,it.musteri,it.plaka,it.skfNo].filter(Boolean).join(' '));
+        if(hay.includes(q))callMatches.push({...it,_gun:+day});
+      });
+    });
+  }
+  const total=anketMatches.length+callMatches.length;
+  if(infoEl)infoEl.textContent=total?`${total} sonuç (${callMatches.length} arama, ${anketMatches.length} anket)`:'Sonuç bulunamadı';
+  if(!total){
+    listEl.innerHTML='<div style="color:rgba(255,255,255,0.4);text-align:center;padding:40px;font-size:13px">😕 Sonuç bulunamadı</div>';
+    return;
+  }
+  const MAXSHOW=60;
+  let html='';
+  // --- 48 Saat sonuçları ---
+  callMatches.slice(0,MAXSHOW).forEach(it=>{
+    const month=S.calls48h.selectedMonth||new Date().getMonth()+1,year=S.calls48h.selectedYear||new Date().getFullYear();
+    const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+    const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
+    const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
+    html+=`<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}">
+      <div class="wf-card-head"><span class="wf-who">📞 ${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px">${it.musteri||''}${it.musteri?' · ':''}${gunStr}</div>
+      <div class="wf-txt">${smartTrim(it.aciklama||'',140)||'<i>(yorum yok)</i>'}</div>
+    </div>`;
+  });
+  // --- Anket sonuçları ---
+  anketMatches.slice(0,MAXSHOW).forEach(r=>{
+    const puanlar=[r.q1,r.q2,r.q3,r.q4,r.q5].filter(v=>v>=1&&v<=5);
+    const c5=puanlar.filter(v=>v===5).length,cNeg=puanlar.filter(v=>v<=3).length,c4=puanlar.filter(v=>v===4).length;
+    let moodColor='#4ecdc4';
+    if(c5>c4&&c5>cNeg)moodColor='#22c55e';else if(cNeg>c5)moodColor='#ef4444';else if(c4>=c5)moodColor='#f59e0b';
+    const musteriData=JSON.stringify({danisman:r.danisman,musteriAd:r.musteriAd,musteriSoyad:r.musteriSoyad,aracModel:r.aracModel,sase:r.sase,q1:r.q1,q2:r.q2,q3:r.q3,q4:r.q4,q5:r.q5,yorum:r.yorum,tarih:r.tarih}).replace(/"/g,'&quot;');
+    const tarihStr=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}):'';
+    const mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—';
+    html+=`<div class="wf-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'>
+      <div class="wf-card-head"><span class="wf-who">💬 ${r.danisman}</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px">${mu}${r.aracModel?' · 🚗 '+r.aracModel:''} · ${tarihStr}</div>
+      <div class="wf-txt">${(r.yorum&&r.yorum.length>3)?smartTrim(r.yorum,140):'<i style="opacity:.55">Yazılı yorum yok — sadece puanlama</i>'}</div>
+    </div>`;
+  });
+  if(total>MAXSHOW*2)html+=`<div style="color:rgba(255,255,255,0.4);text-align:center;padding:14px;font-size:12px">+ daha fazla sonuç var — aramayı biraz daha daraltın</div>`;
+  listEl.innerHTML=html;
+}
+
 
 
 
