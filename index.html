@@ -3677,8 +3677,8 @@ function renderWidgetHtml(w,preview){
       // Aylık VOC (dönem VOC'undan farklıysa göster)
       const mVoc=S._monthVoc;
       const mVocHtml=(mVoc!==null&&mVoc!==undefined)?`<div style="font-size:clamp(10px,1.5cqw,14px);color:var(--accent);font-weight:700;margin-top:3px;opacity:0.85">📅 Ay VOC: %${Number.isInteger(mVoc)?mVoc:mVoc.toFixed(1)}</div>`:'';
-      const vocWrapAttrs=preview?'':` style="cursor:pointer" onclick="toggleInlinePicker('voc',this)" title="Tıkla: dönem/ay değiştir (sadece bu cihaz)"`;
-      const vocBadge=preview?'':`<div class="w-pdf-badge" style="margin-top:2px">🔀 TIKLA</div>`;
+      const vocWrapAttrs=preview?'':` style="cursor:pointer" onclick="event.stopPropagation();toggleInlinePicker('voc',this)" title="Tıkla: dönem/ay değiştir (sadece bu cihaz)"`;
+      const vocBadge='';
       const vocSubHtml=`<div class="w-voc-sub">${S.currentShowing||''}</div>`;
       if(S._noData){
         return `<div class="w-voc"${vocWrapAttrs}><div class="w-voc-lbl">VOC ENDEKS</div><div class="w-voc-val" style="font-size:calc(clamp(20px,4cqw,48px)*${w.fontScale||1});color:var(--muted)">Veri Yok</div>${vocSubHtml}${vocBadge}</div>`;
@@ -3759,7 +3759,7 @@ function renderWidgetHtml(w,preview){
       }).join(''):'';
       const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
       const headAttrs48=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('48h')" title="Tıkla: tümünü aç ve gün seç"`;
-      const badge48=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
+      const badge48='';
       return `<div class="w-48h"><div class="w-48h-head"${headAttrs48}><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${badge48}<div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     case 'pdf':{
@@ -3788,7 +3788,7 @@ function renderWidgetHtml(w,preview){
         commentsLabel='Son '+withComments.length;
       }
       const headAttrsC=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('comments')" title="Tıkla: tümünü aç ve tarih seç"`;
-      const badgeC=preview?'':`<div class="w-pdf-badge">📖 TIKLA</div>`;
+      const badgeC='';
       const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
       if(!withComments.length){
         return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">${commentsLocal?'Bu tarihte anket yok':'Yorum bulunamadı'}</div></div></div>`;
@@ -3843,6 +3843,9 @@ function renderKiosk(){
   document.documentElement.style.setProperty('--accent',S.accent);
   document.documentElement.style.setProperty('--accent-rgb',hexToRgb(S.accent));
   applyKioskBg();
+  // Önce YAYINDAKİ (published) görünümü baştan hesapla — bu, "otomatik/yayındaki"ye
+  // dönüşte önceki yerel seçimden kalan değerlerin ekranda takılı kalmasını engeller.
+  if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();
   // Bu cihaza özel yerel görünüm varsa (yayını etkilemeden), en son burada uygula
   applyLocalVocOverride();
   closeInlinePicker();
