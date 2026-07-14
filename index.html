@@ -3838,6 +3838,32 @@ function applyKioskBg(){
 }
 function renderSlideshow(){const c=$('k-bg-slideshow');c.innerHTML='';if(_slideshowTimer)clearInterval(_slideshowTimer);if(!S.bg.images||!S.bg.images.length)return;S.bg.images.forEach((img,i)=>{const s=document.createElement('div');s.className='k-bg-slide';s.style.backgroundImage=`url(${img})`;if(i===0)s.classList.add('on');c.appendChild(s);});_slideIdx=0;if(S.bg.images.length>1)_slideshowTimer=setInterval(()=>{const slides=c.querySelectorAll('.k-bg-slide');slides.forEach(s=>s.classList.remove('on'));_slideIdx=(_slideIdx+1)%slides.length;slides[_slideIdx].classList.add('on');},(S.bg.slideDur||8)*1000);}
 
+// Ekranda görünecek her şeyin hafif bir "özetini" çıkarır. Otomatik yenilemede
+// bunu karşılaştırarak, veri gerçekten değişmediyse tüm ekranı (ve PDF'leri)
+// sıfırdan yeniden çizmekten kaçınırız — böylece gereksiz titreme/sıçrama olmaz.
+function computeKioskSignature(){
+  try{
+    const sig={
+      canvas:(S.canvas&&S.canvas.layout)?S.canvas.layout.map(w=>`${w.id}:${w.x},${w.y},${w.w},${w.h},${w.bg},${w.opacity}`).join('|'):'',
+      brand:S.brand?(S.brand.name+'|'+S.brand.sub+'|'+(S.brand.logo||'').length):'',
+      bg:S.bg?(S.bg.type+'|'+S.bg.color+'|'+(S.bg.images||[]).length+'|'+(S.bg.video?1:0)):'',
+      viewMode:JSON.stringify(S.viewMode),
+      voc:S.voc?S.voc.score:'',
+      metrics:(S.metrics||[]).map(m=>m.name+':'+m.value).join(','),
+      anket:JSON.stringify(S.anket),
+      danismanlar:(S.danismanlar||[]).map(d=>d.name+':'+d.voc+':'+d.anket).join(','),
+      currentShowing:S.currentShowing,
+      vocRawCount:(S.vocRawData||[]).length,
+      calls48h:Object.keys((S.calls48h&&S.calls48h.data)||{}).map(d=>d+':'+(S.calls48h.data[d]||[]).length).join(','),
+      pdfs:(S.pdfs||[]).map(p=>p.title+'|'+(p.url||'')+'|'+((p.data||'').length)).join(','),
+      egitim:JSON.stringify(S.egitim),
+      ticker:((S.ticker&&S.ticker.items)||[]).join('|'),
+      LV:JSON.stringify(LV)
+    };
+    return JSON.stringify(sig);
+  }catch(e){return 'sig-error-'+Date.now();} // hata olursa güvenli taraf: her zaman "değişti" say
+}
+let _lastKioskSig=null;
 function renderKiosk(){
   document.documentElement.setAttribute('data-theme',S.theme);
   document.documentElement.style.setProperty('--accent',S.accent);
@@ -3894,8 +3920,13 @@ function renderKiosk(){
     try{
       await loadDesignFromCloud();
       await loadAllFromSheets();
-      renderKiosk();
-      console.log('[AutoRefresh] tamamlandı');
+      const newSig=computeKioskSignature();
+      if(newSig!==_lastKioskSig){
+        renderKiosk();
+        console.log('[AutoRefresh] değişiklik bulundu, ekran güncellendi');
+      }else{
+        console.log('[AutoRefresh] değişiklik yok — ekrana dokunulmadı (titreme/PDF yeniden çizim engellendi)');
+      }
     }catch(e){console.warn('[AutoRefresh] hata:',e);}
   },5*60*1000); // 5 dakika
   // Container query'ler için reflow tetikle
@@ -3904,6 +3935,9 @@ function renderKiosk(){
       el.style.display='none';el.offsetHeight;el.style.display='';
     });
   });
+  // Bu render'ı taban çizgisi olarak kaydet — otomatik yenileme bir sonraki
+  // seferde buna göre "gerçekten değişti mi?" diye bakacak.
+  _lastKioskSig=computeKioskSignature();
 }
 
 // PDF Tape
