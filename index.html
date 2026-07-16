@@ -402,6 +402,10 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .canvas-widget, .k-widget{container-type:inline-size}
 
 /* ============ MOBİL KİOSK GÖRÜNÜMÜ: alt alta, tam genişlik, doğal akış ============ */
+/* Mobilde #s-kiosk normalde overflow:hidden (masaüstü TV modu için gerekli) —
+   ama mobil-scroll sınıfı varken dikey kaymaya izin vermesi lazım, yoksa
+   ekranda ilk görünenden fazlası hiç ulaşılamaz kalır. */
+#s-kiosk.mobile-scroll{overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch}
 .k-canvas.mobile-mode{
   position:static!important;transform:none!important;left:auto!important;top:auto!important;
   width:100%!important;height:auto!important;min-height:100vh;
@@ -3918,6 +3922,8 @@ function renderKiosk(){
   const isMobile=isMobileViewport();
   _lastKioskMobileMode=isMobile;
   _renderMobileMode=isMobile;
+  const skioskEl=$('s-kiosk');
+  if(skioskEl)skioskEl.classList.toggle('mobile-scroll',isMobile);
   if(isMobile){
     // ================= MOBİL: alt alta, tam genişlik, doğal akış =================
     canvas.className='k-canvas mobile-mode';
