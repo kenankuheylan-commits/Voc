@@ -400,6 +400,37 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 
 /* Container queries */
 .canvas-widget, .k-widget{container-type:inline-size}
+
+/* ============ MOBİL KİOSK GÖRÜNÜMÜ: alt alta, tam genişlik, doğal akış ============ */
+.k-canvas.mobile-mode{
+  position:static!important;transform:none!important;left:auto!important;top:auto!important;
+  width:100%!important;height:auto!important;min-height:100vh;
+  display:flex;flex-direction:column;gap:14px;
+  padding:14px 12px 100px;box-sizing:border-box;
+}
+.k-canvas.mobile-mode .k-widget{
+  position:static!important;left:auto!important;top:auto!important;
+  width:100%!important;height:auto!important;min-height:110px;
+  flex-shrink:0;border-radius:14px!important;overflow:visible!important;
+}
+/* Sabit yüksekliğe/iç kaydırmaya güvenen alt bileşenleri doğal akışa çeviriyoruz */
+.k-canvas.mobile-mode .w-dan-list{overflow:visible!important;max-height:none!important;grid-template-columns:repeat(2,1fr)!important}
+.k-canvas.mobile-mode .w-rings{grid-template-columns:repeat(2,1fr)!important;height:auto!important}
+.k-canvas.mobile-mode .w-48h,.k-canvas.mobile-mode .w-dan,.k-canvas.mobile-mode .w-stats,.k-canvas.mobile-mode .w-trend,.k-canvas.mobile-mode .w-egitim{height:auto!important}
+.k-canvas.mobile-mode .w-48h-track,.k-canvas.mobile-mode .w-pdf-content{overflow:visible!important;position:static!important;min-height:0!important}
+.k-canvas.mobile-mode .w-48h-inner,.k-canvas.mobile-mode .w-pdf-inner{position:static!important;animation:none!important;transform:none!important}
+.k-canvas.mobile-mode .w-ticker-inner{animation:none!important;white-space:normal!important;flex-wrap:wrap!important;gap:8px}
+.k-canvas.mobile-mode .w-ticker-track{overflow:visible!important}
+.k-canvas.mobile-mode .w-stats-grid{grid-template-columns:1fr 1fr!important}
+.k-canvas.mobile-mode .w-logo{height:auto!important}
+/* Kontrol çubuğu: mobilde daha büyük dokunma alanı, ortalanmış */
+@media (max-width:820px){
+  .k-controls{right:8px;bottom:8px;gap:8px}
+  .k-ctrl-btn{padding:10px 14px;font-size:13px}
+  .k-pdf-modal{padding:16px}
+  .k-pdf-modal-title{font-size:15px}
+  #k-search-input{font-size:16px!important;padding:14px 16px!important}
+}
 /* TICKER WIDGET */
 .w-ticker{display:flex;align-items:center;gap:14px;padding:0 14px;height:100%;background:inherit}
 .w-ticker-badge{background:var(--accent);color:#000;font-size:clamp(10px,0.95cqw,13px);font-weight:800;letter-spacing:0.1em;padding:5px 13px;border-radius:7px;text-transform:uppercase;display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap}
@@ -2208,6 +2239,12 @@ async function restoreBigFromIdb(){
 // UTILITIES
 // =================================================================
 const $=id=>document.getElementById(id);
+// Kiosk ekranı mobil (telefon) genişliğinde mi? — alt alta/tam genişlik mod için kullanılır.
+function isMobileViewport(){return window.innerWidth<=820;}
+let _lastKioskMobileMode=null;
+// Widget içeriği render edilirken mobil (statik/kaydırmasız) mod mu kullanılıyor?
+// renderWidgetHtml() bu bayrağa göre marquee/ticker için gereken "içerik ikileme"yi atlar.
+let _renderMobileMode=false;
 function inits(n){return(n||'').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?';}
 function toast(msg,err=false){const el=$('toast');el.textContent=msg;el.className='toast'+(err?' err':'');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
 function hexToRgb(hex){const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return m?`${parseInt(m[1],16)},${parseInt(m[2],16)},${parseInt(m[3],16)}`:'6,8,15';}
@@ -3757,7 +3794,7 @@ function renderWidgetHtml(w,preview){
         const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
         return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
-      const inner=cards?(preview?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
+      const inner=cards?((preview||_renderMobileMode)?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
       const headAttrs48=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('48h')" title="Tıkla: tümünü aç ve gün seç"`;
       const badge48='';
       return `<div class="w-48h"><div class="w-48h-head"${headAttrs48}><div class="w-48h-ico">📞</div><div class="w-48h-title">48 Saat Aramaları</div>${badge48}<div class="w-48h-date">${pick.dateStr||''}</div></div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
@@ -3770,7 +3807,8 @@ function renderWidgetHtml(w,preview){
       const sep='<span style="color:rgba(255,255,255,0.3);margin:0 18px"> ◆ </span>';
       const html=items.map(t=>`<span style="color:var(--text);font-weight:600;font-size:clamp(12px,1.4cqw,16px);white-space:nowrap">${t}</span>`).join(sep);
       const dur=Math.round(65-(w.speed||30));
-      return `<div class="w-ticker"><div class="w-ticker-badge"><span class="w-ticker-dot"></span>CANLI</div><div class="w-ticker-track"><div class="w-ticker-inner" style="animation-duration:${dur}s">${html}${sep}${html}</div></div></div>`;
+      const tickerInner=_renderMobileMode?html:`${html}${sep}${html}`;
+      return `<div class="w-ticker"><div class="w-ticker-badge"><span class="w-ticker-dot"></span>CANLI</div><div class="w-ticker-track"><div class="w-ticker-inner" style="animation-duration:${dur}s">${tickerInner}</div></div></div>`;
     }
     case 'comments':{
       const count=w.commentCount||10;
@@ -3814,7 +3852,7 @@ function renderWidgetHtml(w,preview){
         const tarihKisa=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}):'';
         return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">${puanHtml}<span style="color:rgba(255,255,255,0.3)">·</span><span style="font-size:9px;opacity:0.6">${tarihKisa}</span></span></div><div class="w-48h-txt">${trimmed}</div></div>`;
       }).join('');
-      const inner=preview?cards:cards+cards;
+      const inner=(preview||_renderMobileMode)?cards:cards+cards;
       return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
@@ -3877,37 +3915,63 @@ function renderKiosk(){
   closeInlinePicker();
 
   const canvas=$('k-canvas');canvas.innerHTML='';
-  // Desktop: 1920x1080 scale modu
-  canvas.className='k-canvas';
-  canvas.style.width=CANVAS_REAL.w+'px';
-  canvas.style.height=CANVAS_REAL.h+'px';
-  canvas.style.position='absolute';
-  const vw=window.innerWidth,vh=window.innerHeight;
-  const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
-  canvas.style.transform=`scale(${kScale})`;
-  canvas.style.transformOrigin='top left';
-  canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
-  canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
-  const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
-  const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
-  (S.canvas.layout||[]).forEach(w=>{
-    const el=document.createElement('div');
-    el.className='k-widget';
-    el.dataset.id=w.id;
-    el.style.left=(w.x*cellW)+'px';
-    el.style.top=(w.y*cellH)+'px';
-    el.style.width=(w.w*cellW)+'px';
-    el.style.height=(w.h*cellH)+'px';
-    el.style.background=w.bg||'transparent';
-    el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
-    el.style.borderRadius='10px';
-    el.style.opacity=(w.opacity??100)/100;
-    el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
-    el.innerHTML=renderWidgetHtml(w,false);
-    canvas.appendChild(el);
-    if(w.type==='pdf')initPdfTape(w);
-    if(w.type==='calls48h')initCalls48hScroll(w);
-  });
+  const isMobile=isMobileViewport();
+  _lastKioskMobileMode=isMobile;
+  _renderMobileMode=isMobile;
+  if(isMobile){
+    // ================= MOBİL: alt alta, tam genişlik, doğal akış =================
+    canvas.className='k-canvas mobile-mode';
+    canvas.style.width='';canvas.style.height='';canvas.style.position='';
+    canvas.style.transform='';canvas.style.left='';canvas.style.top='';
+    // Tasarımdaki üstten-alta / soldan-sağa okuma sırasına göre diz
+    const sorted=[...(S.canvas.layout||[])].sort((a,b)=>(a.y-b.y)||(a.x-b.x));
+    sorted.forEach(w=>{
+      const el=document.createElement('div');
+      el.className='k-widget';
+      el.dataset.id=w.id;
+      el.style.background=w.bg||'transparent';
+      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+      el.style.borderRadius='14px';
+      el.style.opacity=(w.opacity??100)/100;
+      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+      el.innerHTML=renderWidgetHtml(w,false);
+      canvas.appendChild(el);
+      if(w.type==='pdf')initPdfTape(w);
+      // 48h/comments/ticker mobilde iç kaydırma animasyonu istemiyor — sayfa kendisi kayıyor zaten
+    });
+  }else{
+    // ================= MASAÜSTÜ: 1920x1080 sabit tasarım, ölçekle sığdır (değişmedi) =================
+    canvas.className='k-canvas';
+    canvas.style.width=CANVAS_REAL.w+'px';
+    canvas.style.height=CANVAS_REAL.h+'px';
+    canvas.style.position='absolute';
+    const vw=window.innerWidth,vh=window.innerHeight;
+    const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+    canvas.style.transform=`scale(${kScale})`;
+    canvas.style.transformOrigin='top left';
+    canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+    canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+    const cols=S.canvas.gridCols,rows=S.canvas.gridRows;
+    const cellW=CANVAS_REAL.w/cols,cellH=CANVAS_REAL.h/rows;
+    (S.canvas.layout||[]).forEach(w=>{
+      const el=document.createElement('div');
+      el.className='k-widget';
+      el.dataset.id=w.id;
+      el.style.left=(w.x*cellW)+'px';
+      el.style.top=(w.y*cellH)+'px';
+      el.style.width=(w.w*cellW)+'px';
+      el.style.height=(w.h*cellH)+'px';
+      el.style.background=w.bg||'transparent';
+      el.style.border=w.border?'1px solid rgba(255,255,255,0.12)':'none';
+      el.style.borderRadius='10px';
+      el.style.opacity=(w.opacity??100)/100;
+      el.style.backdropFilter=w.bg&&w.bg!=='transparent'?'blur(10px)':'';
+      el.innerHTML=renderWidgetHtml(w,false);
+      canvas.appendChild(el);
+      if(w.type==='pdf')initPdfTape(w);
+      if(w.type==='calls48h')initCalls48hScroll(w);
+    });
+  }
 
   // Saat update
   function tick(){document.querySelectorAll('.w-clock-time').forEach(el=>{const n=new Date();el.textContent=n.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});});document.querySelectorAll('.w-clock-date').forEach(el=>{const n=new Date();el.textContent=n.toLocaleDateString('tr-TR',{weekday:'long',day:'numeric',month:'long'});});}
@@ -4698,16 +4762,27 @@ let _kioskResizeHandler=null;
 window.addEventListener('resize',()=>{
   if($('s-admin').classList.contains('active')&&$('tab-designer').classList.contains('active'))renderDesignerCanvas();
   if($('s-kiosk').classList.contains('active')){
-    const canvas=$('k-canvas');
-    if(canvas){
-      const vw=window.innerWidth,vh=window.innerHeight;
-      const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
-      canvas.style.transform=`scale(${kScale})`;
-      canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
-      canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+    const nowMobile=isMobileViewport();
+    if(_lastKioskMobileMode!==null&&_lastKioskMobileMode!==nowMobile){
+      // Mobil ↔ masaüstü sınırı aşıldı — düzeni tamamen yeniden kur
+      renderKiosk();
+      return;
     }
+    if(!nowMobile){
+      // Aynı modda (masaüstü) kalındıysa sadece ölçeği güncelle — hafif işlem
+      const canvas=$('k-canvas');
+      if(canvas){
+        const vw=window.innerWidth,vh=window.innerHeight;
+        const kScale=Math.min(vw/CANVAS_REAL.w,vh/CANVAS_REAL.h);
+        canvas.style.transform=`scale(${kScale})`;
+        canvas.style.left=Math.max(0,(vw-CANVAS_REAL.w*kScale)/2)+'px';
+        canvas.style.top=Math.max(0,(vh-CANVAS_REAL.h*kScale)/2)+'px';
+      }
+    }
+    // Mobil moddaysak hiçbir şey yapmaya gerek yok — sayfa doğal akışla kendi kendine uyum sağlıyor
   }
 });
+
 
 </script>
 </body>
