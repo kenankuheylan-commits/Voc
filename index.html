@@ -3829,6 +3829,12 @@ function renderWidgetHtml(w,preview){
         withComments=rawData.filter(r=>r.tarih).sort((a,b)=>b.tarih-a.tarih).slice(0,count);
         commentsLabel='Son '+withComments.length;
       }
+      // Mobilde sayfa çok uzamasın diye burada sadece birkaç tanesini göster,
+      // gerisini "Tümünü Gör" ile tam ekran takvimli görünüme yönlendir.
+      const MOBILE_CAP=5;
+      const totalMatch=withComments.length;
+      if(_renderMobileMode&&withComments.length>MOBILE_CAP)withComments=withComments.slice(0,MOBILE_CAP);
+      const remaining=totalMatch-withComments.length;
       const headAttrsC=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('comments')" title="Tıkla: tümünü aç ve tarih seç"`;
       const badgeC='';
       const dateHtmlComments=`<div class="w-48h-date">${commentsLabel}</div>`;
@@ -3856,7 +3862,11 @@ function renderWidgetHtml(w,preview){
         const tarihKisa=r.tarih?r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}):'';
         return `<div class="w-48h-card" style="--mood-color:${moodColor};--mood-bg:${moodColor}22;cursor:pointer" onclick="openCommentModal(this)" data-comment='${musteriData}'><div class="w-48h-card-head"><span class="w-48h-who">${icon}${r.danisman}</span><span style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px">${puanHtml}<span style="color:rgba(255,255,255,0.3)">·</span><span style="font-size:9px;opacity:0.6">${tarihKisa}</span></span></div><div class="w-48h-txt">${trimmed}</div></div>`;
       }).join('');
-      const inner=(preview||_renderMobileMode)?cards:cards+cards;
+      if(_renderMobileMode){
+        const moreBtn=remaining>0?`<div class="wf-cal-reset" style="margin:8px auto 0;text-align:center" onclick="event.stopPropagation();openWidgetFullscreen('comments')">+ ${remaining} tane daha — Tümünü Gör</div>`:'';
+        return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track" style="display:flex;flex-direction:column;gap:8px">${cards}${moreBtn}</div></div>`;
+      }
+      const inner=preview?cards:cards+cards;
       return `<div class="w-48h"><div class="w-48h-head"${headAttrsC}><div class="w-48h-ico">💬</div><div class="w-48h-title">Müşteri Yorumları</div>${badgeC}${dateHtmlComments}</div><div class="w-48h-track"><div class="w-48h-inner" data-speed="${w.speed||30}">${inner}</div></div></div>`;
     }
     default: return `<div style="padding:8px;color:var(--muted);font-size:11px">${w.type}</div>`;
@@ -3930,7 +3940,8 @@ function renderKiosk(){
     canvas.style.width='';canvas.style.height='';canvas.style.position='';
     canvas.style.transform='';canvas.style.left='';canvas.style.top='';
     // Tasarımdaki üstten-alta / soldan-sağa okuma sırasına göre diz
-    const sorted=[...(S.canvas.layout||[])].sort((a,b)=>(a.y-b.y)||(a.x-b.x));
+    // Ticker (kayan yazı) mobilde hiç gösterilmiyor — anlamı yok, sayfa zaten kayıyor
+    const sorted=[...(S.canvas.layout||[])].filter(w=>w.type!=='ticker').sort((a,b)=>(a.y-b.y)||(a.x-b.x));
     sorted.forEach(w=>{
       const el=document.createElement('div');
       el.className='k-widget';
