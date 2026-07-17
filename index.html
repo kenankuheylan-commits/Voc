@@ -409,10 +409,10 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
    tek kaydırma alanı #s-kiosk olsun — böylece alttaki sabit buton çubuğu
    gerçekten sabit kalır, sayfayla birlikte kaymaz. */
 body.kiosk-mobile-lock{position:fixed!important;overflow:hidden!important;width:100%;height:100%;inset:0}
-#s-kiosk.mobile-scroll{position:fixed!important;inset:0;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch}
+#s-kiosk.mobile-scroll{position:fixed!important;inset:0;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch;flex-direction:column!important;align-items:stretch!important}
 .k-canvas.mobile-mode{
   position:static!important;transform:none!important;left:auto!important;top:auto!important;
-  width:100%!important;height:auto!important;min-height:100vh;
+  width:100%!important;height:auto!important;min-height:100vh;flex-shrink:0;
   display:flex;flex-direction:column;gap:14px;
   padding:14px 12px 20px;box-sizing:border-box;
 }
@@ -437,11 +437,13 @@ body.kiosk-mobile-lock{position:fixed!important;overflow:hidden!important;width:
    binmesi artık mümkün değil, kaydırma da asla kilitlenmiyor. */
 @media (max-width:820px){
   .k-controls{
-    position:static!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;
-    width:100%;gap:10px;padding:18px 12px calc(24px + env(safe-area-inset-bottom,0px));
-    background:rgba(255,255,255,0.03);border-top:1px solid rgba(255,255,255,0.1);
-    box-sizing:border-box;justify-content:center;margin-top:4px;order:9999;
-    display:flex!important;
+    position:sticky!important;left:auto!important;right:auto!important;bottom:0!important;top:auto!important;
+    width:100%;gap:10px;padding:14px 12px calc(14px + env(safe-area-inset-bottom,0px));
+    background:rgba(6,8,15,0.96);backdrop-filter:blur(14px);
+    border-top:1px solid rgba(255,255,255,0.12);
+    box-shadow:0 -6px 20px rgba(0,0,0,0.45);
+    box-sizing:border-box;justify-content:center;margin-top:14px;flex-shrink:0;
+    display:flex!important;z-index:50;
   }
   .k-ctrl-btn{flex:1;max-width:220px;padding:14px 10px;font-size:14px;text-align:center;opacity:0.95}
   #fs-btn{display:none!important}
