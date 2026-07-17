@@ -414,7 +414,7 @@ body.kiosk-mobile-lock{position:fixed!important;overflow:hidden!important;width:
   position:static!important;transform:none!important;left:auto!important;top:auto!important;
   width:100%!important;height:auto!important;min-height:100vh;
   display:flex;flex-direction:column;gap:14px;
-  padding:14px 12px 130px;box-sizing:border-box;
+  padding:14px 12px 160px;box-sizing:border-box;
 }
 .k-canvas.mobile-mode .k-widget{
   position:static!important;left:auto!important;top:auto!important;
@@ -3974,6 +3974,16 @@ function renderKiosk(){
       canvas.appendChild(el);
       if(w.type==='pdf')initPdfTape(w);
       // 48h/comments/ticker mobilde iç kaydırma animasyonu istemiyor — sayfa kendisi kayıyor zaten
+    });
+    // Alt buton çubuğunun GERÇEK yüksekliğini ölç ve buna göre alt boşluk bırak —
+    // sabit bir sayı yerine, çentikli telefon/güvenli alan farkları ne olursa olsun
+    // son widget (ör. Yorumlar) hiçbir zaman barın arkasında kalıp tıklanamaz olmasın.
+    requestAnimationFrame(()=>{
+      const bar=document.querySelector('.k-controls');
+      if(bar&&canvas.classList.contains('mobile-mode')){
+        const barH=bar.getBoundingClientRect().height;
+        canvas.style.paddingBottom=(barH+28)+'px';
+      }
     });
   }else{
     // ================= MASAÜSTÜ: 1920x1080 sabit tasarım, ölçekle sığdır (değişmedi) =================
