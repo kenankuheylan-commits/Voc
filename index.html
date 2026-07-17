@@ -414,7 +414,7 @@ body.kiosk-mobile-lock{position:fixed!important;overflow:hidden!important;width:
   position:static!important;transform:none!important;left:auto!important;top:auto!important;
   width:100%!important;height:auto!important;min-height:100vh;
   display:flex;flex-direction:column;gap:14px;
-  padding:14px 12px 160px;box-sizing:border-box;
+  padding:14px 12px 20px;box-sizing:border-box;
 }
 .k-canvas.mobile-mode .k-widget{
   position:static!important;left:auto!important;top:auto!important;
@@ -431,17 +431,19 @@ body.kiosk-mobile-lock{position:fixed!important;overflow:hidden!important;width:
 .k-canvas.mobile-mode .w-ticker-track{overflow:visible!important}
 .k-canvas.mobile-mode .w-stats-grid{grid-template-columns:1fr 1fr!important}
 .k-canvas.mobile-mode .w-logo{height:auto!important}
-/* Kontrol çubuğu: mobilde daha büyük dokunma alanı, ortalanmış */
+/* Kontrol çubuğu: mobilde ARTIK SABİT (fixed) DEĞİL — cihazdan cihaza değişen
+   güvenli alan/bar yüksekliği yüzünden hep taşma/örtüşme sorunu çıkarıyordu.
+   Normal akışa alıp sayfanın gerçek en altına koyduk: hiçbir widget'ın üstüne
+   binmesi artık mümkün değil, kaydırma da asla kilitlenmiyor. */
 @media (max-width:820px){
   .k-controls{
-    position:fixed!important;left:0!important;right:0!important;bottom:0!important;top:auto!important;
-    width:100%;gap:0;padding:10px 8px calc(10px + env(safe-area-inset-bottom,0px));
-    background:rgba(6,8,15,0.92);backdrop-filter:blur(14px);
-    border-top:1px solid rgba(255,255,255,0.1);
-    box-shadow:0 -4px 20px rgba(0,0,0,0.4);
-    z-index:2000;justify-content:center;
+    position:static!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;
+    width:100%;gap:10px;padding:18px 12px calc(24px + env(safe-area-inset-bottom,0px));
+    background:rgba(255,255,255,0.03);border-top:1px solid rgba(255,255,255,0.1);
+    box-sizing:border-box;justify-content:center;margin-top:4px;order:9999;
+    display:flex!important;
   }
-  .k-ctrl-btn{flex:1;max-width:220px;padding:12px 10px;font-size:13px;text-align:center;opacity:0.9;margin:0 4px}
+  .k-ctrl-btn{flex:1;max-width:220px;padding:14px 10px;font-size:14px;text-align:center;opacity:0.95}
   #fs-btn{display:none!important}
   .k-pdf-modal{padding:16px}
   .k-pdf-modal-title{font-size:15px}
@@ -3974,16 +3976,6 @@ function renderKiosk(){
       canvas.appendChild(el);
       if(w.type==='pdf')initPdfTape(w);
       // 48h/comments/ticker mobilde iç kaydırma animasyonu istemiyor — sayfa kendisi kayıyor zaten
-    });
-    // Alt buton çubuğunun GERÇEK yüksekliğini ölç ve buna göre alt boşluk bırak —
-    // sabit bir sayı yerine, çentikli telefon/güvenli alan farkları ne olursa olsun
-    // son widget (ör. Yorumlar) hiçbir zaman barın arkasında kalıp tıklanamaz olmasın.
-    requestAnimationFrame(()=>{
-      const bar=document.querySelector('.k-controls');
-      if(bar&&canvas.classList.contains('mobile-mode')){
-        const barH=bar.getBoundingClientRect().height;
-        canvas.style.paddingBottom=(barH+28)+'px';
-      }
     });
   }else{
     // ================= MASAÜSTÜ: 1920x1080 sabit tasarım, ölçekle sığdır (değişmedi) =================
