@@ -1027,6 +1027,52 @@ body.designer-fs .designer-fs-toolbar{display:flex}
 <div class="toast" id="toast"></div>
 
 <script>
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  ⚙️  YAPILANDIRMA — SİTEDEKİ TÜM ŞİFRE / TOKEN / ID'LER BURADA    ║
+// ║  Bir şeyi değiştirmen gerektiğinde SADECE bu bloğu düzenle.       ║
+// ║  Kodun geri kalanında bu isimler (SHEETS_VOC_ID vs.) kullanılıyor,║
+// ║  başka yerde tekrar tanımlı DEĞİLLER — güvenle burada değiştir.   ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ── Google Sheets kaynakları (herkese açık "xlsx olarak dışa aktar" ile okunur) ──
+const SHEETS_VOC_ID='1c4FleDG_nSfvpyehleqnmq8IwngEXpmD5UR1il5R_2M';       // Anket ("voc data") sheet ID'si
+const SHEETS_CALLS_ID='1UkeppL0Gy2R-uuqs6Bz6irE_1kBWZ6mz5LKFLJSApS8';     // 48 Saat Aramaları sheet ID'si (aynı zamanda Apps Script'in yazdığı sheet)
+
+// ── 48 Saat yanıt yazma (Google Apps Script Web App) ──
+// URL boşsa "Yanıtla" özelliği çalışmaz, kullanıcıya uyarı gösterir.
+// Apps Script kodundaki SECRET ile bu SECRET birebir aynı olmalı.
+const APPSCRIPT_48H_REPLY_URL='https://script.google.com/macros/s/AKfycbzm9ZGgJO8oaHw-vYbEWtkuM71wsr9j8WzV2-3ARMjAdnfBgEinSs5YaAQqbFY0U3-N5A/exec';
+const APPSCRIPT_48H_REPLY_SECRET='ernaz-48h-2026';
+
+// ── GitHub (tasarım/dizayn + fotoğraf + PDF yayınlama deposu) ──
+// Yazma için gereken kişisel token GİZLİ TUTULUYOR — kodda YOK, admin panelinden
+// (Ayarlar → GitHub Yayın Token'ı) girilip sadece o cihazın localStorage'ında saklanıyor.
+const GH_REPO='kenankuheylan-commits/Voc';
+const GH_BRANCH='main';
+
+// ── Firebase (kullanıcı girişi / yetkilendirme / aktivite logu) ──
+// Bunlar Firebase'in "public" istemci anahtarlarıdır (gizli değildir, tarayıcıda
+// açık şekilde durması normaldir) — gerçek güvenlik Firestore kurallarıyla sağlanır.
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyCyxUT9zDoPdy23Wxhhq-mOjpqJcllaoI8",
+  authDomain:"voc-kiosk.firebaseapp.com",
+  projectId:"voc-kiosk",
+  storageBucket:"voc-kiosk.firebasestorage.app",
+  messagingSenderId:"1025560137158",
+  appId:"1:1025560137158:web:9e32b968f20374bf0436c7"
+};
+
+// ── İlk/Baş Admin e-postası ──
+// Firestore'da kaydı olmayan biri bu e-postayla giriş yaparsa otomatik "admin" yapılır
+// (sistemin hiç kullanıcısı yokken ilk kurulumu yapabilmek için).
+const MASTER_ADMIN_EMAIL='kenankuheylan@gmail.com';
+
+// ── localStorage anahtarları (veri yapısı değişince sonuna versiyon eklenir) ──
+const STORAGE_KEY='kiosk_v28-20260427_vocdata';              // Ana tasarım/veri önbelleği
+const LOCAL_VIEW_KEY='ernaz_local_view_override_v1';         // Cihaza özel yerel görünüm (dönem/gün/tarih seçimi)
+
+// ══════════════════════════════════════════════════════════════════════
+
 // ── PRODUCTION: console.log'ları kapat (bellek + gizlilik) ──────────
 (function(){const noop=()=>{};const _c=window.console;window._devLog=_c.log.bind(_c);window.console={...console,log:noop,debug:noop,info:noop,warn:noop,error:noop,group:noop,groupEnd:noop,groupCollapsed:noop,table:noop};})();
 // ── GPU katman optimizasyonu: will-change aşırı bellek tüketir ──────
@@ -1116,8 +1162,6 @@ const DEF={
   _newAnketDelta:0,
 };
 
-const STORAGE_KEY='kiosk_v28-20260427_vocdata';
-
 // =================================================================
 // YEREL GÖRÜNÜM (LV) — sadece BU cihazda/tarayıcıda geçerli.
 // S'in bir parçası DEĞİLDİR: persist()/publish()/cloud senkronuna dahil olmaz,
@@ -1129,7 +1173,6 @@ const STORAGE_KEY='kiosk_v28-20260427_vocdata';
 // toISOString() KULLANMIYORUZ çünkü o UTC'ye çevirir ve Türkiye gibi +saat dilimlerinde
 // gece yarısı yerel tarihler bir gün geriye kayar (örn. 30 Haziran → 29 Haziran).
 function localISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-const LOCAL_VIEW_KEY='ernaz_local_view_override_v1';
 let LV={voc:{active:false,period:'',month:''},calls48h:{active:false,day:''},comments:{active:false,date:''}};
 function loadLocalView(){try{const raw=localStorage.getItem(LOCAL_VIEW_KEY);if(raw){const parsed=JSON.parse(raw);if(parsed.voc)LV.voc=Object.assign(LV.voc,parsed.voc);if(parsed.calls48h)LV.calls48h=Object.assign(LV.calls48h,parsed.calls48h);if(parsed.comments)LV.comments=Object.assign(LV.comments,parsed.comments);}}catch(e){}}
 function saveLocalView(){try{localStorage.setItem(LOCAL_VIEW_KEY,JSON.stringify(LV));}catch(e){}}
@@ -1281,11 +1324,12 @@ function renderWidgetFullscreen(type){
     const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'';
     const items=(day&&S.calls48h.data[day])?S.calls48h.data[day]:[];
     titleEl.textContent='📞 48 Saat Aramaları — '+(dateStr||'—')+(items.length?' ('+items.length+' kayıt)':'');
-    listEl.innerHTML=items.length?items.map(it=>{
+    listEl.innerHTML=items.length?items.map((it,i)=>{
       const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
       const moodLbl=it.mood==='kirmizi'?'NEGATİF YORUM':(it.mood==='yesil'?'POZİTİF YORUM':(it.mood==='turuncu'?'TAKİPTE':(it.moodLabel||'')));
       const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
-      return `<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22"><div class="wf-card-head"><span class="wf-who">${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}<span class="wf-mood" style="background:${it.moodColor}">${moodLbl}</span></div><div class="wf-txt">${it.aciklama||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="wf-meta">${it.musteri}</div>`:''}</div>`;
+      const yanitBadge=it.yanit?`<span style="background:${it.yanitDurum==='OLUMLU'?'#22c55e':(it.yanitDurum==='OLUMSUZ'?'#ef4444':'#888')};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px">✎ YANITLANDI</span>`:'';
+      return `<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}" data-sheetname="${it.sheetName||''}" data-rowindex="${it.rowIndex||''}" data-day="${day||''}" data-idx="${i}" data-yanit="${(it.yanit||'').replace(/"/g,'&quot;')}" data-yanitdurum="${it.yanitDurum||''}"><div class="wf-card-head"><span class="wf-who">${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}<span class="wf-mood" style="background:${it.moodColor}">${moodLbl}</span>${yanitBadge}</div><div class="wf-txt">${it.aciklama||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="wf-meta">${it.musteri}</div>`:''}</div>`;
     }).join(''):'<div style="color:rgba(255,255,255,0.4);font-size:13px;padding:40px;text-align:center;grid-column:1/-1">Bu günde kayıt yok</div>';
   }else{
     const rawData=(S.vocRawData||[]).filter(r=>r.tarih);
@@ -1365,9 +1409,9 @@ function renderSearchResults(query){
   const callMatches=[];
   if(S.calls48h&&S.calls48h.data){
     Object.keys(S.calls48h.data).forEach(day=>{
-      (S.calls48h.data[day]||[]).forEach(it=>{
+      (S.calls48h.data[day]||[]).forEach((it,i)=>{
         const hay=normTR([it.danisman,it.musteri,it.plaka,it.skfNo,it.aciklama].filter(Boolean).join(' '));
-        if(hay.includes(q))callMatches.push({...it,_gun:+day});
+        if(hay.includes(q))callMatches.push({...it,_gun:+day,_idx:i});
       });
     });
   }
@@ -1385,8 +1429,9 @@ function renderSearchResults(query){
     const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
     const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
     const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
-    html+=`<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}">
-      <div class="wf-card-head"><span class="wf-who">📞 ${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}</div>
+    const yanitBadge=it.yanit?`<span style="background:${it.yanitDurum==='OLUMLU'?'#22c55e':(it.yanitDurum==='OLUMSUZ'?'#ef4444':'#888')};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px">✎ YANITLANDI</span>`:'';
+    html+=`<div class="wf-card" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}" data-sheetname="${it.sheetName||''}" data-rowindex="${it.rowIndex||''}" data-day="${it._gun||''}" data-idx="${it._idx!==undefined?it._idx:''}" data-yanit="${(it.yanit||'').replace(/"/g,'&quot;')}" data-yanitdurum="${it.yanitDurum||''}">
+      <div class="wf-card-head"><span class="wf-who">📞 ${moodIcon} ${it.danisman||'—'}</span>${plakaHtml}${yanitBadge}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px">${it.musteri||''}${it.musteri?' · ':''}${gunStr}</div>
       <div class="wf-txt">${smartTrim(it.aciklama||'',140)||'<i>(yorum yok)</i>'}</div>
     </div>`;
@@ -1417,8 +1462,36 @@ function renderSearchResults(query){
 // =================================================================
 // GOOGLE SHEETS DATA SOURCE (sadece okuma)
 // =================================================================
-const SHEETS_VOC_ID='1c4FleDG_nSfvpyehleqnmq8IwngEXpmD5UR1il5R_2M';
-const SHEETS_CALLS_ID='1UkeppL0Gy2R-uuqs6Bz6irE_1kBWZ6mz5LKFLJSApS8';
+
+// 48 SAAT — PERSONEL YANITI GERİ YAZMA (Google Apps Script Web App üzerinden)
+async function save48hReply(sheetName,rowIndex,yanit,yanitDurum,day,idx){
+  if(!APPSCRIPT_48H_REPLY_URL){
+    toast('Önce Apps Script bağlantısı kurulmalı (kod içinde APPSCRIPT_48H_REPLY_URL boş)',true);
+    return false;
+  }
+  try{
+    const res=await fetch(APPSCRIPT_48H_REPLY_URL,{
+      method:'POST',
+      // text/plain: tarayıcının CORS ön-kontrolü (preflight) göndermesini engeller,
+      // Apps Script gövdeyi yine JSON olarak okuyup ayrıştırır.
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({secret:APPSCRIPT_48H_REPLY_SECRET,sheetName,rowIndex,yanit,yanitDurum})
+    });
+    const j=await res.json();
+    if(!j.ok)throw new Error(j.error||'bilinmeyen hata');
+    // Yerel veriyi de güncelle — ekranda anında görünsün, sonraki yenilemeyi beklemeye gerek kalmasın
+    if(day&&idx!==''&&S.calls48h&&S.calls48h.data&&S.calls48h.data[day]&&S.calls48h.data[day][idx]){
+      S.calls48h.data[day][idx].yanit=yanit;
+      S.calls48h.data[day][idx].yanitDurum=yanitDurum;
+    }
+    toast('✓ Yanıt sheete kaydedildi');
+    return true;
+  }catch(err){
+    console.error('48h yanıt kaydetme hatası:',err);
+    toast('Kaydetme hatası: '+err.message,true);
+    return false;
+  }
+}
 
 // Tüm sayfa isimlerini al (workbook metadata)
 async function gsListSheets(spreadsheetId){
@@ -1873,6 +1946,9 @@ async function loadCallsFromSheets(){
         aciklama,
         mood:mood.key,moodLabel:mood.label,moodColor:mood.color,
         sheetName:item.sn,
+        rowIndex:r+1, // sheetteki gerçek satır no (1-bazlı, header=1. satır)
+        yanit:String(row[10]||'').trim(),       // K sütunu — personel yanıtı
+        yanitDurum:String(row[11]||'').trim(),  // L sütunu — olumlu/olumsuz kodu
         show:false
       });
     }
@@ -1909,8 +1985,6 @@ async function ghLoad(){return null;}
 // =================================================================
 // GITHUB UPLOAD (tasarım + fotoğraflar + PDF için)
 // =================================================================
-const GH_REPO='kenankuheylan-commits/Voc';
-const GH_BRANCH='main';
 function _ghKey(){
   // Token HTML'e gömülü değil - localStorage'dan okunur
   // Admin panelinden 'GitHub Token' alanından girilmiş olmalı
@@ -2321,14 +2395,6 @@ async function persistBigToIdb(){
 // =================================================================
 // FIREBASE AUTH + FIRESTORE USER MANAGEMENT
 // =================================================================
-const FIREBASE_CONFIG={
-  apiKey:"AIzaSyCyxUT9zDoPdy23Wxhhq-mOjpqJcllaoI8",
-  authDomain:"voc-kiosk.firebaseapp.com",
-  projectId:"voc-kiosk",
-  storageBucket:"voc-kiosk.firebasestorage.app",
-  messagingSenderId:"1025560137158",
-  appId:"1:1025560137158:web:9e32b968f20374bf0436c7"
-};
 const fbApp=firebase.initializeApp(FIREBASE_CONFIG);
 const fbAuth=firebase.auth();
 const fbDb=firebase.firestore();
@@ -2481,7 +2547,7 @@ async function loadUserRole(user){
       _currentRole=doc.data().role||'pending';
     }else{
       // Firestore'da yok — ilk admin ise otomatik admin yap
-      const isFirstAdmin=user.email.toLowerCase()==='kenankuheylan@gmail.com';
+      const isFirstAdmin=user.email.toLowerCase()===MASTER_ADMIN_EMAIL;
       _currentRole=isFirstAdmin?'admin':'pending';
       await fbDb.collection('users').doc(user.uid).set({
         email:user.email,
@@ -2493,7 +2559,7 @@ async function loadUserRole(user){
   }catch(err){
     console.warn('Rol okunamadı:',err);
     // Firestore rules henüz açık değilse fallback
-    _currentRole=user.email.toLowerCase()==='kenankuheylan@gmail.com'?'admin':'pending';
+    _currentRole=user.email.toLowerCase()===MASTER_ADMIN_EMAIL?'admin':'pending';
   }
   applyUserRole();
 }
@@ -3190,13 +3256,13 @@ function pick48hForDisplay(){
   const allItems=data[day];
   // Manuel seçim varsa SADECE işaretli olanlar gösterilir
   const manualPicks=allItems.filter(x=>x.show);
-  if(manualPicks.length){return{items:manualPicks,dateStr:dateStr+' — Manuel'};}
+  if(manualPicks.length){return{items:manualPicks,dateStr:dateStr+' — Manuel',day};}
   // İşaretli yoksa OTOMATIK seçim: her danışman için 1 kırmızı + 1 yeşil
   const byDan={};
   allItems.forEach(it=>{const d=it.danisman||'?';if(!byDan[d])byDan[d]={kirmizi:null,yesil:null,turuncu:null};if(it.mood==='kirmizi'&&!byDan[d].kirmizi)byDan[d].kirmizi=it;if(it.mood==='yesil'&&!byDan[d].yesil)byDan[d].yesil=it;if(it.mood==='turuncu'&&!byDan[d].turuncu)byDan[d].turuncu=it;});
   const picks=[];
   Object.keys(byDan).forEach(d=>{if(byDan[d].kirmizi)picks.push(byDan[d].kirmizi);if(byDan[d].yesil)picks.push(byDan[d].yesil);if(!byDan[d].kirmizi&&!byDan[d].yesil&&byDan[d].turuncu)picks.push(byDan[d].turuncu);});
-  return{items:picks,dateStr:dateStr};
+  return{items:picks,dateStr:dateStr,day};
 }
 
 // =================================================================
@@ -3813,7 +3879,9 @@ function renderWidgetHtml(w,preview){
         const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
         const moodBadgeLabel=it.mood==='kirmizi'?'NEGATİF YORUM':(it.mood==='yesil'?'POZİTİF YORUM':(it.mood==='turuncu'?'TAKİPTE':it.moodLabel));
         const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
-        return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span></div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
+        const yanitBadge=it.yanit?`<span style="background:${it.yanitDurum==='OLUMLU'?'#22c55e':(it.yanitDurum==='OLUMSUZ'?'#ef4444':'#888')};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:4px">✎</span>`:'';
+        const realIdx=(pick.day&&S.calls48h.data[pick.day])?S.calls48h.data[pick.day].indexOf(it):'';
+        return `<div class="w-48h-card" data-mood="${it.mood}" style="--mood-color:${it.moodColor};--mood-bg:${it.moodColor}22;cursor:pointer" onclick="open48hModal(this)" data-full-aciklama="${(it.aciklama||'').replace(/"/g,'&quot;')}" data-danisman="${(it.danisman||'').replace(/"/g,'&quot;')}" data-musteri="${(it.musteri||'').replace(/"/g,'&quot;')}" data-plaka="${(it.plaka||'').replace(/"/g,'&quot;')}" data-is="${(it.is||'').replace(/"/g,'&quot;')}" data-skf="${(it.skfNo||'').replace(/"/g,'&quot;')}" data-mood-label="${it.moodLabel||''}" data-mood-color="${it.moodColor}" data-sheetname="${it.sheetName||''}" data-rowindex="${it.rowIndex||''}" data-day="${pick.day||''}" data-idx="${realIdx}" data-yanit="${(it.yanit||'').replace(/"/g,'&quot;')}" data-yanitdurum="${it.yanitDurum||''}"><div class="w-48h-card-head"><span class="w-48h-mood-icon" style="color:${it.moodColor}">${moodIcon}</span><span class="w-48h-who">${it.danisman||'—'}</span>${plakaHtml}<span class="w-48h-mood" style="background:${it.moodColor}">${moodBadgeLabel}</span>${yanitBadge}</div><div class="w-48h-txt">${trimmed||'<i>(yorum yok)</i>'}</div>${it.musteri?`<div class="w-48h-meta">${it.musteri}</div>`:''}</div>`;
       }).join(''):'';
       const inner=cards?((preview||_renderMobileMode)?cards:cards+cards):'<div style="padding:20px;text-align:center;color:var(--muted);font-size:11px">Veri yok</div>';
       const headAttrs48=preview?'':` style="cursor:pointer" onclick="openWidgetFullscreen('48h')" title="Tıkla: tümünü aç ve gün seç"`;
@@ -4126,6 +4194,12 @@ function open48hModal(cardEl){
   const aciklama=cardEl.dataset.fullAciklama||'(yorum yok)';
   const moodLabel=cardEl.dataset.moodLabel||'';
   const moodColor=cardEl.dataset.moodColor||'var(--accent)';
+  const sheetName=cardEl.dataset.sheetname||'';
+  const rowIndex=cardEl.dataset.rowindex||'';
+  const day=cardEl.dataset.day||'';
+  const idx=cardEl.dataset.idx||'';
+  const yanit=cardEl.dataset.yanit||'';
+  const yanitDurum=cardEl.dataset.yanitdurum||'';
   $('k-48h-modal-title').textContent=`${danisman} — ${moodLabel}`;
   content.innerHTML=`
     <div style="background:rgba(255,255,255,0.05);border:2px solid ${moodColor};border-radius:16px;padding:28px 32px;color:#fff;max-width:800px;width:100%">
@@ -4139,12 +4213,73 @@ function open48hModal(cardEl){
         <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Plaka</div><div style="font-size:16px;font-weight:700;font-family:monospace">${plaka}</div></div>
         <div><div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Yapılan İş</div><div style="font-size:16px;font-weight:700">${is_}</div></div>
       </div>
-      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:20px">
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:20px;margin-bottom:20px">
         <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Açıklama / Yorum</div>
-        <div style="font-size:15px;line-height:1.7;color:rgba(255,255,255,0.9);white-space:pre-wrap;max-height:60vh;overflow-y:auto">${aciklama}</div>
+        <div style="font-size:15px;line-height:1.7;color:rgba(255,255,255,0.9);white-space:pre-wrap;max-height:40vh;overflow-y:auto">${aciklama}</div>
       </div>
+      <div id="k-48h-reply-zone" style="border-top:1px solid rgba(255,255,255,0.1);padding-top:20px" data-sheetname="${sheetName}" data-rowindex="${rowIndex}" data-day="${day}" data-idx="${idx}"></div>
     </div>`;
+  render48hReplyZone(yanit,yanitDurum);
   modal.classList.add('open');
+}
+// Yanıtla bölümü: mevcut yanıt varsa gösterir, yoksa/düzenle dendiğinde form açar.
+function render48hReplyZone(yanit,yanitDurum){
+  const zone=$('k-48h-reply-zone');
+  if(!zone)return;
+  const durumColor=yanitDurum==='OLUMLU'?'#22c55e':(yanitDurum==='OLUMSUZ'?'#ef4444':'#888');
+  if(yanit&&!zone.dataset.editing){
+    zone.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em">Personel Yanıtı${yanitDurum?` <span style="color:${durumColor};font-weight:800">· ${yanitDurum}</span>`:''}</div>
+        <button class="btn btn-ghost btn-xs" onclick="show48hReplyForm(this,'${(yanit||'').replace(/'/g,"\\'")}','${yanitDurum||''}')">✎ Düzenle</button>
+      </div>
+      <div style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;white-space:pre-wrap">${yanit}</div>`;
+  }else{
+    show48hReplyForm(null,yanit,yanitDurum);
+  }
+}
+function show48hReplyForm(btnEl,currentYanit,currentDurum){
+  const zone=$('k-48h-reply-zone');
+  if(!zone)return;
+  zone.dataset.editing='1';
+  zone.innerHTML=`
+    <div style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Yanıtla</div>
+    <textarea id="k-48h-reply-text" rows="3" placeholder="Buraya yanıtını yaz..." style="width:100%;background:#12182a;color:#fff;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;resize:vertical">${currentYanit||''}</textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button type="button" class="btn btn-sm" id="k-48h-reply-pos" onclick="setReplyDurum('OLUMLU')" style="flex:1;background:${currentDurum==='OLUMLU'?'#22c55e':'rgba(34,197,94,0.12)'};color:${currentDurum==='OLUMLU'?'#000':'#22c55e'};font-weight:700;border:1px solid #22c55e">👍 Olumlu</button>
+      <button type="button" class="btn btn-sm" id="k-48h-reply-neg" onclick="setReplyDurum('OLUMSUZ')" style="flex:1;background:${currentDurum==='OLUMSUZ'?'#ef4444':'rgba(239,68,68,0.12)'};color:${currentDurum==='OLUMSUZ'?'#000':'#ef4444'};font-weight:700;border:1px solid #ef4444">👎 Olumsuz</button>
+    </div>
+    <input type="hidden" id="k-48h-reply-durum" value="${currentDurum||''}">
+    <button class="btn btn-accent btn-sm" style="width:100%;margin-top:12px" onclick="submit48hReply()">💾 Kaydet</button>
+    <div id="k-48h-reply-status" style="font-size:12px;margin-top:8px;text-align:center"></div>`;
+}
+function setReplyDurum(v){
+  const inp=$('k-48h-reply-durum');if(!inp)return;
+  inp.value=(inp.value===v)?'':v; // aynısına tekrar basarsa seçimi kaldır
+  const pos=$('k-48h-reply-pos'),neg=$('k-48h-reply-neg');
+  if(pos)pos.style.background=inp.value==='OLUMLU'?'#22c55e':'rgba(34,197,94,0.12)';
+  if(pos)pos.style.color=inp.value==='OLUMLU'?'#000':'#22c55e';
+  if(neg)neg.style.background=inp.value==='OLUMSUZ'?'#ef4444':'rgba(239,68,68,0.12)';
+  if(neg)neg.style.color=inp.value==='OLUMSUZ'?'#000':'#ef4444';
+}
+async function submit48hReply(){
+  const zone=$('k-48h-reply-zone');
+  const statusEl=$('k-48h-reply-status');
+  const txt=($('k-48h-reply-text')?.value||'').trim();
+  const durum=$('k-48h-reply-durum')?.value||'';
+  if(!txt){if(statusEl)statusEl.innerHTML='<span style="color:#ef4444">Önce bir yanıt yaz</span>';return;}
+  const sheetName=zone.dataset.sheetname,rowIndex=zone.dataset.rowindex,day=zone.dataset.day,idx=zone.dataset.idx;
+  if(!sheetName||!rowIndex){if(statusEl)statusEl.innerHTML='<span style="color:#ef4444">Bu kayıt için sayfa/satır bilgisi bulunamadı</span>';return;}
+  if(statusEl)statusEl.innerHTML='<span style="color:var(--muted)">⏳ Kaydediliyor...</span>';
+  const ok=await save48hReply(sheetName,+rowIndex,txt,durum,day,idx);
+  if(ok){
+    delete zone.dataset.editing;
+    render48hReplyZone(txt,durum);
+    // Ambient/takvim kartlarında da görünsün diye ekranı yenile
+    if(document.getElementById('s-kiosk')?.classList.contains('active'))renderKiosk();
+  }else if(statusEl){
+    statusEl.innerHTML='<span style="color:#ef4444">Kaydedilemedi, tekrar dene</span>';
+  }
 }
 function close48hModal(){$('k-48h-modal').classList.remove('open');}
 
