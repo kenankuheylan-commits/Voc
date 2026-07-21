@@ -3323,9 +3323,29 @@ function dropBgVideo(e){e.preventDefault();e.currentTarget.classList.remove('dra
 function clearBgVideo(){S.bg.video='';idbDel('bg_video');$('bg-video-status').style.display='none';toast('Kaldırıldı');}
 function renderBgOptions(){setBgType(S.bg.type||'solid');$('kiosk-bg-pick').value=S.bg.color;$('kiosk-bg-hex').textContent=S.bg.color;$('bg-opacity-range').value=S.bg.opacity;$('bg-opacity-lbl').textContent=S.bg.opacity;$('bg-slide-dur-range').value=S.bg.slideDur;$('bg-slide-dur-lbl').textContent=S.bg.slideDur;renderBgImageList();if(S.bg.video){$('bg-video-status').style.display='block';$('bg-video-status').innerHTML=`<div style="padding:10px;background:rgba(78,205,196,0.1);border-radius:8px;color:#4ecdc4;font-size:12px">✓ Video yüklü</div>`;}}
 
-function renderDan(){const tb=$('dan-tbody');tb.innerHTML='';S.danismanlar.forEach((d,i)=>{const tr=document.createElement('tr');const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:${d.color}">${inits(d.name)}</span>`;const sc=d.scores||[0,0,0,0,0];tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('avf${i}').click()">${av}</div><input type="file" id="avf${i}" accept="image/*" style="display:none" onchange="loadAv(this,${i})"></td><td><input class="f-input" type="text" value="${d.name}" onchange="S.danismanlar[${i}].name=this.value"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="S.danismanlar[${i}].voc=+this.value"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="S.danismanlar[${i}].scores[${j}]=+this.value"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="S.danismanlar[${i}].anket=+this.value"></td><td><input type="color" value="${d.color}" onchange="S.danismanlar[${i}].color=this.value"></td><td><button class="btn btn-red btn-xs" onclick="S.danismanlar.splice(${i},1);renderDan()">✕</button></td>`;tb.appendChild(tr);});}
-function loadAv(inp,i){
+// NOT: S.danismanlar her veri yenilemesinde VOC skoruna göre YENİDEN SIRALANIYOR
+// (bkz. applyViewModeFor). Bu yüzden admin tablosundaki satırları INDEX ile değil
+// İSİM ile eşleştiriyoruz — yoksa "fotoğrafı değiştirdim ama başka danışmana gitti"
+// gibi hatalar oluşur (sıra değişince eski index başka kişiyi gösterebilir).
+function findDanIdx(name){return S.danismanlar.findIndex(d=>d.name===name);}
+function danField(name,field,value){const idx=findDanIdx(name);if(idx<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}S.danismanlar[idx][field]=value;}
+function danScoreField(name,j,value){const idx=findDanIdx(name);if(idx<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}if(!S.danismanlar[idx].scores)S.danismanlar[idx].scores=[0,0,0,0,0];S.danismanlar[idx].scores[j]=value;}
+function delDan(name){const idx=findDanIdx(name);if(idx<0)return;S.danismanlar.splice(idx,1);renderDan();}
+function renderDan(){
+  const tb=$('dan-tbody');tb.innerHTML='';
+  S.danismanlar.forEach(d=>{
+    const safeName=d.name.replace(/'/g,"\\'");
+    const inputId='avf_'+d.name.replace(/[^a-zA-Z0-9]/g,'_');
+    const tr=document.createElement('tr');
+    const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:${d.color}">${inits(d.name)}</span>`;
+    const sc=d.scores||[0,0,0,0,0];
+    tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('${inputId}').click()">${av}</div><input type="file" id="${inputId}" accept="image/*" style="display:none" onchange="loadAv(this,'${safeName}')"></td><td><input class="f-input" type="text" value="${d.name}" onchange="danField('${safeName}','name',this.value)"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="danField('${safeName}','voc',+this.value)"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="danScoreField('${safeName}',${j},+this.value)"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="danField('${safeName}','anket',+this.value)"></td><td><input type="color" value="${d.color}" onchange="danField('${safeName}','color',this.value)"></td><td><button class="btn btn-red btn-xs" onclick="delDan('${safeName}')">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+function loadAv(inp,name){
   const f=inp.files[0];if(!f)return;
+  if(findDanIdx(name)<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}
   const r=new FileReader();
   r.onload=async e=>{
     const dataUrl=e.target.result;
@@ -3336,20 +3356,24 @@ function loadAv(inp,i){
         let img=dataUrl;
         if(img.length>500000)img=await compressImage(img,300,0.82);
         const b64=dataUrlToBase64(img);
-        const path='assets/danisman_'+i+'.jpg';
-        await ghPutFile(path,b64,'Update danisman '+i);
+        const idx=findDanIdx(name); // yükleme sırasında liste yeniden sıralanmış olabilir — tekrar bul
+        if(idx<0){toast('Danışman artık listede yok',true);return;}
+        const path='assets/danisman_'+idx+'.jpg';
+        await ghPutFile(path,b64,'Update danisman '+name);
         const rawBase='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/';
-        S.danismanlar[i].photo=rawBase+path+'?t='+Date.now();
-        S.danismanlar[i].photoPath=path;
+        S.danismanlar[idx].photo=rawBase+path+'?t='+Date.now();
+        S.danismanlar[idx].photoPath=path;
         toast('✓ Fotoğraf yüklendi');
       }catch(err){
         // GitHub başarısız — geçici olarak base64 kullan
-        S.danismanlar[i].photo=dataUrl;
+        const idx=findDanIdx(name);
+        if(idx>=0)S.danismanlar[idx].photo=dataUrl;
         toast('GitHub yükleme başarısız, geçici kaydedildi',true);
       }
     }else{
       // Token yok — base64 olarak sakla (yayına alırken yüklenir)
-      S.danismanlar[i].photo=dataUrl;
+      const idx=findDanIdx(name);
+      if(idx>=0)S.danismanlar[idx].photo=dataUrl;
     }
     renderDan();
   };
@@ -3374,8 +3398,16 @@ function addPdf(){S.pdfs.push({title:'Yeni',url:'',data:''});renderPdfs();}
 function loadPdfFile(inp,i){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{const row=document.querySelectorAll('.pdf-admin-row')[i];if(row){row.dataset.pdfdata=e.target.result;const dz=row.querySelector('.pdf-drop-zone');dz.textContent='✓ Yüklendi (kalıcı)';dz.classList.add('has-file');if(!row.querySelector('.pdf-t').value||row.querySelector('.pdf-t').value==='Yeni')row.querySelector('.pdf-t').value=f.name.replace('.pdf','');}try{await idbSet('pdf_'+i,e.target.result);if(S.pdfs[i])S.pdfs[i].data=e.target.result;toast('PDF kalıcı kaydedildi ✓');}catch(err){toast('IDB hata',true);}};r.readAsDataURL(f);}
 function dropPdf(e,i){e.preventDefault();e.currentTarget.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')loadPdfFile({files:[f]},i);}
 
-function renderTicker(){const c=$('ticker-list');c.innerHTML='';S.ticker.items.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text" value="${t}"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;c.appendChild(d);});}
-function addTickerRow(){const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove()">✕</button>`;$('ticker-list').appendChild(d);}
+function renderTicker(){const c=$('ticker-list');c.innerHTML='';S.ticker.items.forEach(t=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text" value="${t}" oninput="markTickerManual()"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove();markTickerManual()">✕</button>`;c.appendChild(d);});}
+function addTickerRow(){const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px';d.innerHTML=`<input class="f-input ticker-inp" type="text" oninput="markTickerManual()"><button class="btn btn-red btn-xs" onclick="this.closest('div').remove();markTickerManual()">✕</button>`;$('ticker-list').appendChild(d);}
+// Kullanıcı ticker kutularından birine GERÇEKTEN yazı yazdığı/sildiği ANDA çağrılır —
+// böylece "manuel" işaretleme, collectAdmin()'in DOM'da kalıntı bulup yanlışlıkla
+// tetiklemesine değil, gerçek kullanıcı eylemine bağlı olur.
+function markTickerManual(){
+  const ti=[];document.querySelectorAll('.ticker-inp').forEach(i=>{if(i.value.trim())ti.push(i.value.trim());});
+  S.ticker.items=ti;
+  S.ticker._manual=true;
+}
 function resetTickerAuto(){S.ticker._manual=false;if(S.excelData)applyViewMode();renderTicker();toast('Ticker otomatik moda döndü');}
 
 function setAccent(c,el){S.accent=c;document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-rgb',hexToRgb(c));document.querySelectorAll('#accent-presets .cp').forEach(p=>p.classList.remove('sel'));if(el)el.classList.add('sel');$('accent-pick').value=c;$('accent-hex').textContent=c;}
@@ -3420,7 +3452,10 @@ function collectAdmin(){
   collectEgitim();
   const metInps=document.querySelectorAll('.metric-label-inp');
   if(metInps.length===5){const arr=[];metInps.forEach((el,i)=>arr.push(el.value.trim()||XL.metricNames[i]));S.metricLabels=arr;}
-  const ti=[];document.querySelectorAll('.ticker-inp').forEach(i=>{if(i.value.trim())ti.push(i.value.trim());});if(ti.length){S.ticker.items=ti;S.ticker._manual=true;}
+  // NOT: Ticker'ın "manuel mi otomatik mi" durumu artık markTickerManual() ile
+  // GERÇEK ZAMANLI (kullanıcı gerçekten yazdığı anda) yönetiliyor — burada ayrıca
+  // toplamaya gerek yok, aksi halde DOM'da kalıntı kutular yüzünden ticker
+  // yanlışlıkla sonsuza dek manuel moda kilitlenebiliyordu (yaşanan hata buydu).
   if($('ticker-speed'))S.ticker.speed=+$('ticker-speed').value||25;
 }
 
