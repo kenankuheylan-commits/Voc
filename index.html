@@ -241,7 +241,7 @@ body.designer-fs .designer-canvas-scaler{padding:2px;min-height:0}
 .w-dan-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;border:2px solid var(--dan-color);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:700;overflow:hidden;background:var(--bg3);color:var(--dan-color)}
 .w-dan-av img{width:100%;height:100%;object-fit:cover}
 .w-dan-info{flex:1;min-width:0}
-.w-dan-name{font-size:clamp(10px,1.1cqw,14px);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-dan-name{font-size:clamp(10px,1.1cqw,14px);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dan-color)}
 .w-dan-score{font-size:clamp(9px,.9cqw,12px);color:var(--muted);margin-top:2px}
 .w-dan-score strong{color:var(--dan-color);font-weight:700}
 .w-dan-bar-bg{height:3px;background:var(--bg3);border-radius:2px;margin-top:4px;overflow:hidden}
@@ -721,7 +721,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
         <div class="sec-title">Danışmanlar</div>
         <div class="card" style="overflow-x:auto;padding:0">
           <table class="tbl">
-            <thead><tr><th>Foto</th><th>Ad</th><th>VOC</th><th>Genel</th><th>Deney</th><th>Değer</th><th>Kalite</th><th>Para</th><th>Anket</th><th>Renk</th><th></th></tr></thead>
+            <thead><tr><th>Foto</th><th>Ad</th><th>VOC</th><th>Genel</th><th>Deney</th><th>Değer</th><th>Kalite</th><th>Para</th><th>Anket</th><th></th></tr></thead>
             <tbody id="dan-tbody"></tbody>
           </table>
         </div>
@@ -1141,6 +1141,12 @@ const DEF={
     {name:'SERHAT TUNCA',voc:100,scores:[100,100,100,100,100],anket:11,color:'#f9c80e',photo:''},
     {name:'BARIŞ IŞIKCI',voc:100,scores:[100,100,100,100,100],anket:0,color:'#ff6b35',photo:''},
   ],
+  // KARARLI danışman kadrosu — isim/foto/renk burada tutulur ve HİÇBİR ZAMAN
+  // dönem/ay verisi yenilendiğinde (applyViewModeFor) üzerine yazılmaz. S.danismanlar
+  // ise her yenilemede VOC'a göre yeniden hesaplanan/sıralanan GEÇİCİ bir görünümdür;
+  // foto/renk her zaman buradan (roster'dan) taze olarak birleştirilir. null ise ilk
+  // açılışta S.danismanlar'dan otomatik oluşturulur (eski kullanıcılar için göç/migration).
+  danismanRoster:null,
   pdfs:[],
   pdfScrollDur:25,pdfPageLimit:3,
   calls48h:{data:{},selectedDay:'auto',selectedMonth:new Date().getMonth()+1,selectedYear:new Date().getFullYear(),manualMode:false,scrollSpeed:35},
@@ -1724,7 +1730,7 @@ function parseVocDataSheet(rows){
       let ci=0;
       for(const [name,dRows] of Object.entries(danGroups)){
         const dc=calcVocScores(dRows,w);
-        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
         danismanlar.push({
           name,
           voc:dc.vocEndeks,
@@ -1755,7 +1761,7 @@ function parseVocDataSheet(rows){
         let mci=0;
         for(const [name,mdRows] of Object.entries(mDanGroups)){
           const mdc=calcVocScores(mdRows,w);
-          const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+          const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
           mDan.push({
             name,voc:mdc.vocEndeks,
             scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],
@@ -2110,18 +2116,18 @@ async function publishDesign(progressCb){
     logoPath=S.brand.logo;
   }
 
-  // 2) Danışman fotoğrafları
+  // 2) Danışman fotoğrafları (KARARLI roster'dan — S.danismanlar geçici/sıralanabilir olduğu için değil)
   const danPaths={};
-  if(S.danismanlar){
-    for(let i=0;i<S.danismanlar.length;i++){
-      const d=S.danismanlar[i];
+  if(S.danismanRoster){
+    for(let i=0;i<S.danismanRoster.length;i++){
+      const d=S.danismanRoster[i];
       if(d.photo&&d.photo.startsWith('data:')){
         let img=d.photo;
         if(img.length>500000){img=await compressImage(img,300,0.82);}
         const b64=dataUrlToBase64(img);
         if(b64){
           const path='assets/danisman_'+i+'.jpg';
-          updateProgress(0,0,'Danışman '+(i+1)+'/'+S.danismanlar.length+' fotoğrafı...');
+          updateProgress(0,0,'Danışman '+(i+1)+'/'+S.danismanRoster.length+' fotoğrafı...');
           await ghPutFile(path,b64,'Update danisman '+i);
           danPaths[i]=path;
         }
@@ -2193,7 +2199,8 @@ async function publishDesign(progressCb){
   // Ağır blob'ları kaldır - artık URL'ler var
   if(slim.brand)slim.brand.logoPath=logoPath;
   if(slim.brand)slim.brand.logo=''; // base64'ü kaldır
-  if(slim.danismanlar){slim.danismanlar.forEach((d,i)=>{d.photoPath=danPaths[i]||'';d.photo='';});}
+  if(slim.danismanRoster){slim.danismanRoster.forEach((d,i)=>{d.photoPath=danPaths[i]||'';d.photo='';});}
+  if(slim.danismanlar){slim.danismanlar.forEach(d=>{d.photo='';});} // geçici liste — foto her açılışta roster'dan tazelenir
   if(slim.bg){slim.bg.imagePaths=bgPaths;slim.bg.images=[];slim.bg.video='';}
   // PDF'lerin data'sını HER ZAMAN temizle (atlanmış olsa bile - design.json küçük kalsın)
   if(slim.pdfs){
@@ -2229,6 +2236,11 @@ async function loadDesignFromCloud(){
   if(S.brand&&S.brand.logoPath&&!S.brand.logo){
     S.brand.logo=S.brand.logoPath.startsWith('http')?S.brand.logoPath:(rawBase+S.brand.logoPath);
   }
+  if(S.danismanRoster){
+    S.danismanRoster.forEach(d=>{
+      if(d.photoPath&&!d.photo){d.photo=d.photoPath.startsWith('http')?d.photoPath:(rawBase+d.photoPath);}
+    });
+  }
   if(S.danismanlar){
     S.danismanlar.forEach(d=>{
       if(d.photoPath&&!d.photo){d.photo=d.photoPath.startsWith('http')?d.photoPath:(rawBase+d.photoPath);}
@@ -2256,6 +2268,12 @@ catch(err){localStorage.removeItem(STORAGE_KEY);S=JSON.parse(JSON.stringify(DEF)
 // DEF merge için recursive
 function mergeDefaults(s,d){for(const k in d){if(s[k]===undefined||s[k]===null)s[k]=d[k];else if(typeof d[k]==='object'&&!Array.isArray(d[k])&&typeof s[k]==='object')mergeDefaults(s[k],d[k]);}}
 mergeDefaults(S,DEF);
+// GÖÇ: eski kullanıcılarda danismanRoster henüz yok — mevcut S.danismanlar'daki
+// isim/foto/renk bilgisinden bir kereye mahsus oluştur, böylece daha önce
+// yüklenmiş fotoğraflar/renkler kaybolmaz.
+if(!S.danismanRoster||!Array.isArray(S.danismanRoster)||!S.danismanRoster.length){
+  S.danismanRoster=(S.danismanlar||[]).map(d=>({name:d.name,color:d.color||'',photo:d.photo||'',photoPath:d.photoPath||''}));
+}
 if(!S.canvas||!S.canvas.layout||!Array.isArray(S.canvas.layout))S.canvas={layout:JSON.parse(JSON.stringify(DEFAULT_LAYOUT)),gridCols:12,gridRows:8};
 // Grid migration: 8x6 → 12x8 (oransal dönüşüm)
 if(S.canvas.gridCols===8&&S.canvas.gridRows===6){
@@ -2904,7 +2922,7 @@ function parseSinglePeriod(data,sheetName){
       const vocSc=vocVal!=null?pctRound(vocVal):0;
       const scores=danMetricRows.map(r=>{const v=data[r]&&data[r][nc];return v!=null?pctRound(v):0;});
       const anket=Math.round(safeNum(data[danMetricRows[0]]&&data[danMetricRows[0]][vc]));
-      const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+      const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
       danismanlar.push({name,voc:vocSc,scores,anket,color:ex?.color||defC[i%6],photo:ex?.photo||''});
     });
     const months={};
@@ -2927,7 +2945,7 @@ function parseSinglePeriod(data,sheetName){
         const dS=[];
         for(let mi=0;mi<5;mi++){const v=data[r+1+mi]&&data[r+1+mi][nc];dS.push(v!=null?pctRound(v):0);}
         const dA=Math.round(safeNum(data[r+1]&&data[r+1][vc]));
-        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
         mDan.push({name,voc:dV,scores:dS,anket:dA,color:ex?.color||defC[i%6],photo:ex?.photo||''});
       });
       months[n]={label:String(cell).trim(),voc:bayiVoc,metrics:mm,anket:mAnket,danismanlar:mDan};
@@ -3029,6 +3047,19 @@ function applyViewModeFor(cp,cm){
     S.voc.score=pd.vocScore;S.anket.toplam=pd.totalAnket;S.anket.ay=pd.totalAnket;S.anket.geri=pd.geriDonusOran||0;
     S.danismanlar=periodDan;
     S.currentShowing=`${cp} (Özet)`;
+  }
+  // Foto/renk HER ZAMAN kararlı roster'dan (S.danismanRoster) TAZE alınır — dönem/ay
+  // verisiyle birlikte gelen ESKİ (parse anındaki) foto/renk asla kullanılmaz. Böylece
+  // admin panelinde yapılan bir fotoğraf değişikliği bir sonraki veri yenilemesinde
+  // (applyViewModeFor her tetiklendiğinde) KAYBOLMAZ — asıl hata buydu.
+  if(S.danismanlar&&S.danismanlar.length){
+    if(!S.danismanRoster)S.danismanRoster=[];
+    S.danismanlar.forEach(d=>{
+      let r=S.danismanRoster.find(x=>normTR(x.name)===normTR(d.name));
+      if(!r){r={name:d.name,color:d.color||'',photo:'',photoPath:''};S.danismanRoster.push(r);}
+      if(r.color)d.color=r.color;
+      d.photo=r.photo||'';
+    });
   }
   // Danışmanları VOC'a göre sırala (en yüksek başta)
   if(S.danismanlar&&S.danismanlar.length)S.danismanlar.sort((a,b)=>(b.voc||0)-(a.voc||0));
@@ -3328,6 +3359,12 @@ function renderBgOptions(){setBgType(S.bg.type||'solid');$('kiosk-bg-pick').valu
 // İSİM ile eşleştiriyoruz — yoksa "fotoğrafı değiştirdim ama başka danışmana gitti"
 // gibi hatalar oluşur (sıra değişince eski index başka kişiyi gösterebilir).
 function findDanIdx(name){return S.danismanlar.findIndex(d=>d.name===name);}
+function findRosterIdx(name){
+  if(!S.danismanRoster)S.danismanRoster=[];
+  let idx=S.danismanRoster.findIndex(d=>normTR(d.name)===normTR(name));
+  if(idx<0){S.danismanRoster.push({name,color:'',photo:'',photoPath:''});idx=S.danismanRoster.length-1;}
+  return idx;
+}
 function danField(name,field,value){const idx=findDanIdx(name);if(idx<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}S.danismanlar[idx][field]=value;}
 function danScoreField(name,j,value){const idx=findDanIdx(name);if(idx<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}if(!S.danismanlar[idx].scores)S.danismanlar[idx].scores=[0,0,0,0,0];S.danismanlar[idx].scores[j]=value;}
 function delDan(name){const idx=findDanIdx(name);if(idx<0)return;S.danismanlar.splice(idx,1);renderDan();}
@@ -3337,15 +3374,18 @@ function renderDan(){
     const safeName=d.name.replace(/'/g,"\\'");
     const inputId='avf_'+d.name.replace(/[^a-zA-Z0-9]/g,'_');
     const tr=document.createElement('tr');
-    const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:${d.color}">${inits(d.name)}</span>`;
+    const av=d.photo?`<img src="${d.photo}">`:`<span style="font-size:11px;font-weight:700;color:var(--accent)">${inits(d.name)}</span>`;
     const sc=d.scores||[0,0,0,0,0];
-    tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('${inputId}').click()">${av}</div><input type="file" id="${inputId}" accept="image/*" style="display:none" onchange="loadAv(this,'${safeName}')"></td><td><input class="f-input" type="text" value="${d.name}" onchange="danField('${safeName}','name',this.value)"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="danField('${safeName}','voc',+this.value)"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="danScoreField('${safeName}',${j},+this.value)"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="danField('${safeName}','anket',+this.value)"></td><td><input type="color" value="${d.color}" onchange="danField('${safeName}','color',this.value)"></td><td><button class="btn btn-red btn-xs" onclick="delDan('${safeName}')">✕</button></td>`;
+    tr.innerHTML=`<td><div class="av-wrap" onclick="document.getElementById('${inputId}').click()">${av}</div><input type="file" id="${inputId}" accept="image/*" style="display:none" onchange="loadAv(this,'${safeName}')"></td><td><input class="f-input" type="text" value="${d.name}" onchange="danField('${safeName}','name',this.value)"></td><td><input class="f-input" type="number" value="${d.voc||0}" min="0" max="100" style="width:56px;color:var(--accent);font-weight:700" onchange="danField('${safeName}','voc',+this.value)"></td>${[0,1,2,3,4].map(j=>`<td><input class="f-input" type="number" value="${sc[j]||0}" min="0" max="100" onchange="danScoreField('${safeName}',${j},+this.value)"></td>`).join('')}<td><input class="f-input" type="number" value="${d.anket||0}" style="width:52px" onchange="danField('${safeName}','anket',+this.value)"></td><td><button class="btn btn-red btn-xs" onclick="delDan('${safeName}')">✕</button></td>`;
     tb.appendChild(tr);
   });
 }
+// Fotoğraf KARARLI roster'a (S.danismanRoster) yazılır — dönem/ay verisi yenilendiğinde
+// asla silinmez. Aynı anda görünen listeye (S.danismanlar) de yazılır ki değişiklik
+// bekletmeden anında ekranda görünsün.
 function loadAv(inp,name){
   const f=inp.files[0];if(!f)return;
-  if(findDanIdx(name)<0){toast('Danışman bulunamadı, liste yenilendi — tekrar deneyin',true);renderDan();return;}
+  const rIdx=findRosterIdx(name);
   const r=new FileReader();
   r.onload=async e=>{
     const dataUrl=e.target.result;
@@ -3356,24 +3396,24 @@ function loadAv(inp,name){
         let img=dataUrl;
         if(img.length>500000)img=await compressImage(img,300,0.82);
         const b64=dataUrlToBase64(img);
-        const idx=findDanIdx(name); // yükleme sırasında liste yeniden sıralanmış olabilir — tekrar bul
-        if(idx<0){toast('Danışman artık listede yok',true);return;}
-        const path='assets/danisman_'+idx+'.jpg';
+        const path='assets/danisman_'+rIdx+'.jpg';
         await ghPutFile(path,b64,'Update danisman '+name);
         const rawBase='https://raw.githubusercontent.com/'+GH_REPO+'/'+GH_BRANCH+'/';
-        S.danismanlar[idx].photo=rawBase+path+'?t='+Date.now();
-        S.danismanlar[idx].photoPath=path;
-        toast('✓ Fotoğraf yüklendi');
+        const url=rawBase+path+'?t='+Date.now();
+        S.danismanRoster[rIdx].photo=url;
+        S.danismanRoster[rIdx].photoPath=path;
+        const idx=findDanIdx(name);if(idx>=0)S.danismanlar[idx].photo=url;
+        toast('✓ Fotoğraf yüklendi ve kaydedildi');
       }catch(err){
-        // GitHub başarısız — geçici olarak base64 kullan
-        const idx=findDanIdx(name);
-        if(idx>=0)S.danismanlar[idx].photo=dataUrl;
-        toast('GitHub yükleme başarısız, geçici kaydedildi',true);
+        // GitHub başarısız — geçici olarak base64 kullan (bir sonraki "Yayına Al"da tekrar dener)
+        S.danismanRoster[rIdx].photo=dataUrl;
+        const idx=findDanIdx(name);if(idx>=0)S.danismanlar[idx].photo=dataUrl;
+        toast('GitHub yükleme başarısız, geçici kaydedildi — Yayına Al ile tekrar dene',true);
       }
     }else{
       // Token yok — base64 olarak sakla (yayına alırken yüklenir)
-      const idx=findDanIdx(name);
-      if(idx>=0)S.danismanlar[idx].photo=dataUrl;
+      S.danismanRoster[rIdx].photo=dataUrl;
+      const idx=findDanIdx(name);if(idx>=0)S.danismanlar[idx].photo=dataUrl;
     }
     renderDan();
   };
@@ -3883,7 +3923,7 @@ function renderWidgetHtml(w,preview){
       }
       const minC=w.minCard||180;
       const danThr=(S._thresholds||[])[0]||80; // Genel eşik
-      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));const safeName=d.name.replace(/'/g,"\\'");return `<div class="w-dan-card" style="--dan-color:${d.color};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33;cursor:pointer" onclick="openDanModal('${safeName}')"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}${d.geriDonus?`<span style="color:#ef4444;font-size:10px;font-weight:700"> · ↩${d.geriDonus}</span>`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
+      const cards=(S.danismanlar||[]).map(d=>{const v=d.voc||0;const displayV=Number.isInteger(v)?v:v.toFixed(1);const borderColor=v>=danThr?'#22c55e':'#ef4444';const anonIcon=d.isAnonim?'🕵️ ':'';const av=d.photo?`<img src="${d.photo}">`:(d.isAnonim?'🕵️':inits(d.name));const safeName=d.name.replace(/'/g,"\\'");return `<div class="w-dan-card" style="--dan-color:${borderColor};border:2px solid ${borderColor};box-shadow:0 0 6px ${borderColor}33;cursor:pointer" onclick="openDanModal('${safeName}')"><div class="w-dan-av">${av}</div><div class="w-dan-info"><div class="w-dan-name">${anonIcon}${d.name}</div><div class="w-dan-score"><strong>%${displayV}</strong>${d.anket?` · ${d.anket} anket`:''}${d.geriDonus?`<span style="color:#ef4444;font-size:10px;font-weight:700"> · ↩${d.geriDonus}</span>`:''}</div><div class="w-dan-bar-bg"><div class="w-dan-bar" style="width:${v}%"></div></div></div></div>`;}).join('');
       return `<div class="w-dan"><div class="w-dan-title">Danışman Performansı</div><div class="w-dan-list" style="grid-template-columns:repeat(auto-fill,minmax(${minC}px,1fr))">${cards||'<div style="color:var(--muted);font-size:11px;padding:8px">Danışman yok</div>'}</div></div>`;
     }
     case 'stats':{
@@ -4763,7 +4803,7 @@ function recalcFromRawData(){
       let ci=0;
       for(const [name,dRows] of Object.entries(danGroups)){
         const dc=calcVocScores(dRows,w);
-        const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+        const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
         danismanlar.push({name,voc:dc.vocEndeks,scores:[dc.s1,dc.s2,dc.s3,dc.s4,dc.s5],anket:dRows.length,geriDonus:dc.geriDonusCount||0,geriDonusOran:dc.geriDonusOran||0,color:ex?.color||colors[ci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
         ci++;
       }
@@ -4777,7 +4817,7 @@ function recalcFromRawData(){
         const mDan=[];let mci=0;
         for(const [name,mdRows] of Object.entries(mDanGroups)){
           const mdc=calcVocScores(mdRows,w);
-          const ex=S.danismanlar&&S.danismanlar.find(d=>normTR(d.name)===normTR(name));
+          const ex=S.danismanRoster&&S.danismanRoster.find(d=>normTR(d.name)===normTR(name));
           mDan.push({name,voc:mdc.vocEndeks,scores:[mdc.s1,mdc.s2,mdc.s3,mdc.s4,mdc.s5],anket:mdRows.length,geriDonus:mdc.geriDonusCount||0,geriDonusOran:mdc.geriDonusOran||0,color:ex?.color||colors[mci%colors.length],photo:ex?.photo||'',isAnonim:name==='ANONİM'});
           mci++;
         }
