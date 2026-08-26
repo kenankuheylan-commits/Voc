@@ -582,6 +582,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="adm-nav-item" onclick="goTab('pdfler',this)"><span class="adm-nav-icon">📄</span>PDF</div>
       <div class="adm-nav-item" onclick="goTab('calls48h',this)"><span class="adm-nav-icon">📞</span>48 Saat</div>
       <div class="adm-nav-item" onclick="goTab('egitim',this)"><span class="adm-nav-icon">🎓</span>Eğitim</div>
+      <div class="adm-nav-item" onclick="goTab('izin',this)"><span class="adm-nav-icon">🏖️</span>İzin Takip</div>
       <div class="adm-nav-item" onclick="goTab('metrikler',this)"><span class="adm-nav-icon">📊</span>Metrikler</div>
       <div class="adm-nav-item" onclick="goTab('agirliklar',this)"><span class="adm-nav-icon">⚖️</span>Ağırlıklar</div>
       <div class="adm-nav-item" onclick="goTab('gorunum',this)"><span class="adm-nav-icon">🎨</span>Görünüm</div>
@@ -777,6 +778,27 @@ body.designer-fs .designer-fs-toolbar{display:flex}
           <div id="egitim-items"></div>
           <button class="btn btn-ghost btn-sm" onclick="addEgitimRow()" style="margin-top:10px">+ Satır Ekle</button>
         </div>
+      </div>
+
+      <!-- İZİN TAKİP -->
+      <div class="tab-pane" id="tab-izin">
+        <div class="sec-title">🏖️ Personel İzin Takip</div>
+        <div class="card" id="izin-form">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Sadece admin yetkisiyle kayıt eklenir/düzenlenir/silinir — personel kendi izin talebini giremez. Kayıtlar kaydedilince otomatik olarak kiosk ekranındaki 🎓 Eğitim widget'ına, o an izinde olan personel varsa yansır.</div>
+          <div class="f-row"><label class="f-label">Personel Adı</label><input class="f-input" type="text" id="izin-personel" list="izin-personel-list" placeholder="Örn: Cengiz Aslan"><datalist id="izin-personel-list"></datalist></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="f-row"><label class="f-label">İzin Başlangıç</label><input class="f-input" type="date" id="izin-baslangic" onchange="updateIzinGunSayisiPreview()"></div>
+            <div class="f-row"><label class="f-label">İzin Bitiş</label><input class="f-input" type="date" id="izin-bitis" onchange="updateIzinGunSayisiPreview()"></div>
+          </div>
+          <div id="izin-gun-preview" style="font-size:12px;color:var(--accent);font-weight:700;margin:-4px 0 10px"></div>
+          <div class="f-row"><label class="f-label">Notlar (opsiyonel)</label><input class="f-input" type="text" id="izin-notlar" placeholder="Örn: Yıllık izin"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-accent btn-sm" id="izin-save-btn" onclick="saveIzinKaydi()">💾 Kaydet</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetIzinForm()">✕ Vazgeç / Yeni Kayıt</button>
+          </div>
+        </div>
+        <div class="sec-title" style="margin-top:22px">Kayıtlı İzinler</div>
+        <div id="izin-list" class="card" style="padding:14px"></div>
       </div>
 
       <!-- METRIKLER -->
@@ -1979,6 +2001,9 @@ async function loadAllFromSheets(){
   try{
     await loadCallsFromSheets();
   }catch(err){console.warn('48h sheets yüklenemedi:',err);}
+  try{
+    await loadIzinKayitlari();
+  }catch(err){console.warn('İzin kayıtları yüklenemedi:',err);}
   if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();
 }
 
@@ -2836,7 +2861,7 @@ function goTab(id,el){
   if(el)el.classList.add('active');
   // Designer dışı sekmeye geçilince fullscreen'ten çık
   if(id!=='designer')document.body.classList.remove('designer-fs');
-  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',agirliklar:'Ağırlıklar',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu',onaylar:'Onay Bekleyenler'};
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',izin:'İzin Takip',metrikler:'Metrikler',agirliklar:'Ağırlıklar',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu',onaylar:'Onay Bekleyenler'};
   $('adm-page-title').textContent=titles[id]||id;
   if(id==='designer')renderDesigner();
   if(id==='goster')refreshViewModeUI();
@@ -2846,6 +2871,7 @@ function goTab(id,el){
   if(id==='ticker')renderTicker();
   if(id==='calls48h')render48hAdmin();
   if(id==='egitim')renderEgitimAdmin();
+  if(id==='izin')goIzinTab();
   if(id==='metrikler')renderMetricLabels();
   if(id==='kullanicilar')renderUsersAdmin();
   if(id==='loglar')renderLogsAdmin();
@@ -3308,6 +3334,166 @@ function renderEgitimAdmin(){
 }
 function addEgitimRow(){if(!S.egitim.items)S.egitim.items=[];S.egitim.items.push({label:'',value:''});renderEgitimAdmin();}
 function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
+
+// =================================================================
+// PERSONEL İZİN TAKİP — Firestore tabanlı, SADECE admin ekler/düzenler/siler.
+// Personel kendi izin talebini giremez (böyle bir ekran yok).
+// Kayıtlar otomatik olarak kiosk'taki 🎓 Eğitim widget'ının üstüne,
+// "o an izinde olan" personel varsa görünür.
+// =================================================================
+let _izinKayitlari=[]; // {id,personelAdi,baslangic,bitis,gunSayisi,notlar}
+
+// Başlangıç/bitiş arasındaki (iki tarih dahil) gün sayısını, PAZAR günleri
+// hariç tutarak hesaplar. Örn: 7 günlük bir aralıkta 1 Pazar varsa → 6 döner.
+function calcIzinGunSayisi(baslangicStr,bitisStr){
+  if(!baslangicStr||!bitisStr)return 0;
+  const start=new Date(baslangicStr+'T00:00:00');
+  const end=new Date(bitisStr+'T00:00:00');
+  if(isNaN(start.getTime())||isNaN(end.getTime())||end<start)return 0;
+  let count=0;
+  const d=new Date(start);
+  while(d<=end){
+    if(d.getDay()!==0)count++; // 0 = Pazar
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+function updateIzinGunSayisiPreview(){
+  const el=$('izin-gun-preview');if(!el)return;
+  const bas=$('izin-baslangic')?.value,bit=$('izin-bitis')?.value;
+  if(bas&&bit){
+    const g=calcIzinGunSayisi(bas,bit);
+    el.textContent=g>0?('📅 '+g+' gün (Pazar hariç)'):(bit<bas?'⚠ Bitiş, başlangıçtan önce olamaz':'');
+  }else el.textContent='';
+}
+function fmtTarihTR(iso){
+  if(!iso)return '—';
+  const d=new Date(iso+'T00:00:00');
+  if(isNaN(d.getTime()))return '—';
+  return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short',year:'numeric'});
+}
+function izinDurum(rec){
+  const today=new Date();today.setHours(0,0,0,0);
+  const bas=new Date(rec.baslangic+'T00:00:00'),bit=new Date(rec.bitis+'T00:00:00');
+  if(today>=bas&&today<=bit)return{key:'aktif',label:'Şu An İzinde',color:'#eab308'};
+  if(today<bas)return{key:'gelecek',label:'Gelecek',color:'#22c55e'};
+  return{key:'gecmis',label:'Tamamlandı',color:'#ef4444'};
+}
+async function loadIzinKayitlari(){
+  try{
+    const snap=await fbDb.collection('izin_kayitlari').orderBy('baslangic','desc').get();
+    _izinKayitlari=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){
+    console.warn('İzin kayıtları yüklenemedi (Firestore kuralları kiosk için okumaya açık mı kontrol et):',e);
+    _izinKayitlari=[];
+  }
+}
+async function goIzinTab(){
+  // Personel adı önerileri: mevcut danışman listesinden
+  const dl=$('izin-personel-list');
+  if(dl){dl.innerHTML='';(S.danismanlar||[]).forEach(d=>{const o=document.createElement('option');o.value=d.name;dl.appendChild(o);});}
+  const list=$('izin-list');if(list)list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Yükleniyor...</div>';
+  await loadIzinKayitlari();
+  renderIzinAdmin();
+}
+function renderIzinAdmin(){
+  const list=$('izin-list');if(!list)return;
+  const canEdit=_currentRole==='admin';
+  if(!_izinKayitlari.length){list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Henüz izin kaydı yok</div>';return;}
+  const order={aktif:0,gelecek:1,gecmis:2};
+  const sorted=[..._izinKayitlari].sort((a,b)=>order[izinDurum(a).key]-order[izinDurum(b).key]||new Date(b.baslangic)-new Date(a.baslangic));
+  list.innerHTML='';
+  sorted.forEach(rec=>{
+    const st=izinDurum(rec);
+    const safeName=(rec.personelAdi||'').replace(/'/g,"\\'");
+    const card=document.createElement('div');
+    card.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-left:4px solid '+st.color+';border-radius:10px;margin-bottom:8px;flex-wrap:wrap';
+    card.innerHTML=`
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${rec.personelAdi||'—'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmtTarihTR(rec.baslangic)} → ${fmtTarihTR(rec.bitis)} · <strong>${rec.gunSayisi||0} gün</strong>${rec.notlar?' · '+rec.notlar:''}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${st.color};background:${st.color}22;padding:3px 10px;border-radius:99px;white-space:nowrap">${st.label}</span>
+      ${canEdit?`<button class="btn btn-ghost btn-xs" onclick="editIzinKaydi('${rec.id}')">✎ Düzenle</button><button class="btn btn-red btn-xs" onclick="deleteIzinKaydi('${rec.id}')">✕ Sil</button>`:''}`;
+    list.appendChild(card);
+  });
+}
+function editIzinKaydi(id){
+  if(_currentRole!=='admin'){toast('Sadece admin düzenleyebilir',true);return;}
+  const rec=_izinKayitlari.find(r=>r.id===id);if(!rec)return;
+  $('izin-personel').value=rec.personelAdi||'';
+  $('izin-baslangic').value=rec.baslangic||'';
+  $('izin-bitis').value=rec.bitis||'';
+  $('izin-notlar').value=rec.notlar||'';
+  $('izin-form').dataset.editId=id;
+  $('izin-save-btn').textContent='✓ Güncelle';
+  updateIzinGunSayisiPreview();
+  $('izin-form').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetIzinForm(){
+  ['izin-personel','izin-baslangic','izin-bitis','izin-notlar'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  const f=$('izin-form');if(f)delete f.dataset.editId;
+  const btn=$('izin-save-btn');if(btn)btn.textContent='💾 Kaydet';
+  const pv=$('izin-gun-preview');if(pv)pv.textContent='';
+}
+async function saveIzinKaydi(){
+  if(_currentRole!=='admin'){toast('Sadece admin izin kaydı ekleyebilir/düzenleyebilir',true);return;}
+  const ad=($('izin-personel')?.value||'').trim();
+  const bas=$('izin-baslangic')?.value||'';
+  const bit=$('izin-bitis')?.value||'';
+  const not=($('izin-notlar')?.value||'').trim();
+  if(!ad){toast('Personel adı zorunlu',true);return;}
+  if(!bas||!bit){toast('Başlangıç ve bitiş tarihi zorunlu',true);return;}
+  if(new Date(bit)<new Date(bas)){toast('Bitiş tarihi başlangıçtan önce olamaz',true);return;}
+  const gunSayisi=calcIzinGunSayisi(bas,bit);
+  const editId=$('izin-form')?.dataset.editId;
+  const btn=$('izin-save-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Kaydediliyor...';}
+  try{
+    if(editId){
+      await fbDb.collection('izin_kayitlari').doc(editId).update({personelAdi:ad,baslangic:bas,bitis:bit,gunSayisi,notlar:not});
+      toast('✓ İzin kaydı güncellendi');
+      logActivity('change','İzin kaydı güncellendi: '+ad+' ('+bas+' → '+bit+')');
+    }else{
+      await fbDb.collection('izin_kayitlari').add({
+        personelAdi:ad,baslangic:bas,bitis:bit,gunSayisi,notlar:not,
+        olusturmaTarihi:firebase.firestore.FieldValue.serverTimestamp(),
+        olusturanUid:_currentUser?_currentUser.uid:'',
+        olusturanAd:_currentUser?(_currentUser.displayName||_currentUser.email):''
+      });
+      toast('✓ İzin kaydı eklendi');
+      logActivity('change','Yeni izin kaydı: '+ad+' ('+bas+' → '+bit+', '+gunSayisi+' gün)');
+    }
+    resetIzinForm();
+    await loadIzinKayitlari();
+    renderIzinAdmin();
+  }catch(e){
+    console.error('İzin kaydı hatası:',e);
+    toast('Hata: '+e.message,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=editId?'✓ Güncelle':'💾 Kaydet';}
+  }
+}
+async function deleteIzinKaydi(id){
+  if(_currentRole!=='admin'){toast('Sadece admin silebilir',true);return;}
+  const rec=_izinKayitlari.find(r=>r.id===id);
+  if(!confirm((rec?rec.personelAdi+' — ':'')+'Bu izin kaydı silinsin mi?'))return;
+  try{
+    await fbDb.collection('izin_kayitlari').doc(id).delete();
+    toast('Silindi');
+    logActivity('change','İzin kaydı silindi'+(rec?': '+rec.personelAdi:''));
+    await loadIzinKayitlari();
+    renderIzinAdmin();
+  }catch(e){toast('Hata: '+e.message,true);}
+}
+// Kiosk ekranında ŞU AN izinde olan personeli döndürür — Eğitim widget'ına eklenir.
+function getAktifIzinliler(){
+  const today=new Date();today.setHours(0,0,0,0);
+  return (_izinKayitlari||[]).filter(rec=>{
+    if(!rec.baslangic||!rec.bitis)return false;
+    const bas=new Date(rec.baslangic+'T00:00:00'),bit=new Date(rec.bitis+'T00:00:00');
+    return today>=bas&&today<=bit;
+  });
+}
 
 // =================================================================
 // METRIC LABELS
@@ -3944,8 +4130,14 @@ function renderWidgetHtml(w,preview){
       return `<div class="w-trend"><div class="w-trend-title">Aylık Trend</div><div class="w-trend-chart">${cols}</div></div>`;
     }
     case 'egitim':{
+      // Şu an izinde olan personel varsa, Eğitim listesinin EN ÜSTÜNE otomatik eklenir.
+      const izinRows=(typeof getAktifIzinliler==='function'?getAktifIzinliler():[]).map(rec=>{
+        const bit=fmtTarihTR(rec.bitis);
+        return `<div class="w-egitim-row" style="background:rgba(234,179,8,0.08);border-radius:8px;padding:4px 8px;margin:-4px -8px 4px"><div class="w-egitim-ico">🏖️</div><div class="w-egitim-lbl" style="color:#eab308;font-weight:700">${rec.personelAdi||'—'} — İzinde</div><div class="w-egitim-val" style="color:#eab308">${bit}'e kadar</div></div>`;
+      }).join('');
       const rows=(S.egitim.items||[]).map(it=>`<div class="w-egitim-row"><div class="w-egitim-ico">🎓</div><div class="w-egitim-lbl">${it.label||'—'}</div><div class="w-egitim-val">${it.value||'—'}</div></div>`).join('');
-      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim'}</div><div class="w-egitim-list">${rows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
+      const allRows=izinRows+rows;
+      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim'}</div><div class="w-egitim-list">${allRows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
     }
     case 'calls48h':{
       const pick=pick48hForDisplay();
@@ -4074,6 +4266,7 @@ function computeKioskSignature(){
       calls48h:Object.keys((S.calls48h&&S.calls48h.data)||{}).map(d=>d+':'+(S.calls48h.data[d]||[]).length).join(','),
       pdfs:(S.pdfs||[]).map(p=>p.title+'|'+(p.url||'')+'|'+((p.data||'').length)).join(','),
       egitim:JSON.stringify(S.egitim),
+      izin:(_izinKayitlari||[]).map(r=>r.id+':'+r.baslangic+':'+r.bitis).join(','),
       ticker:((S.ticker&&S.ticker.items)||[]).join('|'),
       LV:JSON.stringify(LV)
     };
