@@ -774,7 +774,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="tab-pane" id="tab-egitim">
         <div class="sec-title">Eğitim Paneli</div>
         <div class="card">
-          <div class="f-row"><label class="f-label">Panel Başlığı</label><input class="f-input" type="text" id="egitim-title" value="🎓 Eğitim"></div>
+          <div class="f-row"><label class="f-label">Panel Başlığı</label><input class="f-input" type="text" id="egitim-title" value="🎓 Eğitim ve İzinler"></div>
           <div id="egitim-items"></div>
           <button class="btn btn-ghost btn-sm" onclick="addEgitimRow()" style="margin-top:10px">+ Satır Ekle</button>
         </div>
@@ -1172,7 +1172,7 @@ const DEF={
   pdfs:[],
   pdfScrollDur:25,pdfPageLimit:3,
   calls48h:{data:{},selectedDay:'auto',selectedMonth:new Date().getMonth()+1,selectedYear:new Date().getFullYear(),manualMode:false,scrollSpeed:35},
-  egitim:{title:'🎓 Eğitim',items:[]},
+  egitim:{title:'🎓 Eğitim ve İzinler',items:[]},
   ticker:{items:['VOC %93.6','Toplam 63 Anket'],speed:25},
   trend:[{label:'OCA',value:0,cur:false},{label:'ŞUB',value:89},{label:'MAR',value:86},{label:'NİS',value:94,cur:true}],
   excelData:null,
@@ -3327,13 +3327,13 @@ function pick48hForDisplay(){
 // =================================================================
 function renderEgitimAdmin(){
   const titleEl=$('egitim-title');
-  if(titleEl){titleEl.value=S.egitim.title||'🎓 Eğitim';titleEl.onchange=()=>S.egitim.title=titleEl.value;}
+  if(titleEl){titleEl.value=S.egitim.title||'🎓 Eğitim ve İzinler';titleEl.onchange=()=>S.egitim.title=titleEl.value;}
   const c=$('egitim-items');if(!c)return;
   c.innerHTML='';
   (S.egitim.items||[]).forEach((it,i)=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center';d.innerHTML=`<input class="f-input egitim-label" type="text" value="${it.label||''}" placeholder="Etiket" style="flex:1"><input class="f-input egitim-value" type="text" value="${it.value||''}" placeholder="Değer" style="flex:1"><button class="btn btn-red btn-xs" onclick="S.egitim.items.splice(${i},1);renderEgitimAdmin()">✕</button>`;c.appendChild(d);});
 }
 function addEgitimRow(){if(!S.egitim.items)S.egitim.items=[];S.egitim.items.push({label:'',value:''});renderEgitimAdmin();}
-function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
+function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim ve İzinler';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
 
 // =================================================================
 // PERSONEL İZİN TAKİP — Firestore tabanlı, SADECE admin ekler/düzenler/siler.
@@ -4132,12 +4132,12 @@ function renderWidgetHtml(w,preview){
     case 'egitim':{
       // Şu an izinde olan personel varsa, Eğitim listesinin EN ÜSTÜNE otomatik eklenir.
       const izinRows=(typeof getAktifIzinliler==='function'?getAktifIzinliler():[]).map(rec=>{
-        const bit=fmtTarihTR(rec.bitis);
-        return `<div class="w-egitim-row" style="background:rgba(234,179,8,0.08);border-radius:8px;padding:4px 8px;margin:-4px -8px 4px"><div class="w-egitim-ico">🏖️</div><div class="w-egitim-lbl" style="color:#eab308;font-weight:700">${rec.personelAdi||'—'} — İzinde</div><div class="w-egitim-val" style="color:#eab308">${bit}'e kadar</div></div>`;
+        const bas=fmtTarihTR(rec.baslangic),bit=fmtTarihTR(rec.bitis),gun=rec.gunSayisi||calcIzinGunSayisi(rec.baslangic,rec.bitis);
+        return `<div class="w-egitim-row" style="background:rgba(234,179,8,0.08);border-radius:8px;padding:4px 8px;margin:-4px -8px 4px"><div class="w-egitim-ico">🏖️</div><div class="w-egitim-lbl" style="color:#eab308;font-weight:700">${rec.personelAdi||'—'} — İzinde</div><div class="w-egitim-val" style="color:#eab308;text-align:right;line-height:1.3">${bas} → ${bit}<br><span style="font-size:0.85em;opacity:0.85">${gun} gün (toplam)</span></div></div>`;
       }).join('');
       const rows=(S.egitim.items||[]).map(it=>`<div class="w-egitim-row"><div class="w-egitim-ico">🎓</div><div class="w-egitim-lbl">${it.label||'—'}</div><div class="w-egitim-val">${it.value||'—'}</div></div>`).join('');
       const allRows=izinRows+rows;
-      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim'}</div><div class="w-egitim-list">${allRows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
+      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim ve İzinler'}</div><div class="w-egitim-list">${allRows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
     }
     case 'calls48h':{
       const pick=pick48hForDisplay();
