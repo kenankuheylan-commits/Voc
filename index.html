@@ -3229,10 +3229,11 @@ async function readCall48hFile(file){
       let sheetColors={};
       try{sheetColors=await parseXlsxColors(e.target.result);}catch(err){console.warn('Renk okuma hatası:',err);}
       const parsed={};
-      wb.SheetNames.forEach(sn=>{
-        const dayNum=parseInt(sn);
-        if(isNaN(dayNum)||dayNum<1||dayNum>31)return;
-        const sheet=wb.Sheets[sn];
+     wb.SheetNames.forEach(sn=>{
+  const dateKey=parseSheetDateName(sn);
+  if(!dateKey)return;
+
+  const sheet=wb.Sheets[sn];
         const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',blankrows:false,raw:true});
         if(rows.length<2)return;
         const colorsForSheet=sheetColors[sn]||{};
@@ -3249,7 +3250,7 @@ async function readCall48hFile(file){
           if(!mood)continue;
           items.push({skfNo:String(row[0]||'').trim(),is:String(row[1]||'').trim(),plaka:String(row[2]||'').trim(),musteri:String(row[3]||'').trim(),danisman,operator:[row[5],row[6],row[7]].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(', '),aciklama,mood:mood.key,moodLabel:mood.label,moodColor:mood.color,show:false});
         }
-        if(items.length)parsed[dayNum]=items;
+        if(items.length)parsed[dateKey]=items;
       });
       if(!Object.keys(parsed).length){showCall48hStatus('Gün bulunamadı',true);return;}
       S.calls48h.data=parsed;
