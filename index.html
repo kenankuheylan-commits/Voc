@@ -582,6 +582,7 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="adm-nav-item" onclick="goTab('pdfler',this)"><span class="adm-nav-icon">📄</span>PDF</div>
       <div class="adm-nav-item" onclick="goTab('calls48h',this)"><span class="adm-nav-icon">📞</span>48 Saat</div>
       <div class="adm-nav-item" onclick="goTab('egitim',this)"><span class="adm-nav-icon">🎓</span>Eğitim</div>
+      <div class="adm-nav-item" onclick="goTab('izin',this)"><span class="adm-nav-icon">🏖️</span>İzin Takip</div>
       <div class="adm-nav-item" onclick="goTab('metrikler',this)"><span class="adm-nav-icon">📊</span>Metrikler</div>
       <div class="adm-nav-item" onclick="goTab('agirliklar',this)"><span class="adm-nav-icon">⚖️</span>Ağırlıklar</div>
       <div class="adm-nav-item" onclick="goTab('gorunum',this)"><span class="adm-nav-icon">🎨</span>Görünüm</div>
@@ -773,10 +774,31 @@ body.designer-fs .designer-fs-toolbar{display:flex}
       <div class="tab-pane" id="tab-egitim">
         <div class="sec-title">Eğitim Paneli</div>
         <div class="card">
-          <div class="f-row"><label class="f-label">Panel Başlığı</label><input class="f-input" type="text" id="egitim-title" value="🎓 Eğitim"></div>
+          <div class="f-row"><label class="f-label">Panel Başlığı</label><input class="f-input" type="text" id="egitim-title" value="🎓 Eğitim ve İzinler"></div>
           <div id="egitim-items"></div>
           <button class="btn btn-ghost btn-sm" onclick="addEgitimRow()" style="margin-top:10px">+ Satır Ekle</button>
         </div>
+      </div>
+
+      <!-- İZİN TAKİP -->
+      <div class="tab-pane" id="tab-izin">
+        <div class="sec-title">🏖️ Personel İzin Takip</div>
+        <div class="card" id="izin-form">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Sadece admin yetkisiyle kayıt eklenir/düzenlenir/silinir — personel kendi izin talebini giremez. Kayıtlar kaydedilince otomatik olarak kiosk ekranındaki 🎓 Eğitim widget'ına, o an izinde olan personel varsa yansır.</div>
+          <div class="f-row"><label class="f-label">Personel Adı</label><input class="f-input" type="text" id="izin-personel" list="izin-personel-list" placeholder="Örn: Cengiz Aslan"><datalist id="izin-personel-list"></datalist></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="f-row"><label class="f-label">İzin Başlangıç</label><input class="f-input" type="date" id="izin-baslangic" onchange="updateIzinGunSayisiPreview()"></div>
+            <div class="f-row"><label class="f-label">İzin Bitiş</label><input class="f-input" type="date" id="izin-bitis" onchange="updateIzinGunSayisiPreview()"></div>
+          </div>
+          <div id="izin-gun-preview" style="font-size:12px;color:var(--accent);font-weight:700;margin:-4px 0 10px"></div>
+          <div class="f-row"><label class="f-label">Notlar (opsiyonel)</label><input class="f-input" type="text" id="izin-notlar" placeholder="Örn: Yıllık izin"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-accent btn-sm" id="izin-save-btn" onclick="saveIzinKaydi()">💾 Kaydet</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetIzinForm()">✕ Vazgeç / Yeni Kayıt</button>
+          </div>
+        </div>
+        <div class="sec-title" style="margin-top:22px">Kayıtlı İzinler</div>
+        <div id="izin-list" class="card" style="padding:14px"></div>
       </div>
 
       <!-- METRIKLER -->
@@ -1150,7 +1172,7 @@ const DEF={
   pdfs:[],
   pdfScrollDur:25,pdfPageLimit:3,
   calls48h:{data:{},selectedDay:'auto',selectedMonth:new Date().getMonth()+1,selectedYear:new Date().getFullYear(),manualMode:false,scrollSpeed:35},
-  egitim:{title:'🎓 Eğitim',items:[]},
+  egitim:{title:'🎓 Eğitim ve İzinler',items:[]},
   ticker:{items:['VOC %93.6','Toplam 63 Anket'],speed:25},
   trend:[{label:'OCA',value:0,cur:false},{label:'ŞUB',value:89},{label:'MAR',value:86},{label:'NİS',value:94,cur:true}],
   excelData:null,
@@ -1251,47 +1273,17 @@ function pickCommentsDate(date){
 }
 
 // ---- Tam ekran okuma modalı: 48 Saat Aramaları / Müşteri Yorumları (sadece bu cihaz) ----
-// 48 Saat verisi TAM TARİHLE tutulur: anahtar = YYYYMMDD (örn. 20261001). Böylece 01.09.2026 ile 01.10.2026 çakışmaz.
-function d48Key(d,m,y){return (+y)*10000+(+m)*100+(+d);}
-function d48Str(k){k=+k;return String(k%100).padStart(2,'0')+'.'+String(Math.floor(k/100)%100).padStart(2,'0')+'.'+Math.floor(k/10000);}
-function d48Iso(k){k=+k;return Math.floor(k/10000)+'-'+String(Math.floor(k/100)%100).padStart(2,'0')+'-'+String(k%100).padStart(2,'0');}
-function d48Norm(v){ // eski tip (1-31) gün değerini tam tarih anahtarına çevirir
-  v=+v;if(!v)return null;
-  if(v<=31){const n=new Date(),c=S.calls48h||{};return d48Key(v,c.selectedMonth||n.getMonth()+1,c.selectedYear||n.getFullYear());}
-  return v;
-}
-function d48ParseName(sn){ // sayfa adından {d,m,y} çıkarır (m,y yoksa null)
-  const t=String(sn).trim().replace(/\s+/g,' ');let m;
-  if((m=t.match(/(\d{4})[.\/\-](\d{1,2})[.\/\-](\d{1,2})/))){const r={d:+m[3],m:+m[2],y:+m[1]};return(r.d>=1&&r.d<=31&&r.m>=1&&r.m<=12)?r:null;}
-  if((m=t.match(/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/))){let y=+m[3];if(y<100)y+=2000;const r={d:+m[1],m:+m[2],y};return(r.d>=1&&r.d<=31&&r.m>=1&&r.m<=12)?r:null;}
-  let dn=null;const digits=t.replace(/\D/g,'');
-  if(/^\d+$/.test(t))dn=parseInt(t);
-  else if(digits&&digits.length<=2)dn=parseInt(digits);
-  else{const mm=t.match(/^\D*?(\d+)/);if(mm){const n=parseInt(mm[1]);if(n>=1&&n<=31)dn=n;}}
-  return(dn&&dn>=1&&dn<=31)?{d:dn,m:null,y:null}:null;
-}
-function d48MigrateLegacy(data){ // eski kayıtlı veri (anahtar 1-31) → tam tarih anahtarı
-  if(!data||typeof data!=='object')return data;
-  const keys=Object.keys(data);
-  if(!keys.some(k=>+k<=31))return data;
-  const out={};keys.forEach(k=>{out[+k<=31?d48Norm(k):k]=data[k];});return out;
-}
 function calls48hResolveDay(overrideDay){
   if(!S.calls48h||!S.calls48h.data)return null;
   const data=S.calls48h.data;
-  const ov=d48Norm(overrideDay);
-  if(ov&&data[ov])return ov;
+  if(overrideDay!==null&&overrideDay!==undefined&&data[overrideDay])return overrideDay;
+  const now=new Date();
   if(S.calls48h.selectedDay==='auto'){
-    const n=new Date(),todayKey=d48Key(n.getDate(),n.getMonth()+1,n.getFullYear());
+    const today=now.getDate();
     const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);
-    return avail.find(k=>k<=todayKey)||avail[avail.length-1]||null;
+    return avail.find(d=>d<=today)||avail[0]||null;
   }
-  return d48Norm(S.calls48h.selectedDay);
-}
-function d48Active(){ // admin tablosu için aktif gün anahtarı
-  const d=calls48hResolveDay(null);
-  if(d&&S.calls48h.data[d])return d;
-  const k=Object.keys(S.calls48h.data||{});return k.length?+k[0]:null;
+  return +S.calls48h.selectedDay;
 }
 function openWidgetFullscreen(type){
   $('k-widget-fs-modal').classList.add('open');
@@ -1305,9 +1297,7 @@ function openWidgetFullscreen(type){
     }
     _fsCal.comments={y,m};
   }else if(type==='48h'){
-    const _rd=calls48hResolveDay((LV.calls48h&&LV.calls48h.active)?LV.calls48h.day:null);
-    if(_rd)_fsCal['48h']={y:Math.floor(_rd/10000),m:(Math.floor(_rd/100)%100)-1};
-    else _fsCal['48h']={y:new Date().getFullYear(),m:new Date().getMonth()};
+    _fsCal['48h']={y:S.calls48h.selectedYear||new Date().getFullYear(),m:(S.calls48h.selectedMonth||new Date().getMonth()+1)-1};
   }
   renderWidgetFullscreen(type);
 }
@@ -1336,7 +1326,7 @@ function buildCalendarHtml(type,year,month,dataCountMap,selectedISO){
     const cnt=dataCountMap[iso]||0;
     const isSel=selectedISO===iso;
     const isToday=todayISO===iso;
-    const clickAttr=cnt?(type==='48h'?`onclick="calPick48h(${year*10000+(month+1)*100+d})"`:`onclick="calPickComments('${iso}')"`):'';
+    const clickAttr=cnt?(type==='48h'?`onclick="calPick48h(${d})"`:`onclick="calPickComments('${iso}')"`):'';
     html+=`<div class="wf-cal-cell${cnt?' has-data':''}${isSel?' selected':''}${isToday?' today':''}" ${clickAttr}>${d}${cnt?`<span class="wf-cal-cnt">${cnt}</span>`:''}</div>`;
   }
   html+='</div>';
@@ -1346,17 +1336,20 @@ function renderWidgetFullscreen(type){
   const titleEl=$('k-widget-fs-title'),pillsEl=$('k-widget-fs-pills'),listEl=$('k-widget-fs-list');
   $('k-widget-fs-modal').setAttribute('data-type',type);
   if(type==='48h'){
-    const cur=(LV.calls48h&&LV.calls48h.active)?d48Norm(LV.calls48h.day):null;
+    const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
     const c=_fsCal['48h']||{y:new Date().getFullYear(),m:new Date().getMonth()};
     const dataCountMap={};
     Object.keys((S.calls48h&&S.calls48h.data)||{}).forEach(d=>{
-      dataCountMap[d48Iso(d)]=(S.calls48h.data[d]||[]).length;
+      const iso=`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(+d).padStart(2,'0')}`;
+      dataCountMap[iso]=(S.calls48h.data[d]||[]).length;
     });
-    const selISO=cur?d48Iso(cur):null;
+    const selISO=cur?`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(cur).padStart(2,'0')}`:null;
     pillsEl.innerHTML=buildCalendarHtml('48h',c.y,c.m,dataCountMap,selISO)+
       `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPick48h(null)">🔄 Yayındaki (otomatik) güne dön</div>`;
     const day=calls48hResolveDay(cur);
-    const dateStr=day?d48Str(day):'';
+    const now=new Date();
+    const month=S.calls48h.selectedMonth||now.getMonth()+1,year=S.calls48h.selectedYear||now.getFullYear();
+    const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'';
     const items=(day&&S.calls48h.data[day])?S.calls48h.data[day]:[];
     titleEl.textContent='📞 48 Saat Aramaları — '+(dateStr||'—')+(items.length?' ('+items.length+' kayıt)':'');
     listEl.innerHTML=items.length?items.map((it,i)=>{
@@ -1461,7 +1454,7 @@ function renderSearchResults(query){
   // --- 48 Saat sonuçları ---
   callMatches.slice(0,MAXSHOW).forEach(it=>{
     const month=S.calls48h.selectedMonth||new Date().getMonth()+1,year=S.calls48h.selectedYear||new Date().getFullYear();
-    const gunStr=d48Str(it._gun);
+    const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
     const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
     const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
     const yanitBadge=it.yanit?`<span style="background:${it.yanitDurum==='OLUMLU'?'#22c55e':(it.yanitDurum==='OLUMSUZ'?'#ef4444':'#888')};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px">✎ YANITLANDI</span>`:'';
@@ -1634,7 +1627,20 @@ async function loadVocFromSheets(){
 // BJ=61 Müşteri değeri (1-5)
 // BK=62 İş kalitesi (1-5)
 // BL=63 Paranın karşılığı (1-5)
-const VOC_COL={danisman:0,musteriAd:13,musteriSoyad:14,tarih:11,aracModel:18,sase:19,q1:54,q2:60,q3:61,q4:62,q5:63,yorum:21,geriDonus:65};
+// Kolon haritası (0-bazlı) — 1 Mart 2026'dan itibaren geçerli YENİ format:
+// A=0   Danışman adı
+// M=12  Anket Kimliği (kullanılmıyor, referans için)
+// Q=16  Tarih (dönem/ay/gün hesaplamaları buradan yapılır)
+// R=17  Müşteri adı, S=18 Müşteri soyadı
+// V=21  Araç modeli
+// AD=29 Genel Memnuniyet (VARSAYIM: AE-AH'nin hemen öncesi — teyit gerekiyor)
+// AE=30 Deneyimi Kolaylaştırdı
+// AF=31 Müşteri Değeri (bana değer verdiler)
+// AG=32 İş Kalitesi (yapılan işin kalitesi)
+// AH=33 Paranın Karşılığı (ödediğim paranın karşılığı)
+// AJ=35 Geri Dönüş (Evet/Hayır)
+// AN=39 Müşteri yorumu
+const VOC_COL={danisman:0,musteriAd:17,musteriSoyad:18,tarih:16,aracModel:21,sase:24,q1:29,q2:30,q3:31,q4:32,q5:33,yorum:39,geriDonus:35};
 
 function parseVocDataSheet(rows){
   if(!rows||rows.length<2)return null;
@@ -1661,7 +1667,9 @@ function parseVocDataSheet(rows){
       }else if(rawDate instanceof Date){
         tarih=rawDate;
       }else{
-        const s=String(rawDate).trim();
+        // "3.09.2026 13:47" gibi saat eklenmiş değerlerde önce saati ayır,
+        // sadece tarih kısmını (boşluktan önceki) ayrıştır.
+        const s=String(rawDate).trim().split(' ')[0];
         // Birden fazla format dene
         // ay/gün/yıl (US): 4/1/2026
         let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
@@ -1670,7 +1678,7 @@ function parseVocDataSheet(rows){
           tarih=new Date(yr<100?yr+2000:yr,mo,dy);
         }
         if(!tarih||isNaN(tarih.getTime())){
-          // gün.ay.yıl (TR): 01.04.2026
+          // gün.ay.yıl (TR): 01.04.2026 veya 3.09.2026
           m=s.match(/^(\d{1,2})[.\-](\d{1,2})[.\-](\d{2,4})$/);
           if(m){
             const yr=parseInt(m[3]);const mo=parseInt(m[2])-1;const dy=parseInt(m[1]);
@@ -1717,7 +1725,9 @@ function parseVocDataSheet(rows){
       // BR kolonu (index 69) = yorum
       yorum:cleanYorum(String(row[VOC_COL.yorum]||'').trim()),
       // BN kolonu: YES=geri dönmedi, NO=geri döndü
-      geriDonus:String(row[VOC_COL.geriDonus]||'').trim().toUpperCase()==='NO',
+      // AJ kolonu: Türkçe "Evet"/"Hayır" — "HAYIR" = geri dönüş oldu (eski YES/NO formatındaki
+      // "NO=geri döndü" mantığıyla aynı yönde). Sonuçlar tersmiş gibi görünürse bu satır ters çevrilir.
+      geriDonus:String(row[VOC_COL.geriDonus]||'').trim().toUpperCase()==='HAYIR',
       rowIndex:r
     });
   }
@@ -1915,7 +1925,6 @@ function groupBy(arr,key){
 }
 
 // 48 Saat verisini Sheets'ten çek
-// Sayfa adı TARİH olmalı (örn. 01.10.2026). Veri tam tarihle (YYYYMMDD) tutulur, farklı aylar çakışmaz.
 // J sütununda "OLUMLU"/"OLUMSUZ"/"UYARI" yazısı var (kullanıcı manuel yazdı)
 async function loadCallsFromSheets(){
   console.log('[Sheets] 48 Saat yükleniyor...');
@@ -1923,19 +1932,45 @@ async function loadCallsFromSheets(){
   console.log('[Sheets] 48h sayfa adları:',JSON.stringify(wb.SheetNames));
   const parsed={};
   const moodMap={'OLUMSUZ':{key:'kirmizi',label:'OLUMSUZ',color:'#ef4444'},'OLUMLU':{key:'yesil',label:'OLUMLU',color:'#22c55e'},'UYARI':{key:'turuncu',label:'UYARI',color:'#f59e0b'},'TAKİPTE':{key:'turuncu',label:'TAKİPTE',color:'#f59e0b'}};
-  if(!S.calls48h)S.calls48h={};
-  const now=new Date();
-  // Sadece gün yazan eski tip sayfa adları (örn. "17") için ay/yıl: otomatikte bugün, aksi halde admindeki seçim
-  const fbM=(S.calls48h.selectedDay==='auto')?now.getMonth()+1:(S.calls48h.selectedMonth||now.getMonth()+1);
-  const fbY=(S.calls48h.selectedDay==='auto')?now.getFullYear():(S.calls48h.selectedYear||now.getFullYear());
-  for(const sn of wb.SheetNames){
-    const pd=d48ParseName(sn);
-    if(!pd){console.warn('[Sheets] tarih çıkarılamadı, atlandı:',JSON.stringify(sn));continue;}
-    const key=d48Key(pd.d,pd.m||fbM,pd.y||fbY);
-    if(parsed[key]){console.warn('[Sheets] tarih zaten alındı, atlanıyor:',sn);continue;}
-    const sheet=wb.Sheets[sn];
+  // Önce her sayfanın gün numarasını çıkar
+  const sheetDayMap=[]; // [{sn, dayNum, sheetIdx}]
+  wb.SheetNames.forEach((sn,sheetIdx)=>{
+    const trimmed=String(sn).trim().replace(/\s+/g,' ');
+    let dayNum=null;
+    // Tam sayı olabilir mi (boşluk/görünmez karakter temizleme sonrası)
+    const digitsOnly=trimmed.replace(/\D/g,'');
+    if(/^\d+$/.test(trimmed)){
+      dayNum=parseInt(trimmed);
+    }else if(digitsOnly&&digitsOnly.length<=2){
+      // Sadece rakam içeriyor ama belki gizli karakter var
+      dayNum=parseInt(digitsOnly);
+    }else{
+      // İlk sayıyı çıkar (örn "17.04", "01-Nisan")
+      const m=trimmed.match(/^\D*?(\d+)/);
+      if(m){
+        const n=parseInt(m[1]);
+        if(n>=1&&n<=31)dayNum=n;
+      }
+    }
+    if(dayNum&&dayNum>=1&&dayNum<=31){
+      sheetDayMap.push({sn,dayNum,sheetIdx});
+    }else{
+      console.warn('[Sheets] gün çıkarılamadı, atlandı:',JSON.stringify(sn));
+    }
+  });
+  console.log('[Sheets] tanınan günler:',sheetDayMap.map(x=>x.dayNum).join(', '));
+
+  // Çakışma varsa: aynı dayNum birden fazla → birinci kalır, ikinci farklı slot'a düşer
+  const usedDays=new Set();
+  for(const item of sheetDayMap){
+    let dayNum=item.dayNum;
+    if(usedDays.has(dayNum)){
+      console.warn('[Sheets] gün',dayNum,'zaten alındı, atlanıyor:',item.sn);
+      continue;
+    }
+    const sheet=wb.Sheets[item.sn];
     const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',blankrows:false,raw:true});
-    if(rows.length<2){console.warn('[Sheets]',sn,'boş');continue;}
+    if(rows.length<2){console.warn('[Sheets] gün',dayNum,'(sayfa',item.sn+') boş');continue;}
     const items=[];
     for(let r=1;r<rows.length;r++){
       const row=rows[r];
@@ -1955,7 +1990,7 @@ async function loadCallsFromSheets(){
         operator:[row[5],row[6],row[7]].filter(x=>x&&String(x).trim()).map(x=>String(x).trim()).join(', '),
         aciklama,
         mood:mood.key,moodLabel:mood.label,moodColor:mood.color,
-        sheetName:sn,
+        sheetName:item.sn,
         rowIndex:r+1, // sheetteki gerçek satır no (1-bazlı, header=1. satır)
         yanit:String(row[10]||'').trim(),       // K sütunu — personel yanıtı
         yanitDurum:String(row[11]||'').trim(),  // L sütunu — olumlu/olumsuz kodu
@@ -1963,10 +1998,12 @@ async function loadCallsFromSheets(){
       });
     }
     if(items.length){
-      parsed[key]=items;
-      console.log('[Sheets] ✓',d48Str(key),'(sayfa:',sn+'):',items.length,'kayıt');
+      parsed[dayNum]=items;
+      usedDays.add(dayNum);
+      console.log('[Sheets] ✓ gün',dayNum,'(sayfa:',item.sn+'):',items.length,'kayıt');
     }
   }
+  if(!S.calls48h)S.calls48h={};
   S.calls48h.data=parsed;
   const total=Object.values(parsed).reduce((a,b)=>a+b.length,0);
   console.log('[Sheets] 48 Saat hazır:',Object.keys(parsed).length,'gün,',total,'kayıt');
@@ -1981,6 +2018,9 @@ async function loadAllFromSheets(){
   try{
     await loadCallsFromSheets();
   }catch(err){console.warn('48h sheets yüklenemedi:',err);}
+  try{
+    await loadIzinKayitlari();
+  }catch(err){console.warn('İzin kayıtları yüklenemedi:',err);}
   if(S.excelData&&Object.keys(S.excelData).length)applyViewMode();
 }
 
@@ -2332,7 +2372,7 @@ async function restoreBigFromIdb(){
     // 48h verisi
     if(S.calls48h&&(S.calls48h.data==='__IDB__'||!S.calls48h.data||typeof S.calls48h.data==='string')){
       const cd=await idbGet('calls48h_data');
-      if(cd){try{S.calls48h.data=d48MigrateLegacy(JSON.parse(cd));}catch(e){S.calls48h.data={};}}
+      if(cd){try{S.calls48h.data=JSON.parse(cd);}catch(e){S.calls48h.data={};}}
       else S.calls48h.data={};
     }
     // Restore sonrası viewMode'u uygula - çünkü sayfa yenilendi
@@ -2838,7 +2878,7 @@ function goTab(id,el){
   if(el)el.classList.add('active');
   // Designer dışı sekmeye geçilince fullscreen'ten çık
   if(id!=='designer')document.body.classList.remove('designer-fs');
-  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',metrikler:'Metrikler',agirliklar:'Ağırlıklar',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu',onaylar:'Onay Bekleyenler'};
+  const titles={excel:'Excel',designer:'Tasarım',goster:'Gösterim',arkaplan:'Arka Plan',danismanlar:'Danışmanlar',pdfler:'PDF',calls48h:'48 Saat',egitim:'Eğitim',izin:'İzin Takip',metrikler:'Metrikler',agirliklar:'Ağırlıklar',gorunum:'Görünüm',ticker:'Ticker',ayarlar:'Ayarlar',kullanicilar:'Kullanıcılar',loglar:'Aktivite Logu',onaylar:'Onay Bekleyenler'};
   $('adm-page-title').textContent=titles[id]||id;
   if(id==='designer')renderDesigner();
   if(id==='goster')refreshViewModeUI();
@@ -2848,6 +2888,7 @@ function goTab(id,el){
   if(id==='ticker')renderTicker();
   if(id==='calls48h')render48hAdmin();
   if(id==='egitim')renderEgitimAdmin();
+  if(id==='izin')goIzinTab();
   if(id==='metrikler')renderMetricLabels();
   if(id==='kullanicilar')renderUsersAdmin();
   if(id==='loglar')renderLogsAdmin();
@@ -3173,9 +3214,8 @@ async function readCall48hFile(file){
       try{sheetColors=await parseXlsxColors(e.target.result);}catch(err){console.warn('Renk okuma hatası:',err);}
       const parsed={};
       wb.SheetNames.forEach(sn=>{
-        const pd=d48ParseName(sn);
-        if(!pd)return;
-        const dayNum=d48Key(pd.d,pd.m||S.calls48h.selectedMonth,pd.y||S.calls48h.selectedYear);
+        const dayNum=parseInt(sn);
+        if(isNaN(dayNum)||dayNum<1||dayNum>31)return;
         const sheet=wb.Sheets[sn];
         const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',blankrows:false,raw:true});
         if(rows.length<2)return;
@@ -3224,7 +3264,7 @@ function render48hAdmin(){
     tabsEl.innerHTML='';
     const days=Object.keys(S.calls48h.data||{}).map(x=>+x).sort((a,b)=>a-b);
     if(days.length===0)tabsEl.innerHTML='<div style="color:var(--muted);font-size:11px">Henüz veri yok</div>';
-    else days.forEach(d=>{const b=document.createElement('button');b.className='vmb'+(d48Norm(S.calls48h.selectedDay)===d?' active':'');b.style.padding='5px 11px';b.style.fontSize='11px';b.textContent=d48Str(d);b.onclick=()=>{S.calls48h.selectedDay=d;render48hAdmin();};tabsEl.appendChild(b);});
+    else days.forEach(d=>{const b=document.createElement('button');b.className='vmb'+(+S.calls48h.selectedDay===d?' active':'');b.style.padding='5px 11px';b.style.fontSize='11px';b.textContent=d;b.onclick=()=>{S.calls48h.selectedDay=d;render48hAdmin();};tabsEl.appendChild(b);});
   }
   const mode=modeSel?modeSel.value:'auto';
   $('call48h-day-wrap').style.display=(mode==='day'||mode==='manual')?'block':'none';
@@ -3232,12 +3272,12 @@ function render48hAdmin(){
 }
 function render48hTable(){
   const wrap=$('call48h-table-wrap');if(!wrap)return;
-  const day=S.calls48h.selectedDay==='auto'?null:d48Norm(S.calls48h.selectedDay);
+  const day=S.calls48h.selectedDay==='auto'?null:+S.calls48h.selectedDay;
   if(!S.calls48h.data||!Object.keys(S.calls48h.data).length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Henüz Excel yüklenmedi</div>';return;}
   let items=[];
   let activeDay=day;
   if(day&&S.calls48h.data[day])items=S.calls48h.data[day];
-  else if(Object.keys(S.calls48h.data).length){activeDay=d48Active();items=S.calls48h.data[activeDay]||[];}
+  else if(Object.keys(S.calls48h.data).length){activeDay=+Object.keys(S.calls48h.data)[0];items=S.calls48h.data[activeDay];}
   if(!items.length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Seçili günde kayıt yok</div>';return;}
   // Toplu seçim butonları + bilgi satırı
   const checkedCount=items.filter(x=>x.show).length;
@@ -3262,19 +3302,31 @@ function render48hTable(){
   wrap.innerHTML=html;
   wrap.querySelectorAll('.call48h-show').forEach(cb=>{cb.onchange=()=>{const idx=+cb.dataset.idx;const d=+cb.dataset.day;if(S.calls48h.data[d]&&S.calls48h.data[d][idx]){S.calls48h.data[d][idx].show=cb.checked;render48hTable();}};});
 }
-function bulk48h(val){const day=d48Active();const items=S.calls48h.data[day]||[];items.forEach(it=>it.show=val);render48hTable();toast(val?'Tümü seçildi':'Tümü bırakıldı');}
-function bulk48hMood(moodKey){const day=d48Active();const items=S.calls48h.data[day]||[];items.forEach(it=>{if(it.mood===moodKey)it.show=true;});render48hTable();toast('İşaretlendi');}
+function bulk48h(val){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>it.show=val);render48hTable();toast(val?'Tümü seçildi':'Tümü bırakıldı');}
+function bulk48hMood(moodKey){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>{if(it.mood===moodKey)it.show=true;});render48hTable();toast('İşaretlendi');}
 function pick48hForDisplay(){
   if(!S.calls48h||!S.calls48h.data)return{items:[],dateStr:''};
   const data=S.calls48h.data;
+  const now=new Date();
   let isLocal=false,day=null;
   // Bu cihaza özel yerel gün seçimi varsa (yayını etkilemez), onu kullan
-  const lv=(LV.calls48h&&LV.calls48h.active&&LV.calls48h.day)?d48Norm(LV.calls48h.day):null;
-  if(lv&&data[lv]){day=lv;isLocal=true;}
-  // Aksi halde: bugünün tarihli sayfası, yoksa bugüne en yakın geçmiş tarihli sayfa
-  if(!isLocal)day=calls48hResolveDay(null);
+  if(LV.calls48h&&LV.calls48h.active&&LV.calls48h.day&&data[+LV.calls48h.day]){
+    day=+LV.calls48h.day;isLocal=true;
+  }
+  // Otomatik modda her zaman bugünün ay/yılını kullan
+  if(S.calls48h.selectedDay==='auto'){
+    S.calls48h.selectedMonth=now.getMonth()+1;
+    S.calls48h.selectedYear=now.getFullYear();
+  }
+  const month=S.calls48h.selectedMonth||now.getMonth()+1;
+  const year=S.calls48h.selectedYear||now.getFullYear();
+  // Hangi gün gösterilecek?
+  if(!isLocal){
+    if(S.calls48h.selectedDay==='auto'){const today=now.getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
+    else day=+S.calls48h.selectedDay;
+  }
   if(!day||!data[day])return{items:[],dateStr:''};
-  const dateStr=d48Str(day)+(isLocal?' 📍 Yerel':'');
+  const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`+(isLocal?' 📍 Yerel':'');
   const allItems=data[day];
   // Manuel seçim varsa SADECE işaretli olanlar gösterilir
   const manualPicks=allItems.filter(x=>x.show);
@@ -3292,13 +3344,173 @@ function pick48hForDisplay(){
 // =================================================================
 function renderEgitimAdmin(){
   const titleEl=$('egitim-title');
-  if(titleEl){titleEl.value=S.egitim.title||'🎓 Eğitim';titleEl.onchange=()=>S.egitim.title=titleEl.value;}
+  if(titleEl){titleEl.value=S.egitim.title||'🎓 Eğitim ve İzinler';titleEl.onchange=()=>S.egitim.title=titleEl.value;}
   const c=$('egitim-items');if(!c)return;
   c.innerHTML='';
   (S.egitim.items||[]).forEach((it,i)=>{const d=document.createElement('div');d.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center';d.innerHTML=`<input class="f-input egitim-label" type="text" value="${it.label||''}" placeholder="Etiket" style="flex:1"><input class="f-input egitim-value" type="text" value="${it.value||''}" placeholder="Değer" style="flex:1"><button class="btn btn-red btn-xs" onclick="S.egitim.items.splice(${i},1);renderEgitimAdmin()">✕</button>`;c.appendChild(d);});
 }
 function addEgitimRow(){if(!S.egitim.items)S.egitim.items=[];S.egitim.items.push({label:'',value:''});renderEgitimAdmin();}
-function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
+function collectEgitim(){const titleEl=$('egitim-title');if(titleEl)S.egitim.title=titleEl.value||'🎓 Eğitim ve İzinler';const labels=document.querySelectorAll('.egitim-label');const vals=document.querySelectorAll('.egitim-value');const items=[];labels.forEach((el,i)=>{const l=el.value.trim();const v=(vals[i]?.value||'').trim();if(l||v)items.push({label:l,value:v});});S.egitim.items=items;}
+
+// =================================================================
+// PERSONEL İZİN TAKİP — Firestore tabanlı, SADECE admin ekler/düzenler/siler.
+// Personel kendi izin talebini giremez (böyle bir ekran yok).
+// Kayıtlar otomatik olarak kiosk'taki 🎓 Eğitim widget'ının üstüne,
+// "o an izinde olan" personel varsa görünür.
+// =================================================================
+let _izinKayitlari=[]; // {id,personelAdi,baslangic,bitis,gunSayisi,notlar}
+
+// Başlangıç/bitiş arasındaki (iki tarih dahil) gün sayısını, PAZAR günleri
+// hariç tutarak hesaplar. Örn: 7 günlük bir aralıkta 1 Pazar varsa → 6 döner.
+function calcIzinGunSayisi(baslangicStr,bitisStr){
+  if(!baslangicStr||!bitisStr)return 0;
+  const start=new Date(baslangicStr+'T00:00:00');
+  const end=new Date(bitisStr+'T00:00:00');
+  if(isNaN(start.getTime())||isNaN(end.getTime())||end<start)return 0;
+  let count=0;
+  const d=new Date(start);
+  while(d<=end){
+    if(d.getDay()!==0)count++; // 0 = Pazar
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+function updateIzinGunSayisiPreview(){
+  const el=$('izin-gun-preview');if(!el)return;
+  const bas=$('izin-baslangic')?.value,bit=$('izin-bitis')?.value;
+  if(bas&&bit){
+    const g=calcIzinGunSayisi(bas,bit);
+    el.textContent=g>0?('📅 '+g+' gün (Pazar hariç)'):(bit<bas?'⚠ Bitiş, başlangıçtan önce olamaz':'');
+  }else el.textContent='';
+}
+function fmtTarihTR(iso){
+  if(!iso)return '—';
+  const d=new Date(iso+'T00:00:00');
+  if(isNaN(d.getTime()))return '—';
+  return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short',year:'numeric'});
+}
+function izinDurum(rec){
+  const today=new Date();today.setHours(0,0,0,0);
+  const bas=new Date(rec.baslangic+'T00:00:00'),bit=new Date(rec.bitis+'T00:00:00');
+  if(today>=bas&&today<=bit)return{key:'aktif',label:'Şu An İzinde',color:'#eab308'};
+  if(today<bas)return{key:'gelecek',label:'Gelecek',color:'#22c55e'};
+  return{key:'gecmis',label:'Tamamlandı',color:'#ef4444'};
+}
+async function loadIzinKayitlari(){
+  try{
+    const snap=await fbDb.collection('izin_kayitlari').orderBy('baslangic','desc').get();
+    _izinKayitlari=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){
+    console.warn('İzin kayıtları yüklenemedi (Firestore kuralları kiosk için okumaya açık mı kontrol et):',e);
+    _izinKayitlari=[];
+  }
+}
+async function goIzinTab(){
+  // Personel adı önerileri: mevcut danışman listesinden
+  const dl=$('izin-personel-list');
+  if(dl){dl.innerHTML='';(S.danismanlar||[]).forEach(d=>{const o=document.createElement('option');o.value=d.name;dl.appendChild(o);});}
+  const list=$('izin-list');if(list)list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Yükleniyor...</div>';
+  await loadIzinKayitlari();
+  renderIzinAdmin();
+}
+function renderIzinAdmin(){
+  const list=$('izin-list');if(!list)return;
+  const canEdit=_currentRole==='admin';
+  if(!_izinKayitlari.length){list.innerHTML='<div style="color:var(--muted);padding:20px;text-align:center">Henüz izin kaydı yok</div>';return;}
+  const order={aktif:0,gelecek:1,gecmis:2};
+  const sorted=[..._izinKayitlari].sort((a,b)=>order[izinDurum(a).key]-order[izinDurum(b).key]||new Date(b.baslangic)-new Date(a.baslangic));
+  list.innerHTML='';
+  sorted.forEach(rec=>{
+    const st=izinDurum(rec);
+    const safeName=(rec.personelAdi||'').replace(/'/g,"\\'");
+    const card=document.createElement('div');
+    card.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-left:4px solid '+st.color+';border-radius:10px;margin-bottom:8px;flex-wrap:wrap';
+    card.innerHTML=`
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${rec.personelAdi||'—'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmtTarihTR(rec.baslangic)} → ${fmtTarihTR(rec.bitis)} · <strong>${rec.gunSayisi||0} gün</strong>${rec.notlar?' · '+rec.notlar:''}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${st.color};background:${st.color}22;padding:3px 10px;border-radius:99px;white-space:nowrap">${st.label}</span>
+      ${canEdit?`<button class="btn btn-ghost btn-xs" onclick="editIzinKaydi('${rec.id}')">✎ Düzenle</button><button class="btn btn-red btn-xs" onclick="deleteIzinKaydi('${rec.id}')">✕ Sil</button>`:''}`;
+    list.appendChild(card);
+  });
+}
+function editIzinKaydi(id){
+  if(_currentRole!=='admin'){toast('Sadece admin düzenleyebilir',true);return;}
+  const rec=_izinKayitlari.find(r=>r.id===id);if(!rec)return;
+  $('izin-personel').value=rec.personelAdi||'';
+  $('izin-baslangic').value=rec.baslangic||'';
+  $('izin-bitis').value=rec.bitis||'';
+  $('izin-notlar').value=rec.notlar||'';
+  $('izin-form').dataset.editId=id;
+  $('izin-save-btn').textContent='✓ Güncelle';
+  updateIzinGunSayisiPreview();
+  $('izin-form').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetIzinForm(){
+  ['izin-personel','izin-baslangic','izin-bitis','izin-notlar'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  const f=$('izin-form');if(f)delete f.dataset.editId;
+  const btn=$('izin-save-btn');if(btn)btn.textContent='💾 Kaydet';
+  const pv=$('izin-gun-preview');if(pv)pv.textContent='';
+}
+async function saveIzinKaydi(){
+  if(_currentRole!=='admin'){toast('Sadece admin izin kaydı ekleyebilir/düzenleyebilir',true);return;}
+  const ad=($('izin-personel')?.value||'').trim();
+  const bas=$('izin-baslangic')?.value||'';
+  const bit=$('izin-bitis')?.value||'';
+  const not=($('izin-notlar')?.value||'').trim();
+  if(!ad){toast('Personel adı zorunlu',true);return;}
+  if(!bas||!bit){toast('Başlangıç ve bitiş tarihi zorunlu',true);return;}
+  if(new Date(bit)<new Date(bas)){toast('Bitiş tarihi başlangıçtan önce olamaz',true);return;}
+  const gunSayisi=calcIzinGunSayisi(bas,bit);
+  const editId=$('izin-form')?.dataset.editId;
+  const btn=$('izin-save-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Kaydediliyor...';}
+  try{
+    if(editId){
+      await fbDb.collection('izin_kayitlari').doc(editId).update({personelAdi:ad,baslangic:bas,bitis:bit,gunSayisi,notlar:not});
+      toast('✓ İzin kaydı güncellendi');
+      logActivity('change','İzin kaydı güncellendi: '+ad+' ('+bas+' → '+bit+')');
+    }else{
+      await fbDb.collection('izin_kayitlari').add({
+        personelAdi:ad,baslangic:bas,bitis:bit,gunSayisi,notlar:not,
+        olusturmaTarihi:firebase.firestore.FieldValue.serverTimestamp(),
+        olusturanUid:_currentUser?_currentUser.uid:'',
+        olusturanAd:_currentUser?(_currentUser.displayName||_currentUser.email):''
+      });
+      toast('✓ İzin kaydı eklendi');
+      logActivity('change','Yeni izin kaydı: '+ad+' ('+bas+' → '+bit+', '+gunSayisi+' gün)');
+    }
+    resetIzinForm();
+    await loadIzinKayitlari();
+    renderIzinAdmin();
+  }catch(e){
+    console.error('İzin kaydı hatası:',e);
+    toast('Hata: '+e.message,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=editId?'✓ Güncelle':'💾 Kaydet';}
+  }
+}
+async function deleteIzinKaydi(id){
+  if(_currentRole!=='admin'){toast('Sadece admin silebilir',true);return;}
+  const rec=_izinKayitlari.find(r=>r.id===id);
+  if(!confirm((rec?rec.personelAdi+' — ':'')+'Bu izin kaydı silinsin mi?'))return;
+  try{
+    await fbDb.collection('izin_kayitlari').doc(id).delete();
+    toast('Silindi');
+    logActivity('change','İzin kaydı silindi'+(rec?': '+rec.personelAdi:''));
+    await loadIzinKayitlari();
+    renderIzinAdmin();
+  }catch(e){toast('Hata: '+e.message,true);}
+}
+// Kiosk ekranında ŞU AN izinde olan personeli döndürür — Eğitim widget'ına eklenir.
+function getAktifIzinliler(){
+  const today=new Date();today.setHours(0,0,0,0);
+  return (_izinKayitlari||[]).filter(rec=>{
+    if(!rec.baslangic||!rec.bitis)return false;
+    const bas=new Date(rec.baslangic+'T00:00:00'),bit=new Date(rec.bitis+'T00:00:00');
+    return today>=bas&&today<=bit;
+  });
+}
 
 // =================================================================
 // METRIC LABELS
@@ -3935,8 +4147,14 @@ function renderWidgetHtml(w,preview){
       return `<div class="w-trend"><div class="w-trend-title">Aylık Trend</div><div class="w-trend-chart">${cols}</div></div>`;
     }
     case 'egitim':{
+      // Şu an izinde olan personel varsa, Eğitim listesinin EN ÜSTÜNE otomatik eklenir.
+      const izinRows=(typeof getAktifIzinliler==='function'?getAktifIzinliler():[]).map(rec=>{
+        const bas=fmtTarihTR(rec.baslangic),bit=fmtTarihTR(rec.bitis),gun=rec.gunSayisi||calcIzinGunSayisi(rec.baslangic,rec.bitis);
+        return `<div class="w-egitim-row" style="background:rgba(234,179,8,0.08);border-radius:8px;padding:4px 8px;margin:-4px -8px 4px"><div class="w-egitim-ico">🏖️</div><div class="w-egitim-lbl" style="color:#eab308;font-weight:700">${rec.personelAdi||'—'} — İzinde</div><div class="w-egitim-val" style="color:#eab308;text-align:right;line-height:1.3">${bas} → ${bit}<br><span style="font-size:0.85em;opacity:0.85">${gun} gün (toplam)</span></div></div>`;
+      }).join('');
       const rows=(S.egitim.items||[]).map(it=>`<div class="w-egitim-row"><div class="w-egitim-ico">🎓</div><div class="w-egitim-lbl">${it.label||'—'}</div><div class="w-egitim-val">${it.value||'—'}</div></div>`).join('');
-      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim'}</div><div class="w-egitim-list">${rows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
+      const allRows=izinRows+rows;
+      return `<div class="w-egitim"><div class="w-egitim-title">${S.egitim.title||'🎓 Eğitim ve İzinler'}</div><div class="w-egitim-list">${allRows||'<div style="color:var(--muted);font-size:11px;padding:8px">Henüz satır eklenmedi</div>'}</div></div>`;
     }
     case 'calls48h':{
       const pick=pick48hForDisplay();
@@ -4065,6 +4283,7 @@ function computeKioskSignature(){
       calls48h:Object.keys((S.calls48h&&S.calls48h.data)||{}).map(d=>d+':'+(S.calls48h.data[d]||[]).length).join(','),
       pdfs:(S.pdfs||[]).map(p=>p.title+'|'+(p.url||'')+'|'+((p.data||'').length)).join(','),
       egitim:JSON.stringify(S.egitim),
+      izin:(_izinKayitlari||[]).map(r=>r.id+':'+r.baslangic+':'+r.bitis).join(','),
       ticker:((S.ticker&&S.ticker.items)||[]).join('|'),
       LV:JSON.stringify(LV)
     };
@@ -4552,7 +4771,7 @@ function openDanModal(danName){
         const mc=it.moodColor||'#888';
         const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':'!');
         const moodLabel=it.mood==='kirmizi'?'NEGATİF':(it.mood==='yesil'?'POZİTİF':'TAKİPTE');
-        const gunStr=d48Str(it._gun);
+        const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
         const plakaHtml=it.plaka?`<span style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">${it.plaka}</span>`:'';
         const musteriHtml=it.musteri?`<span style="font-size:11px;color:rgba(255,255,255,0.5)">👤 ${it.musteri}</span>`:'';
         return `<div style="padding:12px 14px;background:${mc}11;border:1px solid ${mc}44;border-left:3px solid ${mc};border-radius:8px">
@@ -4847,8 +5066,9 @@ function populateRaporDaySelect(){
   if(!S.calls48h||!S.calls48h.data)return;
   const days=Object.keys(S.calls48h.data).map(Number).sort((a,b)=>b-a);
   if(!days.length){sel.innerHTML='<option value="">Veri yok</option>';return;}
-  const _n=new Date(),todayKey=d48Key(_n.getDate(),_n.getMonth()+1,_n.getFullYear()),autoDay=days.find(d=>d<=todayKey)||days[days.length-1];
-  days.forEach(d=>{const opt=document.createElement('option');opt.value=d;opt.textContent=`${d48Str(d)} (${S.calls48h.data[d]?.length||0} kayıt)`;if(d===autoDay)opt.selected=true;sel.appendChild(opt);});
+  const today=new Date().getDate(),autoDay=days.find(d=>d<=today)||days[0];
+  const month=S.calls48h.selectedMonth||new Date().getMonth()+1,year=S.calls48h.selectedYear||new Date().getFullYear();
+  days.forEach(d=>{const opt=document.createElement('option');opt.value=d;opt.textContent=`${String(d).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year} (${S.calls48h.data[d]?.length||0} kayıt)`;if(d===autoDay)opt.selected=true;sel.appendChild(opt);});
 }
 function getSelectedRaporDay(){const sel=$('rapor-day-select');return(sel&&sel.value)?+sel.value:null;}
 function getRaporTarih(){return new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});}
@@ -4862,11 +5082,11 @@ function getRaporHeader(title){
 function getRaporFooter(){return `<div style="text-align:center;padding:16px;font-size:11px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.06);margin-top:16px">Bu rapor ${getRaporTarih()} tarihinde VOC Panel tarafından otomatik oluşturulmuştur.</div></div></div>`;}
 function renderCurrentRapor(){if(!_currentRaporType)return;if(_currentRaporType==='48h')render48hRapor();else if(_currentRaporType==='voc')renderVocRapor();else renderGenelRapor();const c=$('k-rapor-content');if(c)c.scrollTop=0;}
 
-function render48hRapor(){const content=$('k-rapor-content');if(!content)return;const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear();const dateStr=day?d48Str(day):'—';const allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('48 Saat Raporu — '+dateStr);if(!allItems.length){html+=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5)">📭 Seçilen güne ait veri yok.</div>`;html+=getRaporFooter();content.innerHTML=html;return;}const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length,uy=allItems.filter(x=>x.mood==='turuncu').length;html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const byDan={};allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});Object.keys(byDan).sort().forEach(dan=>{const items=byDan[dan];html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span></div>`;items.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is:''}</div>${it.aciklama?'<div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">💬 '+it.aciklama+'</div>':''}</div>`;});html+=`</div>`;});html+=`</div>`;html+=getRaporFooter();content.innerHTML=html;}
+function render48hRapor(){const content=$('k-rapor-content');if(!content)return;const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear();const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'—';const allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('48 Saat Raporu — '+dateStr);if(!allItems.length){html+=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5)">📭 Seçilen güne ait veri yok.</div>`;html+=getRaporFooter();content.innerHTML=html;return;}const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length,uy=allItems.filter(x=>x.mood==='turuncu').length;html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const byDan={};allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});Object.keys(byDan).sort().forEach(dan=>{const items=byDan[dan];html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span></div>`;items.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is:''}</div>${it.aciklama?'<div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">💬 '+it.aciklama+'</div>':''}</div>`;});html+=`</div>`;});html+=`</div>`;html+=getRaporFooter();content.innerHTML=html;}
 
 function renderVocRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];let html=getRaporHeader('VOC Raporu');html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:48px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.5);margin-top:4px">VOC ENDEKS SKORU</div><div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div><div style="font-size:9px;color:rgba(255,255,255,0.5)">Hedef:%${thr}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">Danışman Performansları</div><div class="rapor-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">`;(S.danismanlar||[]).forEach(d=>{const v=d.voc||0,dv=Number.isInteger(v)?v:v.toFixed(1),dc=v>=80?'#22c55e':'#ef4444',ic=d.isAnonim?'🕵️':'';html+=`<div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid ${dc}44;border-left:4px solid ${dc};border-radius:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:700">${ic}${d.name}</span><span style="font-size:18px;font-weight:800;color:${dc}">%${dv}</span></div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${v}%;background:${dc}"></div></div>${d.anket?`<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">${d.anket} anket</div>`:''}</div>`;});html+=`</div></div></div><div class="rapor-v2-right"><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div></div>`;html+=getRaporFooter();content.innerHTML=html;}
 
-function renderGenelRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear(),dateStr=day?d48Str(day):'—',allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('Genel Rapor');html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:42px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.5)">VOC ENDEKS — ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div>`;html+=`<div class="rapor-v2-right">`;if(allItems.length){const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length;html+=`<div class="rapor-section"><div class="rapor-section-title">📞 48 Saat — ${dateStr}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div><div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const neg=allItems.filter(x=>x.mood==='kirmizi');if(neg.length){html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}allItems.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;});html+=`</div>`;}else{html+=`<div class="rapor-section"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">📭 48 Saat verisi yok</div></div>`;}html+=`</div></div>`;html+=getRaporFooter();content.innerHTML=html;}
+function renderGenelRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear(),dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'—',allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('Genel Rapor');html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:42px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.5)">VOC ENDEKS — ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div>`;html+=`<div class="rapor-v2-right">`;if(allItems.length){const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length;html+=`<div class="rapor-section"><div class="rapor-section-title">📞 48 Saat — ${dateStr}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div><div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const neg=allItems.filter(x=>x.mood==='kirmizi');if(neg.length){html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}allItems.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;});html+=`</div>`;}else{html+=`<div class="rapor-section"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">📭 48 Saat verisi yok</div></div>`;}html+=`</div></div>`;html+=getRaporFooter();content.innerHTML=html;}
 
 function renderAnketCards(count){let html='';if(S.vocRawData&&S.vocRawData.length){const sorted=[...S.vocRawData].sort((a,b)=>b.tarih-a.tarih),show=sorted.slice(0,count),qN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];show.forEach(r=>{const ts=r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}),mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—',ic=r.danisman==='ANONİM'?'🕵️':'';const sc=[{l:qN[0]?.split(' ')[0]||'G',v:r.q1},{l:qN[1]?.split(' ')[0]||'D',v:r.q2},{l:qN[2]?.split(' ')[0]||'M',v:r.q3},{l:qN[3]?.split(' ')[0]||'K',v:r.q4},{l:qN[4]?.split(' ')[0]||'P',v:r.q5}].filter(s=>s.v>=1&&s.v<=5);html+=`<div class="rapor-new-card"><div class="rapor-new-card-head"><span style="font-size:13px;font-weight:700;color:#fff">${ic}${r.danisman}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${ts}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</div><div class="rapor-new-card-scores">`;sc.forEach(s=>{const bg=s.v===5?'rgba(34,197,94,0.2)':(s.v>=4?'rgba(245,158,11,0.2)':'rgba(239,68,68,0.2)'),clr=s.v===5?'#22c55e':(s.v>=4?'#f59e0b':'#ef4444');html+=`<span class="rapor-new-card-score" style="background:${bg};color:${clr}">${s.l}:${s.v}/5</span>`;});html+=`</div>`;if(r.yorum&&r.yorum.length>5)html+=`<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">💬 ${r.yorum.slice(0,200)}${r.yorum.length>200?'...':''}</div>`;html+=`</div>`;});}else{html+=`<div style="text-align:center;padding:30px;color:rgba(255,255,255,0.5)">📭 Ham anket verisi yok.</div>`;}return html;}
 
