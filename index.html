@@ -1089,6 +1089,42 @@ const FIREBASE_CONFIG={
 // (sistemin hiç kullanıcısı yokken ilk kurulumu yapabilmek için).
 const MASTER_ADMIN_EMAIL='kenankuheylan@gmail.com';
 
+// ── VOC (ANKET) SHEET SÜTUN HARİTASI ─────────────────────────────────
+// Renault'un anket formu ileride değişirse SADECE burayı güncelle.
+// Harfi Google Sheets'te üstteki sütun başlığında gördüğün GİBİ yaz
+// (örnek: 'Q', 'AE', 'AJ') — kod otomatik olarak doğru sütuna çevirir,
+// başka hiçbir yere dokunmana gerek yok.
+const VOC_SHEET_COLS={
+  danisman:'A',      // Danışman adı
+  marka:'B',         // Araç markası
+  atolyeTuru:'L',    // Atölye türü (Karoseri / Mekanik / Yol Yardım)
+  tarih:'Q',         // Anketin cevaplandığı tarih + saat
+  musteriAd:'R',     // Müşteri adı
+  musteriSoyad:'S',  // Müşteri soyadı
+  telefon:'T',       // Telefon numarası
+  aracModel:'V',     // Araç modeli
+  sase:'W',          // Araç şase no
+  q1:'X',            // Genel Memnuniyet
+  yorumY:'Y',        // Yorum — BİRİNCİL (asıl yorum genelde burada olur)
+  q2:'AE',           // Deneyimi Kolaylaştırdı
+  q3:'AF',           // Müşteri Olarak Bana Değer Verdiler
+  q4:'AG',           // Yapılan İşin Kalitesinden Memnunum
+  q5:'AH',           // Ödediğim Paranın Karşılığında Aldığım Hizmet
+  geriDonus:'AJ',    // "Evet" = geri dönüş YOK. "Hayır" veya başka bir şey = geri dönüş VAR.
+  yorumAN:'AN',      // Yorum — İKİNCİL/YEDEK (Y sütunu boşsa buradan alınır)
+};
+// Excel/Sheets sütun harfini (A, B, ..., Z, AA, AB, ...) 0-bazlı index'e çevirir.
+function colLetterToIndex(letter){
+  let n=0;
+  const s=String(letter).toUpperCase().trim();
+  for(let i=0;i<s.length;i++)n=n*26+(s.charCodeAt(i)-64);
+  return n-1;
+}
+// VOC_SHEET_COLS'taki harfleri otomatik index'e çevirir — kodun geri kalanı
+// bu VOC_COL'u kullanır, harf değişikliği için sadece yukarısı düzenlenir.
+const VOC_COL={};
+Object.keys(VOC_SHEET_COLS).forEach(k=>{VOC_COL[k]=colLetterToIndex(VOC_SHEET_COLS[k]);});
+
 // ── localStorage anahtarları (veri yapısı değişince sonuna versiyon eklenir) ──
 const STORAGE_KEY='kiosk_v28-20260427_vocdata';              // Ana tasarım/veri önbelleği
 const LOCAL_VIEW_KEY='ernaz_local_view_override_v1';         // Cihaza özel yerel görünüm (dönem/gün/tarih seçimi)
@@ -1201,6 +1237,25 @@ const DEF={
 // toISOString() KULLANMIYORUZ çünkü o UTC'ye çevirir ve Türkiye gibi +saat dilimlerinde
 // gece yarısı yerel tarihler bir gün geriye kayar (örn. 30 Haziran → 29 Haziran).
 function localISO(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+// 48 Saat sayfa adından (örn "01.09.2026", "1/9/2026", "2026-09-01") GERÇEK tarihi çıkarır
+// ve 'YYYY-MM-DD' anahtarı döndürür. Tanınmazsa null.
+function parseSheetDateName(sn){
+  const t=String(sn).trim().replace(/\s+/g,' ');
+  let m=t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m){const yr=+m[1],mo=+m[2],dy=+m[3];if(mo>=1&&mo<=12&&dy>=1&&dy<=31)return `${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;}
+  m=t.match(/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/);
+  if(m){let dy=+m[1],mo=+m[2],yr=+m[3];if(yr<100)yr+=2000;if(mo>=1&&mo<=12&&dy>=1&&dy<=31)return `${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;}
+  return null;
+}
+// 'YYYY-MM-DD' → '01.09.2026'
+function fmtDateKey(dk){
+  const m=String(dk||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?`${m[3]}.${m[2]}.${m[1]}`:String(dk||'');
+}
+// Geçerli tarih anahtarlarını (YYYY-MM-DD) sıralı döndürür
+function calls48hKeys(){
+  return Object.keys((S.calls48h&&S.calls48h.data)||{}).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+}
 let LV={voc:{active:false,period:'',month:''},calls48h:{active:false,day:''},comments:{active:false,date:''}};
 function loadLocalView(){try{const raw=localStorage.getItem(LOCAL_VIEW_KEY);if(raw){const parsed=JSON.parse(raw);if(parsed.voc)LV.voc=Object.assign(LV.voc,parsed.voc);if(parsed.calls48h)LV.calls48h=Object.assign(LV.calls48h,parsed.calls48h);if(parsed.comments)LV.comments=Object.assign(LV.comments,parsed.comments);}}catch(e){}}
 function saveLocalView(){try{localStorage.setItem(LOCAL_VIEW_KEY,JSON.stringify(LV));}catch(e){}}
@@ -1247,7 +1302,7 @@ function toggleInlinePicker(type,anchor){
   positionPicker(p,anchor);
 }
 function pick48hDay(day){
-  LV.calls48h=(day===null)?{active:false,day:''}:{active:true,day:String(day)};
+  LV.calls48h=(!day)?{active:false,day:''}:{active:true,day:String(day)};
   saveLocalView();closeInlinePicker();renderKiosk();
 }
 function buildVocPickerHtml(){
@@ -1276,14 +1331,15 @@ function pickCommentsDate(date){
 function calls48hResolveDay(overrideDay){
   if(!S.calls48h||!S.calls48h.data)return null;
   const data=S.calls48h.data;
-  if(overrideDay!==null&&overrideDay!==undefined&&data[overrideDay])return overrideDay;
-  const now=new Date();
-  if(S.calls48h.selectedDay==='auto'){
-    const today=now.getDate();
-    const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);
-    return avail.find(d=>d<=today)||avail[0]||null;
-  }
-  return +S.calls48h.selectedDay;
+  if(overrideDay&&data[overrideDay])return overrideDay;
+  const keys=calls48hKeys();
+  if(!keys.length)return null;
+  // Admin belirli bir tarih seçtiyse onu kullan
+  if(S.calls48h.selectedDay&&S.calls48h.selectedDay!=='auto'&&data[S.calls48h.selectedDay])return S.calls48h.selectedDay;
+  // Otomatik: bugün veya bugünden önceki EN YAKIN tarih; hiç yoksa en eski
+  const todayKey=localISO(new Date());
+  const past=keys.filter(k=>k<=todayKey);
+  return past.length?past[past.length-1]:keys[0];
 }
 function openWidgetFullscreen(type){
   $('k-widget-fs-modal').classList.add('open');
@@ -1297,7 +1353,9 @@ function openWidgetFullscreen(type){
     }
     _fsCal.comments={y,m};
   }else if(type==='48h'){
-    _fsCal['48h']={y:S.calls48h.selectedYear||new Date().getFullYear(),m:(S.calls48h.selectedMonth||new Date().getMonth()+1)-1};
+    const rk=calls48hResolveDay(LV.calls48h&&LV.calls48h.active?LV.calls48h.day:null);
+    const rd=rk?new Date(rk+'T00:00:00'):new Date();
+    _fsCal['48h']={y:rd.getFullYear(),m:rd.getMonth()};
   }
   renderWidgetFullscreen(type);
 }
@@ -1326,7 +1384,7 @@ function buildCalendarHtml(type,year,month,dataCountMap,selectedISO){
     const cnt=dataCountMap[iso]||0;
     const isSel=selectedISO===iso;
     const isToday=todayISO===iso;
-    const clickAttr=cnt?(type==='48h'?`onclick="calPick48h(${d})"`:`onclick="calPickComments('${iso}')"`):'';
+    const clickAttr=cnt?(type==='48h'?`onclick="calPick48h('${iso}')"`:`onclick="calPickComments('${iso}')"`):'';
     html+=`<div class="wf-cal-cell${cnt?' has-data':''}${isSel?' selected':''}${isToday?' today':''}" ${clickAttr}>${d}${cnt?`<span class="wf-cal-cnt">${cnt}</span>`:''}</div>`;
   }
   html+='</div>';
@@ -1336,20 +1394,17 @@ function renderWidgetFullscreen(type){
   const titleEl=$('k-widget-fs-title'),pillsEl=$('k-widget-fs-pills'),listEl=$('k-widget-fs-list');
   $('k-widget-fs-modal').setAttribute('data-type',type);
   if(type==='48h'){
-    const cur=(LV.calls48h&&LV.calls48h.active)?+LV.calls48h.day:null;
+    const cur=(LV.calls48h&&LV.calls48h.active)?LV.calls48h.day:null;
     const c=_fsCal['48h']||{y:new Date().getFullYear(),m:new Date().getMonth()};
     const dataCountMap={};
-    Object.keys((S.calls48h&&S.calls48h.data)||{}).forEach(d=>{
-      const iso=`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(+d).padStart(2,'0')}`;
-      dataCountMap[iso]=(S.calls48h.data[d]||[]).length;
+    calls48hKeys().forEach(dk=>{
+      const dd=new Date(dk+'T00:00:00');
+      if(dd.getFullYear()===c.y&&dd.getMonth()===c.m)dataCountMap[dk]=(S.calls48h.data[dk]||[]).length;
     });
-    const selISO=cur?`${c.y}-${String(c.m+1).padStart(2,'0')}-${String(cur).padStart(2,'0')}`:null;
-    pillsEl.innerHTML=buildCalendarHtml('48h',c.y,c.m,dataCountMap,selISO)+
+    pillsEl.innerHTML=buildCalendarHtml('48h',c.y,c.m,dataCountMap,cur||null)+
       `<div class="wf-cal-reset${!cur?' active':''}" onclick="calPick48h(null)">🔄 Yayındaki (otomatik) güne dön</div>`;
     const day=calls48hResolveDay(cur);
-    const now=new Date();
-    const month=S.calls48h.selectedMonth||now.getMonth()+1,year=S.calls48h.selectedYear||now.getFullYear();
-    const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'';
+    const dateStr=day?fmtDateKey(day):'';
     const items=(day&&S.calls48h.data[day])?S.calls48h.data[day]:[];
     titleEl.textContent='📞 48 Saat Aramaları — '+(dateStr||'—')+(items.length?' ('+items.length+' kayıt)':'');
     listEl.innerHTML=items.length?items.map((it,i)=>{
@@ -1439,7 +1494,7 @@ function renderSearchResults(query){
     Object.keys(S.calls48h.data).forEach(day=>{
       (S.calls48h.data[day]||[]).forEach((it,i)=>{
         const hay=normTR([it.danisman,it.musteri,it.plaka,it.skfNo,it.aciklama].filter(Boolean).join(' '));
-        if(hay.includes(q))callMatches.push({...it,_gun:+day,_idx:i});
+        if(hay.includes(q))callMatches.push({...it,_gun:day,_idx:i});
       });
     });
   }
@@ -1453,8 +1508,7 @@ function renderSearchResults(query){
   let html='';
   // --- 48 Saat sonuçları ---
   callMatches.slice(0,MAXSHOW).forEach(it=>{
-    const month=S.calls48h.selectedMonth||new Date().getMonth()+1,year=S.calls48h.selectedYear||new Date().getFullYear();
-    const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+    const gunStr=fmtDateKey(it._gun);
     const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':(it.mood==='turuncu'?'!':''));
     const plakaHtml=it.plaka?`<span class="w-48h-plaka">${it.plaka}</span>`:'';
     const yanitBadge=it.yanit?`<span style="background:${it.yanitDurum==='OLUMLU'?'#22c55e':(it.yanitDurum==='OLUMSUZ'?'#ef4444':'#888')};color:#000;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;margin-left:6px">✎ YANITLANDI</span>`:'';
@@ -1617,30 +1671,9 @@ async function loadVocFromSheets(){
 // ═══════════════════════════════════════════════════════
 // VOC DATA SHEET PARSER — Ham anket verisinden hesaplama
 // ═══════════════════════════════════════════════════════
-// Kolon haritası (0-bazlı):
-// A=0  Danışman adı
-// C=2  Müşteri adı, D=3 Müşteri soyadı
-// L=11 Tarih (ay/gün/yıl)
-// S=18 Araç modeli, T=19 Şase/VIN
-// BC=54 Genel memnuniyet (1-5)
-// BI=60 Deneyimi kolaylaştırdı (1-5)
-// BJ=61 Müşteri değeri (1-5)
-// BK=62 İş kalitesi (1-5)
-// BL=63 Paranın karşılığı (1-5)
-// Kolon haritası (0-bazlı) — 1 Mart 2026'dan itibaren geçerli YENİ format:
-// A=0   Danışman adı
-// M=12  Anket Kimliği (kullanılmıyor, referans için)
-// Q=16  Tarih (dönem/ay/gün hesaplamaları buradan yapılır)
-// R=17  Müşteri adı, S=18 Müşteri soyadı
-// V=21  Araç modeli
-// AD=29 Genel Memnuniyet (VARSAYIM: AE-AH'nin hemen öncesi — teyit gerekiyor)
-// AE=30 Deneyimi Kolaylaştırdı
-// AF=31 Müşteri Değeri (bana değer verdiler)
-// AG=32 İş Kalitesi (yapılan işin kalitesi)
-// AH=33 Paranın Karşılığı (ödediğim paranın karşılığı)
-// AJ=35 Geri Dönüş (Evet/Hayır)
-// AN=39 Müşteri yorumu
-const VOC_COL={danisman:0,musteriAd:17,musteriSoyad:18,tarih:16,aracModel:21,sase:24,q1:29,q2:30,q3:31,q4:32,q5:33,yorum:39,geriDonus:35};
+// Kolon haritası artık dosyanın EN ÜSTÜNDEKİ VOC_SHEET_COLS bloğunda —
+// değiştirmek için oraya bak, burada tekrar tanımlamıyoruz.
+// ═══════════════════════════════════════════════════════
 
 function parseVocDataSheet(rows){
   if(!rows||rows.length<2)return null;
@@ -1721,13 +1754,15 @@ function parseVocDataSheet(rows){
       yil:tarih.getFullYear(),
       aracModel:String(row[VOC_COL.aracModel]||'').trim(),
       sase:String(row[VOC_COL.sase]||'').trim(),
+      marka:String(row[VOC_COL.marka]||'').trim(),
+      atolyeTuru:String(row[VOC_COL.atolyeTuru]||'').trim(),
+      telefon:String(row[VOC_COL.telefon]||'').trim(),
       q1,q2,q3,q4,q5,
-      // BR kolonu (index 69) = yorum
-      yorum:cleanYorum(String(row[VOC_COL.yorum]||'').trim()),
-      // BN kolonu: YES=geri dönmedi, NO=geri döndü
-      // AJ kolonu: Türkçe "Evet"/"Hayır" — "HAYIR" = geri dönüş oldu (eski YES/NO formatındaki
-      // "NO=geri döndü" mantığıyla aynı yönde). Sonuçlar tersmiş gibi görünürse bu satır ters çevrilir.
-      geriDonus:String(row[VOC_COL.geriDonus]||'').trim().toUpperCase()==='HAYIR',
+      // Yorum iki farklı yerde sorulabiliyor: ÖNCE Y sütununa bak, boşsa AN'a bak.
+      yorum:cleanYorum(String(row[VOC_COL.yorumY]||'').trim())||cleanYorum(String(row[VOC_COL.yorumAN]||'').trim()),
+      // AJ kolonu: "Evet" = geri dönüş YOK. Boş DEĞİL ve "Evet" DEĞİLSE (yani "Hayır" ya da
+      // başka bir şey yazıyorsa) = geri dönüş VAR. Tamamen boşsa (hiç cevaplanmamışsa) sayılmaz.
+      geriDonus:(()=>{const v=String(row[VOC_COL.geriDonus]||'').trim().toUpperCase();return v!==''&&v!=='EVET';})(),
       rowIndex:r
     });
   }
@@ -1932,40 +1967,21 @@ async function loadCallsFromSheets(){
   console.log('[Sheets] 48h sayfa adları:',JSON.stringify(wb.SheetNames));
   const parsed={};
   const moodMap={'OLUMSUZ':{key:'kirmizi',label:'OLUMSUZ',color:'#ef4444'},'OLUMLU':{key:'yesil',label:'OLUMLU',color:'#22c55e'},'UYARI':{key:'turuncu',label:'UYARI',color:'#f59e0b'},'TAKİPTE':{key:'turuncu',label:'TAKİPTE',color:'#f59e0b'}};
-  // Önce her sayfanın gün numarasını çıkar
-  const sheetDayMap=[]; // [{sn, dayNum, sheetIdx}]
+  // Her sayfanın adından GERÇEK tarihi çıkar (sayfa adları artık tarih: 01.09.2026 gibi)
+  const sheetDayMap=[]; // [{sn, dateKey, sheetIdx}]
   wb.SheetNames.forEach((sn,sheetIdx)=>{
-    const trimmed=String(sn).trim().replace(/\s+/g,' ');
-    let dayNum=null;
-    // Tam sayı olabilir mi (boşluk/görünmez karakter temizleme sonrası)
-    const digitsOnly=trimmed.replace(/\D/g,'');
-    if(/^\d+$/.test(trimmed)){
-      dayNum=parseInt(trimmed);
-    }else if(digitsOnly&&digitsOnly.length<=2){
-      // Sadece rakam içeriyor ama belki gizli karakter var
-      dayNum=parseInt(digitsOnly);
-    }else{
-      // İlk sayıyı çıkar (örn "17.04", "01-Nisan")
-      const m=trimmed.match(/^\D*?(\d+)/);
-      if(m){
-        const n=parseInt(m[1]);
-        if(n>=1&&n<=31)dayNum=n;
-      }
-    }
-    if(dayNum&&dayNum>=1&&dayNum<=31){
-      sheetDayMap.push({sn,dayNum,sheetIdx});
-    }else{
-      console.warn('[Sheets] gün çıkarılamadı, atlandı:',JSON.stringify(sn));
-    }
+    const dateKey=parseSheetDateName(sn);
+    if(dateKey)sheetDayMap.push({sn,dateKey,sheetIdx});
+    else console.warn('[Sheets] sayfa adından tarih çıkarılamadı, atlandı:',JSON.stringify(sn));
   });
-  console.log('[Sheets] tanınan günler:',sheetDayMap.map(x=>x.dayNum).join(', '));
+  console.log('[Sheets] tanınan tarihler:',sheetDayMap.map(x=>x.dateKey).join(', '));
 
-  // Çakışma varsa: aynı dayNum birden fazla → birinci kalır, ikinci farklı slot'a düşer
+  // Aynı tarih birden fazla sayfada varsa ilki kalır
   const usedDays=new Set();
   for(const item of sheetDayMap){
-    let dayNum=item.dayNum;
+    const dayNum=item.dateKey;
     if(usedDays.has(dayNum)){
-      console.warn('[Sheets] gün',dayNum,'zaten alındı, atlanıyor:',item.sn);
+      console.warn('[Sheets] tarih',dayNum,'zaten alındı, atlanıyor:',item.sn);
       continue;
     }
     const sheet=wb.Sheets[item.sn];
@@ -2372,7 +2388,7 @@ async function restoreBigFromIdb(){
     // 48h verisi
     if(S.calls48h&&(S.calls48h.data==='__IDB__'||!S.calls48h.data||typeof S.calls48h.data==='string')){
       const cd=await idbGet('calls48h_data');
-      if(cd){try{S.calls48h.data=JSON.parse(cd);}catch(e){S.calls48h.data={};}}
+      if(cd){try{const o=JSON.parse(cd),k={};Object.keys(o).forEach(x=>{if(/^\d{4}-\d{2}-\d{2}$/.test(x))k[x]=o[x];});S.calls48h.data=k;}catch(e){S.calls48h.data={};}}
       else S.calls48h.data={};
     }
     // Restore sonrası viewMode'u uygula - çünkü sayfa yenilendi
@@ -3252,8 +3268,6 @@ function showCall48hStatus(html,err){const el=$('call48h-status');if(el){el.inne
 
 function render48hAdmin(){
   const monSel=$('call48h-month'),yrSel=$('call48h-year'),modeSel=$('call48h-mode'),spdR=$('calls-speed-range'),spdL=$('calls-speed-lbl');
-  if(monSel){monSel.value=S.calls48h.selectedMonth;monSel.onchange=()=>{S.calls48h.selectedMonth=+monSel.value;};}
-  if(yrSel){yrSel.value=S.calls48h.selectedYear;yrSel.onchange=()=>{S.calls48h.selectedYear=+yrSel.value;};}
   if(modeSel){
     modeSel.value=S.calls48h.selectedDay==='auto'?'auto':(S.calls48h.manualMode?'manual':'day');
     modeSel.onchange=()=>{const m=modeSel.value;$('call48h-day-wrap').style.display=(m==='day'||m==='manual')?'block':'none';S.calls48h.manualMode=(m==='manual');if(m==='auto')S.calls48h.selectedDay='auto';render48hTable();};
@@ -3262,9 +3276,9 @@ function render48hAdmin(){
   const tabsEl=$('call48h-day-tabs');
   if(tabsEl){
     tabsEl.innerHTML='';
-    const days=Object.keys(S.calls48h.data||{}).map(x=>+x).sort((a,b)=>a-b);
+    const days=calls48hKeys();
     if(days.length===0)tabsEl.innerHTML='<div style="color:var(--muted);font-size:11px">Henüz veri yok</div>';
-    else days.forEach(d=>{const b=document.createElement('button');b.className='vmb'+(+S.calls48h.selectedDay===d?' active':'');b.style.padding='5px 11px';b.style.fontSize='11px';b.textContent=d;b.onclick=()=>{S.calls48h.selectedDay=d;render48hAdmin();};tabsEl.appendChild(b);});
+    else days.forEach(d=>{const b=document.createElement('button');b.className='vmb'+(S.calls48h.selectedDay===d?' active':'');b.style.padding='5px 11px';b.style.fontSize='11px';b.textContent=fmtDateKey(d).slice(0,5)+'.'+d.slice(2,4);b.title=fmtDateKey(d);b.onclick=()=>{S.calls48h.selectedDay=d;render48hAdmin();};tabsEl.appendChild(b);});
   }
   const mode=modeSel?modeSel.value:'auto';
   $('call48h-day-wrap').style.display=(mode==='day'||mode==='manual')?'block':'none';
@@ -3272,12 +3286,12 @@ function render48hAdmin(){
 }
 function render48hTable(){
   const wrap=$('call48h-table-wrap');if(!wrap)return;
-  const day=S.calls48h.selectedDay==='auto'?null:+S.calls48h.selectedDay;
+  const day=S.calls48h.selectedDay==='auto'?null:S.calls48h.selectedDay;
   if(!S.calls48h.data||!Object.keys(S.calls48h.data).length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Henüz Excel yüklenmedi</div>';return;}
   let items=[];
   let activeDay=day;
   if(day&&S.calls48h.data[day])items=S.calls48h.data[day];
-  else if(Object.keys(S.calls48h.data).length){activeDay=+Object.keys(S.calls48h.data)[0];items=S.calls48h.data[activeDay];}
+  else if(calls48hKeys().length){activeDay=calls48hResolveDay(null);items=S.calls48h.data[activeDay]||[];}
   if(!items.length){wrap.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Seçili günde kayıt yok</div>';return;}
   // Toplu seçim butonları + bilgi satırı
   const checkedCount=items.filter(x=>x.show).length;
@@ -3300,33 +3314,22 @@ function render48hTable(){
   });
   html+='</tbody></table>';
   wrap.innerHTML=html;
-  wrap.querySelectorAll('.call48h-show').forEach(cb=>{cb.onchange=()=>{const idx=+cb.dataset.idx;const d=+cb.dataset.day;if(S.calls48h.data[d]&&S.calls48h.data[d][idx]){S.calls48h.data[d][idx].show=cb.checked;render48hTable();}};});
+  wrap.querySelectorAll('.call48h-show').forEach(cb=>{cb.onchange=()=>{const idx=+cb.dataset.idx;const d=cb.dataset.day;if(S.calls48h.data[d]&&S.calls48h.data[d][idx]){S.calls48h.data[d][idx].show=cb.checked;render48hTable();}};});
 }
-function bulk48h(val){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>it.show=val);render48hTable();toast(val?'Tümü seçildi':'Tümü bırakıldı');}
-function bulk48hMood(moodKey){const day=S.calls48h.selectedDay==='auto'?+Object.keys(S.calls48h.data)[0]:+S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>{if(it.mood===moodKey)it.show=true;});render48hTable();toast('İşaretlendi');}
+function bulk48h(val){const day=S.calls48h.selectedDay==='auto'?calls48hResolveDay(null):S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>it.show=val);render48hTable();toast(val?'Tümü seçildi':'Tümü bırakıldı');}
+function bulk48hMood(moodKey){const day=S.calls48h.selectedDay==='auto'?calls48hResolveDay(null):S.calls48h.selectedDay;const items=S.calls48h.data[day]||[];items.forEach(it=>{if(it.mood===moodKey)it.show=true;});render48hTable();toast('İşaretlendi');}
 function pick48hForDisplay(){
   if(!S.calls48h||!S.calls48h.data)return{items:[],dateStr:''};
   const data=S.calls48h.data;
-  const now=new Date();
   let isLocal=false,day=null;
-  // Bu cihaza özel yerel gün seçimi varsa (yayını etkilemez), onu kullan
-  if(LV.calls48h&&LV.calls48h.active&&LV.calls48h.day&&data[+LV.calls48h.day]){
-    day=+LV.calls48h.day;isLocal=true;
-  }
-  // Otomatik modda her zaman bugünün ay/yılını kullan
-  if(S.calls48h.selectedDay==='auto'){
-    S.calls48h.selectedMonth=now.getMonth()+1;
-    S.calls48h.selectedYear=now.getFullYear();
-  }
-  const month=S.calls48h.selectedMonth||now.getMonth()+1;
-  const year=S.calls48h.selectedYear||now.getFullYear();
-  // Hangi gün gösterilecek?
-  if(!isLocal){
-    if(S.calls48h.selectedDay==='auto'){const today=now.getDate();const avail=Object.keys(data).map(x=>+x).sort((a,b)=>b-a);day=avail.find(d=>d<=today)||avail[0];}
-    else day=+S.calls48h.selectedDay;
+  // Bu cihaza özel yerel tarih seçimi varsa (yayını etkilemez), onu kullan
+  if(LV.calls48h&&LV.calls48h.active&&LV.calls48h.day&&data[LV.calls48h.day]){
+    day=LV.calls48h.day;isLocal=true;
+  }else{
+    day=calls48hResolveDay(null); // admin seçimi ya da otomatik (bugün/en yakın geçmiş tarih)
   }
   if(!day||!data[day])return{items:[],dateStr:''};
-  const dateStr=`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`+(isLocal?' 📍 Yerel':'');
+  const dateStr=fmtDateKey(day)+(isLocal?' 📍 Yerel':'');
   const allItems=data[day];
   // Manuel seçim varsa SADECE işaretli olanlar gösterilir
   const manualPicks=allItems.filter(x=>x.show);
@@ -4756,7 +4759,7 @@ function openDanModal(danName){
   // --- DANIŞMANIN 48 SAAT ARAMALARI ---
   let calls48Html='';
   if(S.calls48h&&S.calls48h.data){
-    const allDays=Object.keys(S.calls48h.data).map(Number).sort((a,b)=>b-a);
+    const allDays=calls48hKeys().reverse();
     const danCalls=[];
     allDays.forEach(day=>{
       const items=S.calls48h.data[day]||[];
@@ -4765,13 +4768,11 @@ function openDanModal(danName){
       });
     });
     if(danCalls.length){
-      const month=S.calls48h.selectedMonth||new Date().getMonth()+1;
-      const year=S.calls48h.selectedYear||new Date().getFullYear();
       const callCards=danCalls.map(it=>{
         const mc=it.moodColor||'#888';
         const moodIcon=it.mood==='kirmizi'?'⚠️':(it.mood==='yesil'?'✓':'!');
         const moodLabel=it.mood==='kirmizi'?'NEGATİF':(it.mood==='yesil'?'POZİTİF':'TAKİPTE');
-        const gunStr=`${String(it._gun).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`;
+        const gunStr=fmtDateKey(it._gun);
         const plakaHtml=it.plaka?`<span style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.6);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700">${it.plaka}</span>`:'';
         const musteriHtml=it.musteri?`<span style="font-size:11px;color:rgba(255,255,255,0.5)">👤 ${it.musteri}</span>`:'';
         return `<div style="padding:12px 14px;background:${mc}11;border:1px solid ${mc}44;border-left:3px solid ${mc};border-radius:8px">
@@ -5064,13 +5065,12 @@ function raporGeri(){openRaporModal();}
 function populateRaporDaySelect(){
   const sel=$('rapor-day-select');if(!sel)return;sel.innerHTML='';
   if(!S.calls48h||!S.calls48h.data)return;
-  const days=Object.keys(S.calls48h.data).map(Number).sort((a,b)=>b-a);
+  const days=calls48hKeys().reverse();
   if(!days.length){sel.innerHTML='<option value="">Veri yok</option>';return;}
-  const today=new Date().getDate(),autoDay=days.find(d=>d<=today)||days[0];
-  const month=S.calls48h.selectedMonth||new Date().getMonth()+1,year=S.calls48h.selectedYear||new Date().getFullYear();
-  days.forEach(d=>{const opt=document.createElement('option');opt.value=d;opt.textContent=`${String(d).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year} (${S.calls48h.data[d]?.length||0} kayıt)`;if(d===autoDay)opt.selected=true;sel.appendChild(opt);});
+  const autoDay=calls48hResolveDay(null);
+  days.forEach(d=>{const opt=document.createElement('option');opt.value=d;opt.textContent=`${fmtDateKey(d)} (${S.calls48h.data[d]?.length||0} kayıt)`;if(d===autoDay)opt.selected=true;sel.appendChild(opt);});
 }
-function getSelectedRaporDay(){const sel=$('rapor-day-select');return(sel&&sel.value)?+sel.value:null;}
+function getSelectedRaporDay(){const sel=$('rapor-day-select');return(sel&&sel.value)?sel.value:null;}
 function getRaporTarih(){return new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 function getRaporHeader(title){
   const tarih=getRaporTarih(),bgImg=(S.bg&&S.bg.images&&S.bg.images.length)?S.bg.images[0]:'';
@@ -5082,11 +5082,11 @@ function getRaporHeader(title){
 function getRaporFooter(){return `<div style="text-align:center;padding:16px;font-size:11px;color:rgba(255,255,255,0.4);border-top:1px solid rgba(255,255,255,0.06);margin-top:16px">Bu rapor ${getRaporTarih()} tarihinde VOC Panel tarafından otomatik oluşturulmuştur.</div></div></div>`;}
 function renderCurrentRapor(){if(!_currentRaporType)return;if(_currentRaporType==='48h')render48hRapor();else if(_currentRaporType==='voc')renderVocRapor();else renderGenelRapor();const c=$('k-rapor-content');if(c)c.scrollTop=0;}
 
-function render48hRapor(){const content=$('k-rapor-content');if(!content)return;const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear();const dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'—';const allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('48 Saat Raporu — '+dateStr);if(!allItems.length){html+=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5)">📭 Seçilen güne ait veri yok.</div>`;html+=getRaporFooter();content.innerHTML=html;return;}const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length,uy=allItems.filter(x=>x.mood==='turuncu').length;html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const byDan={};allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});Object.keys(byDan).sort().forEach(dan=>{const items=byDan[dan];html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span></div>`;items.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is:''}</div>${it.aciklama?'<div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">💬 '+it.aciklama+'</div>':''}</div>`;});html+=`</div>`;});html+=`</div>`;html+=getRaporFooter();content.innerHTML=html;}
+function render48hRapor(){const content=$('k-rapor-content');if(!content)return;const day=getSelectedRaporDay(),__DK__=1;const dateStr=day?fmtDateKey(day):'—';const allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('48 Saat Raporu — '+dateStr);if(!allItems.length){html+=`<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.5)">📭 Seçilen güne ait veri yok.</div>`;html+=getRaporFooter();content.innerHTML=html;return;}const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length,uy=allItems.filter(x=>x.mood==='turuncu').length;html+=`<div class="rapor-section"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ Olumlu: ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ Olumsuz: ${oln}</div>${uy?`<div class="rapor-48h-badge" style="background:#f59e0b22;color:#f59e0b">! Takipte: ${uy}</div>`:''}<div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const byDan={};allItems.forEach(it=>{const d=it.danisman||'Bilinmiyor';if(!byDan[d])byDan[d]=[];byDan[d].push(it);});Object.keys(byDan).sort().forEach(dan=>{const items=byDan[dan];html+=`<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:14px;font-weight:800;color:#fff">${dan}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${items.length} kayıt</span></div>`;items.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:13px;font-weight:700;color:#fff">${it.musteri||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div><div class="rapor-48h-fullcard-meta">${it.plaka?'🚗 '+it.plaka+' ':''}${it.is?'🔧 '+it.is:''}</div>${it.aciklama?'<div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;margin-top:8px;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">💬 '+it.aciklama+'</div>':''}</div>`;});html+=`</div>`;});html+=`</div>`;html+=getRaporFooter();content.innerHTML=html;}
 
 function renderVocRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];let html=getRaporHeader('VOC Raporu');html+=`<div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:48px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.5);margin-top:4px">VOC ENDEKS SKORU</div><div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px">Toplam ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div><div style="font-size:9px;color:rgba(255,255,255,0.5)">Hedef:%${thr}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">Danışman Performansları</div><div class="rapor-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">`;(S.danismanlar||[]).forEach(d=>{const v=d.voc||0,dv=Number.isInteger(v)?v:v.toFixed(1),dc=v>=80?'#22c55e':'#ef4444',ic=d.isAnonim?'🕵️':'';html+=`<div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid ${dc}44;border-left:4px solid ${dc};border-radius:10px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:700">${ic}${d.name}</span><span style="font-size:18px;font-weight:800;color:${dc}">%${dv}</span></div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${v}%;background:${dc}"></div></div>${d.anket?`<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">${d.anket} anket</div>`:''}</div>`;});html+=`</div></div></div><div class="rapor-v2-right"><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div></div>`;html+=getRaporFooter();content.innerHTML=html;}
 
-function renderGenelRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];const day=getSelectedRaporDay(),month=S.calls48h?.selectedMonth||new Date().getMonth()+1,year=S.calls48h?.selectedYear||new Date().getFullYear(),dateStr=day?`${String(day).padStart(2,'0')}.${String(month).padStart(2,'0')}.${year}`:'—',allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('Genel Rapor');html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:42px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.5)">VOC ENDEKS — ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div>`;html+=`<div class="rapor-v2-right">`;if(allItems.length){const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length;html+=`<div class="rapor-section"><div class="rapor-section-title">📞 48 Saat — ${dateStr}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div><div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const neg=allItems.filter(x=>x.mood==='kirmizi');if(neg.length){html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}allItems.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;});html+=`</div>`;}else{html+=`<div class="rapor-section"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">📭 48 Saat verisi yok</div></div>`;}html+=`</div></div>`;html+=getRaporFooter();content.innerHTML=html;}
+function renderGenelRapor(){const content=$('k-rapor-content');if(!content)return;const anketCount=parseInt($('rapor-anket-count')?.value||10),vocScore=S.voc.score||0,displayVoc=Number.isInteger(vocScore)?vocScore:vocScore.toFixed(1),vocColor=vocScore>=83?'#22c55e':(vocScore>=80?'#f59e0b':'#ef4444'),thresholds=S._thresholds||[80,80,80,80,80];const day=getSelectedRaporDay(),__DK__=1,dateStr=day?fmtDateKey(day):'—',allItems=(day&&S.calls48h?.data?.[day])||[];let html=getRaporHeader('Genel Rapor');html+=`<div class="rapor-v2-layout"><div class="rapor-v2-left"><div class="rapor-section" style="text-align:center;border-color:${vocColor}44"><div style="font-size:42px;font-weight:900;color:${vocColor}">%${displayVoc}</div><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.5)">VOC ENDEKS — ${S.anket?.toplam||0} anket</div></div>`;html+=`<div class="rapor-section"><div class="rapor-section-title">Soru Kırılımları</div><div class="rapor-grid" style="grid-template-columns:1fr">`;(S.metrics||[]).forEach((m,i)=>{const val=m.value||0,dv=Number.isInteger(val)?val:val.toFixed(1),thr=thresholds[i]||80,cl=val>=thr?'#22c55e':'#ef4444';html+=`<div class="rapor-metric-card" style="border-left:3px solid ${cl}"><div style="min-width:55px;text-align:center"><div style="font-size:20px;font-weight:800;color:${cl}">%${dv}</div></div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:5px">${m.name}</div><div class="rapor-bar-bg"><div class="rapor-bar" style="width:${val}%;background:${cl}"></div></div></div></div>`;});html+=`</div></div><div class="rapor-section"><div class="rapor-section-title">📋 Son ${anketCount} Anket</div>`;html+=renderAnketCards(anketCount);html+=`</div></div>`;html+=`<div class="rapor-v2-right">`;if(allItems.length){const ol=allItems.filter(x=>x.mood==='yesil').length,oln=allItems.filter(x=>x.mood==='kirmizi').length;html+=`<div class="rapor-section"><div class="rapor-section-title">📞 48 Saat — ${dateStr}</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><div class="rapor-48h-badge" style="background:#22c55e22;color:#22c55e">✓ ${ol}</div><div class="rapor-48h-badge" style="background:#ef444422;color:#ef4444">⚠ ${oln}</div><div class="rapor-48h-badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5)">Toplam: ${allItems.length}</div></div>`;const neg=allItems.filter(x=>x.mood==='kirmizi');if(neg.length){html+=`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:8px">⚠ Olumsuz Yorumlar</div>`;neg.forEach(it=>{html+=`<div class="rapor-neg-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:700">${it.danisman||'—'}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${it.musteri||''}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.8);line-height:1.5">${it.aciklama||'(yok)'}</div></div>`;});html+=`</div>`;}allItems.forEach(it=>{const mc=it.moodColor||'#666';html+=`<div class="rapor-48h-fullcard" style="--card-mood-color:${mc}"><div class="rapor-48h-fullcard-head"><span style="font-size:12px;font-weight:700;color:#fff">${it.danisman||'—'}</span><span class="rapor-48h-fullcard-mood" style="background:${mc}">${it.moodLabel||it.mood}</span></div>${it.aciklama?'<div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:4px;line-height:1.4">💬 '+it.aciklama.slice(0,150)+(it.aciklama.length>150?'...':'')+'</div>':''}</div>`;});html+=`</div>`;}else{html+=`<div class="rapor-section"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4)">📭 48 Saat verisi yok</div></div>`;}html+=`</div></div>`;html+=getRaporFooter();content.innerHTML=html;}
 
 function renderAnketCards(count){let html='';if(S.vocRawData&&S.vocRawData.length){const sorted=[...S.vocRawData].sort((a,b)=>b.tarih-a.tarih),show=sorted.slice(0,count),qN=S.metricLabels||['Genel','Deneyim','Değer','Kalite','Para'];show.forEach(r=>{const ts=r.tarih.toLocaleDateString('tr-TR',{day:'numeric',month:'short'}),mu=[r.musteriAd,r.musteriSoyad].filter(Boolean).join(' ')||'—',ic=r.danisman==='ANONİM'?'🕵️':'';const sc=[{l:qN[0]?.split(' ')[0]||'G',v:r.q1},{l:qN[1]?.split(' ')[0]||'D',v:r.q2},{l:qN[2]?.split(' ')[0]||'M',v:r.q3},{l:qN[3]?.split(' ')[0]||'K',v:r.q4},{l:qN[4]?.split(' ')[0]||'P',v:r.q5}].filter(s=>s.v>=1&&s.v<=5);html+=`<div class="rapor-new-card"><div class="rapor-new-card-head"><span style="font-size:13px;font-weight:700;color:#fff">${ic}${r.danisman}</span><span style="font-size:11px;color:rgba(255,255,255,0.5)">${ts}</span></div><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:4px">👤 ${mu}${r.aracModel?' · 🚗 '+r.aracModel:''}</div><div class="rapor-new-card-scores">`;sc.forEach(s=>{const bg=s.v===5?'rgba(34,197,94,0.2)':(s.v>=4?'rgba(245,158,11,0.2)':'rgba(239,68,68,0.2)'),clr=s.v===5?'#22c55e':(s.v>=4?'#f59e0b':'#ef4444');html+=`<span class="rapor-new-card-score" style="background:${bg};color:${clr}">${s.l}:${s.v}/5</span>`;});html+=`</div>`;if(r.yorum&&r.yorum.length>5)html+=`<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;line-height:1.5;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">💬 ${r.yorum.slice(0,200)}${r.yorum.length>200?'...':''}</div>`;html+=`</div>`;});}else{html+=`<div style="text-align:center;padding:30px;color:rgba(255,255,255,0.5)">📭 Ham anket verisi yok.</div>`;}return html;}
 
